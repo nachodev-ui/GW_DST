@@ -5,7 +5,7 @@ admin web later. No production features or final screens yet.
 
 ## Stack and layout
 
-- npm workspaces; apps/mobile: Expo SDK 58, Expo Router, strict TypeScript.
+- npm workspaces; apps/mobile: Expo SDK 57, Expo Router, strict TypeScript.
 - TanStack Query: server state; Zustand: local UI state; react-hook-form + zod: forms.
 - expo-location, expo-notifications, react-native-maps (Google provider).
 - Supabase: Postgres/PostGIS, Auth, Realtime, Edge Functions, RLS.
@@ -33,6 +33,16 @@ admin web later. No production features or final screens yet.
 - Record consequential architectural choices in short ADRs.
 - Never commit or push directly to main. Work on a feature branch (feat/..., fix/..., chore/...) and leave it ready for a pull request; do not push or open PRs unless explicitly asked.
 
+## Role separation (single app now, split-ready)
+
+- Gasway ships as one app with customer and driver roles for now. Do not split it into separate apps unless explicitly asked; keep it cheap to split later.
+- Dependency direction: features -> shared/theme, never the reverse. Code in src/shared and src/theme must not import from src/features or know about a specific role.
+- Customer features and src/features/driver must not import from each other. Anything both need (Supabase client, generated DB types, zod schemas, order contracts, formatters, theme, UI primitives) goes in src/shared. Features used by both roles (e.g. tracking) keep role-specific code in separate subfolders (customer/, driver/).
+- Group routes by role in apps/mobile/app (e.g. (customer), (driver), plus auth); role guards live in layouts, not in screens.
+- Role-specific permissions and native config (especially background location, foreground services, driver-only notification channels) stay isolated in the driver feature and its own config plugin or section of app.config.ts, so they can move to a separate app unchanged. Do not add background location until the driver tracking task is requested.
+- Keep role-specific logic out of shared hooks and components; pass role-specific behaviour in through props or by composing from the feature.
+- If a change needs to break any rule above, stop and ask first.
+
 ## Chilean domain
 
 - UI text: es-CL. Currency: CLP integer pesos, displayed without decimals.
@@ -59,4 +69,4 @@ admin web later. No production features or final screens yet.
 - Make small, focused changes. Do not repeat checks already completed.
 - For the initial scaffold: at most one dependency install and one final typecheck.
 - Never run visual checks, render the app, take screenshots or open emulators unless explicitly asked.
-- If a shell command fails to start, do not retry the same shell. Switch once to cmd (cmd /c "<command>") or Git Bash (bash -lc "<command>") if available. If that also fails, stop and report the exact error; do not look for other workarounds.
+- If a shell command fails to start, retry once; if it still fails, stop and report the exact error.
