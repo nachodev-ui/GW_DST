@@ -1,4 +1,19 @@
-// Infrastructure entry point; feature routes will be added in later milestones.
+import { Redirect } from 'expo-router';
+import { useAuth } from '@/features/auth/auth-provider';
+
 export default function Index() {
-  return null;
+  const { session, zone } = useAuth();
+  return (
+    <Redirect
+      href={
+        !session
+          ? '/access'
+          : zone === 'driver'
+            ? '/driver'
+            : zone === 'pending'
+              ? '/pending'
+              : '/customer'
+      }
+    />
+  );
 }

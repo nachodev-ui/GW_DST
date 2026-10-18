@@ -6,7 +6,7 @@ const publicEnvSchema = z.object({
 });
 
 // Explicit reads are required for Expo's compile-time EXPO_PUBLIC_* substitution.
-// Lazy: the scaffold boots without configuring or contacting a backend.
+// Validated when Auth initializes; configuration errors block access safely.
 export function readPublicEnv() {
   return publicEnvSchema.parse({
     supabaseUrl: process.env.EXPO_PUBLIC_SUPABASE_URL,
