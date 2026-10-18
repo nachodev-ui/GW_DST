@@ -32,6 +32,7 @@ admin web later. No production features or final screens yet.
 - Each relevant change MUST update README.md (including Changelog) and docs/ when applicable.
 - Record consequential architectural choices in short ADRs.
 - Never commit or push directly to main. Work on a feature branch (feat/..., fix/..., chore/...) and leave it ready for a pull request; do not push or open PRs unless explicitly asked.
+- In UI and visual design tasks, the design skills (ui-ux-pro-max, frontend-design) take priority over ponytail's minimalism: commit to a distinctive visual direction, and run ui-ux-pro-max's search once at the start of the task to choose style, palette usage and layout patterns. Ponytail still applies to logic, data and refactors.
 
 ## Role separation (single app now, split-ready)
 

@@ -1,9 +1,11 @@
 import { useState } from 'react';
-import { Text, TextInput, View } from 'react-native';
+import { Platform } from 'react-native';
 import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { getSupabase } from '@/shared/supabase/client';
-import { ActionButton, AuthPage, Feedback, styles } from '@/features/auth/auth-ui';
+import { Button, Input } from '@/shared/ui/components';
+import { Text } from '@/shared/ui/text';
+import { AccessPage, AccessFeedback, styles } from '@/features/auth/access-ui';
 import {
   authErrorMessage,
   credentialsSchema,
@@ -14,11 +16,13 @@ import {
 export function AccessScreen() {
   const [register, setRegister] = useState(false);
   const [notice, setNotice] = useState('');
+  const [focusedField, setFocusedField] = useState<keyof Credentials | null>(null);
   const {
     control,
     handleSubmit,
     reset,
     setError,
+    setFocus,
     formState: { errors, isSubmitting },
   } = useForm<Credentials>({
     resolver: zodResolver(register ? registrationSchema : credentialsSchema),
@@ -29,7 +33,12 @@ export function AccessScreen() {
     try {
       const client = getSupabase();
       const result = register
-        ? await client.auth.signUp(values)
+        ? await client.auth.signUp({
+            ...values,
+            ...(Platform.OS === 'web'
+              ? { options: { emailRedirectTo: window.location.origin } }
+              : {}),
+          })
         : await client.auth.signInWithPassword(values);
       if (result.error) throw result.error;
       reset();
@@ -43,91 +52,102 @@ export function AccessScreen() {
   });
 
   return (
-    <AuthPage
-      title={register ? 'Tu cuenta, cerca de casa.' : 'Qué bueno tenerte por aquí.'}
+    <AccessPage
+      title={register ? 'Crea tu cuenta' : 'Inicia sesión'}
       description={
         register
-          ? 'Crea tu cuenta de cliente. Si quieres repartir, podrás solicitarlo al ingresar.'
-          : 'Ingresa a Gasway con tu correo y contraseña.'
+          ? 'Pide gas a distribuidores de tu zona. Si quieres repartir, podrás solicitarlo al ingresar.'
+          : 'Tu próximo pedido empieza aquí. Ingresa con tu correo y contraseña.'
+      }
+      footer={
+        <>
+          <Text variant="note" style={styles.footerText}>
+            {register ? '¿Ya eres parte de Gasway?' : '¿Primera vez en Gasway?'}
+          </Text>
+          <Button
+            variant="link"
+            label={register ? 'Iniciar sesión' : 'Crear una cuenta'}
+            disabled={isSubmitting}
+            onPress={() => {
+              setRegister(!register);
+              reset();
+              setNotice('');
+            }}
+          />
+        </>
       }
     >
-      <View style={styles.field}>
-        <Text nativeID="email-label" style={styles.label}>
-          Correo electrónico
-        </Text>
-        <Controller
-          control={control}
-          name="email"
-          render={({ field: { onChange, onBlur, value, ref } }) => (
-            <TextInput
-              ref={ref}
-              accessibilityLabel="Correo electrónico"
-              accessibilityLabelledBy="email-label"
-              style={[styles.input, !!errors.email && styles.inputError]}
-              value={value}
-              onChangeText={onChange}
-              onBlur={onBlur}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              autoCorrect={false}
-              autoComplete="email"
-              textContentType="emailAddress"
-              editable={!isSubmitting}
-              returnKeyType="next"
-            />
-          )}
-        />
-        {errors.email?.message ? <Feedback text={errors.email.message} error /> : null}
-      </View>
-      <View style={styles.field}>
-        <Text nativeID="password-label" style={styles.label}>
-          Contraseña
-        </Text>
-        <Controller
-          control={control}
-          name="password"
-          render={({ field: { onChange, onBlur, value, ref } }) => (
-            <TextInput
-              ref={ref}
-              accessibilityLabel="Contraseña"
-              accessibilityLabelledBy="password-label"
-              style={[styles.input, !!errors.password && styles.inputError]}
-              value={value}
-              onChangeText={onChange}
-              onBlur={onBlur}
-              secureTextEntry
-              autoCapitalize="none"
-              autoCorrect={false}
-              autoComplete={register ? 'new-password' : 'current-password'}
-              textContentType={register ? 'newPassword' : 'password'}
-              editable={!isSubmitting}
-              onSubmitEditing={() => void submit()}
-              returnKeyType="go"
-            />
-          )}
-        />
-        {register ? (
-          <Feedback text="Usa al menos 8 caracteres. Puedes pegar tu contraseña desde tu gestor." />
-        ) : null}
-        {errors.password?.message ? <Feedback text={errors.password.message} error /> : null}
-      </View>
-      {errors.root?.message ? <Feedback text={errors.root.message} error /> : null}
-      {notice ? <Feedback text={notice} /> : null}
-      <ActionButton
+      <Controller
+        control={control}
+        name="email"
+        render={({ field: { onChange, onBlur, value, ref } }) => (
+          <Input
+            ref={ref}
+            label="Correo electrónico"
+            error={errors.email?.message}
+            style={[styles.input, focusedField === 'email' && !errors.email && styles.inputFocused]}
+            value={value}
+            onChangeText={onChange}
+            onFocus={() => setFocusedField('email')}
+            onBlur={() => {
+              onBlur();
+              setFocusedField(null);
+            }}
+            keyboardType="email-address"
+            autoCapitalize="none"
+            autoCorrect={false}
+            autoComplete="email"
+            textContentType="emailAddress"
+            editable={!isSubmitting}
+            returnKeyType="next"
+            onSubmitEditing={() => setFocus('password')}
+            submitBehavior="submit"
+          />
+        )}
+      />
+      <Controller
+        control={control}
+        name="password"
+        render={({ field: { onChange, onBlur, value, ref } }) => (
+          <Input
+            ref={ref}
+            label="Contraseña"
+            error={errors.password?.message}
+            help={
+              register
+                ? 'Usa al menos 8 caracteres. Puedes pegar tu contraseña desde tu gestor.'
+                : ''
+            }
+            style={[
+              styles.input,
+              focusedField === 'password' && !errors.password && styles.inputFocused,
+            ]}
+            value={value}
+            onChangeText={onChange}
+            onFocus={() => setFocusedField('password')}
+            onBlur={() => {
+              onBlur();
+              setFocusedField(null);
+            }}
+            secureTextEntry
+            autoCapitalize="none"
+            autoCorrect={false}
+            autoComplete={register ? 'new-password' : 'current-password'}
+            textContentType={register ? 'newPassword' : 'password'}
+            editable={!isSubmitting}
+            onSubmitEditing={() => void submit()}
+            returnKeyType="go"
+          />
+        )}
+      />
+      {errors.root?.message ? <AccessFeedback text={errors.root.message} error /> : null}
+      {notice ? <AccessFeedback text={notice} /> : null}
+      <Button
+        style={styles.button}
         label={isSubmitting ? 'Un momento…' : register ? 'Crear mi cuenta' : 'Ingresar'}
         disabled={isSubmitting}
         onPress={() => void submit()}
       />
-      <ActionButton
-        secondary
-        label={register ? 'Ya tengo una cuenta' : 'Crear una cuenta'}
-        disabled={isSubmitting}
-        onPress={() => {
-          setRegister(!register);
-          reset();
-          setNotice('');
-        }}
-      />
-    </AuthPage>
+    </AccessPage>
   );
 }

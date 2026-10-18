@@ -10,6 +10,7 @@
   },
   "scripts": {
     "start": "npm run start --workspace @gasway/mobile",
+    "web": "npm run web --workspace @gasway/mobile",
     "android": "npm run android --workspace @gasway/mobile",
     "ios": "npm run ios --workspace @gasway/mobile",
     "typecheck": "npm run typecheck --workspace @gasway/mobile",

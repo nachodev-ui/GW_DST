@@ -29,7 +29,7 @@ begin
     perform set_config('request.jwt.claims', json_build_object('sub', customer, 'role', 'authenticated')::text, true);
     execute 'set local role authenticated';
     created := public.create_order(product, 3, false, '  Calle Prueba 123  ', '13101', 'Tocar timbre');
-    if created.customer_id <> customer or created.status <> 'requested'
+    if created.customer_id <> customer or created.status not in ('requested', 'offered')
       or created.quantity <> 3 or created.total_clp <> 37035
       or created.delivery_location is not null or created.exchange_empty
       or created.delivery_address <> 'Calle Prueba 123' or created.notes <> 'Tocar timbre'

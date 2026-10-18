@@ -31,8 +31,6 @@ export function AuthProvider({ children }: PropsWithChildren) {
   useEffect(() => {
     let active = true;
     let authEventReceived = false;
-    setReady(false);
-    setSessionError(false);
     try {
       const client = getSupabase();
       const {
@@ -75,8 +73,11 @@ export function AuthProvider({ children }: PropsWithChildren) {
         client.auth.stopAutoRefresh();
       };
     } catch {
-      setSessionError(true);
-      setReady(true);
+      queueMicrotask(() => {
+        if (!active) return;
+        setSessionError(true);
+        setReady(true);
+      });
     }
     return () => {
       active = false;
@@ -91,8 +92,11 @@ export function AuthProvider({ children }: PropsWithChildren) {
         loading: !ready || (!!session && access.isPending),
         error: sessionError || (!!session && access.isError),
         retry: async () => {
-          if (sessionError) setAttempt((value) => value + 1);
-          else await access.refetch();
+          if (sessionError) {
+            setReady(false);
+            setSessionError(false);
+            setAttempt((value) => value + 1);
+          } else await access.refetch();
         },
       }}
     >

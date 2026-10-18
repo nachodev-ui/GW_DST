@@ -9,6 +9,7 @@ const config: ExpoConfig = {
   userInterfaceStyle: 'light',
   ios: { bundleIdentifier: 'cl.gasway.mobile', supportsTablet: true },
   android: { package: 'cl.gasway.mobile' },
+  web: { bundler: 'metro' },
   plugins: [
     'expo-router',
     'expo-dev-client',

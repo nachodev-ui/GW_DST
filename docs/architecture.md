@@ -4,10 +4,10 @@
 
 Monorepo npm con una app Expo Android/iOS. El futuro panel web no se crea todavía.
 app/ contiene rutas delgadas; src/features agrupa auth, orders, tracking, driver y
-profile; auth y orders/customer están implementados; las demás features siguen reservadas. shared
+profile; auth, orders/customer y driver están implementados; las demás features siguen reservadas. shared
 contiene infraestructura compartida; theme exporta tokens semánticos propios.
 Las rutas componen AuthNavigator, AccessScreen, pedidos cliente y zonas de repartidor/espera.
-El grupo (customer) protege también enlaces directos a nuevo pedido y detalle.
+Los grupos (customer) y (driver) protegen también enlaces directos a sus pantallas.
 Primitivas visuales compartidas viven en shared/ui; contratos neutrales en shared/orders.
 
 TanStack Query mantiene el acceso remoto, indexado por usuario, con validación zod.
@@ -16,12 +16,16 @@ react-hook-form + zod validan credenciales. AppProviders inicializa QueryClient,
 SafeAreaProvider y AuthProvider. El cliente shared/supabase usa URL y publishable key
 públicas. SecureStore cifra fragmentos de sesión en Android/iOS, con manifiesto
 publicado al terminar la escritura; web conserva sesión solo en memoria.
+La web usa Metro únicamente para pruebas de desarrollo. SecureStore no recibe
+operaciones en web; ubicación, notificaciones y mapas no se importan en los flujos
+actuales. El registro web retorna al origen del navegador autorizado en Supabase y
+la entrega se confirma con el diálogo del navegador. Android/iOS conservan su comportamiento.
 El refresco sigue AppState y las consultas se pausan en segundo plano. Eventos Auth
 limpian caché para evitar compartir datos entre identidades; errores bloquean el guard.
 Stack.Protected restringe cada ruta y elimina del historial las rutas no autorizadas.
 La zona driver exige rol driver y aprobación; solicitudes o estados incompletos
 van a espera. Se reconsulta al volver, cada 30 segundos en primer plano y manualmente.
-La migración Auth se entrega sin aplicar; falta validar SQL y generar tipos reales.
+La migración Auth está aplicada según el usuario; falta validar su suite y generar tipos reales.
 
 ## Backend y confianza
 
@@ -31,16 +35,17 @@ activado en todas las tablas públicas, incluido el catálogo de comunas, y en l
 restringen al cliente a lecturas autorizadas, edición de campos seguros de su perfil
 y publicación de su propia ubicación cuando el repartidor está verificado.
 
-| Datos                | Lectura móvil                                    | Escritura móvil                            |
-| -------------------- | ------------------------------------------------ | ------------------------------------------ |
-| profiles             | Propio                                           | display_name, rut, commune_code propios    |
-| drivers              | Propio                                           | Solo RPC de solicitud pendiente            |
-| products             | Catálogo activo autenticado                      | Ninguna                                    |
-| orders               | Cliente o repartidor asignado                    | RPC create_order/cancel_order/accept_order |
-| communes             | Catálogo CUT autenticado                         | Ninguna                                    |
-| order_events         | Participantes del pedido                         | Ninguna                                    |
-| driver_locations     | Propia / cliente con pedido activo de ese driver | Driver verificado, propia                  |
-| private.order_offers | Ninguna                                          | Ninguna                                    |
+| Datos                | Lectura móvil                                    | Escritura móvil                                                        |
+| -------------------- | ------------------------------------------------ | ---------------------------------------------------------------------- |
+| profiles             | Propio                                           | display_name, rut, commune_code propios                                |
+| drivers              | Propio                                           | RPC de solicitud pendiente y disponibilidad                            |
+| driver_communes      | Propia                                           | RPC set_driver_settings                                                |
+| products             | Catálogo activo autenticado                      | Ninguna                                                                |
+| orders               | Cliente o repartidor asignado                    | RPC create_order/cancel_order/accept_driver_offer/advance_driver_order |
+| communes             | Catálogo CUT autenticado                         | Ninguna                                                                |
+| order_events         | Participantes del pedido                         | Ninguna                                                                |
+| driver_locations     | Propia / cliente con pedido activo de ese driver | Driver verificado, propia                                              |
+| private.order_offers | Ninguna                                          | Ninguna                                                                |
 
 No se habilitan escrituras generales para completar features todavía ausentes.
 Precios, aprobación, ofertas y demás transiciones requieren operaciones confiables;
@@ -53,7 +58,7 @@ SECURITY DEFINER, con search_path vacío y EXECUTE solo para authenticated. Toma
 identidad exclusivamente de auth.uid(), inserta pendiente/no disponible y no cambia
 el rol. ON CONFLICT DO NOTHING preserva aprobaciones ante reintentos. La aprobación
 administrativa debe actualizar rol y verificación juntos en una transacción confiable.
-Ver ADR 0005 para Auth y ADR 0006 para el flujo posterior de pedidos cliente.
+Ver ADR 0005 para Auth, ADR 0006 para pedidos cliente y ADR 0007 para ofertas del repartidor.
 
 La implementación SECURITY DEFINER de aceptación vive en private, fuera del esquema
 API. search_path vacío, nombres calificados, identidad tomada de auth.uid(), grants de
@@ -62,13 +67,28 @@ La función pública es un wrapper SECURITY INVOKER. La concesión de USAGE sobr
 no expone sus tablas a PostgREST ni da lectura a las ofertas.
 
 La aceptación condicional y el evento se confirman juntos. Se bloquea también la fila
-del driver y existe un índice único parcial de pedidos activos. No se implementa matching,
-fan-out push, websockets de aplicación ni una máquina de estados móvil.
+del driver y existe un índice único parcial de pedidos activos. El despacho usa comunas
+CUT y ofertas de 60 s. list_driver_offers entrega solo el resumen sin PII; accept_driver_offer
+reutiliza la aceptación y get_driver_order entrega datos privados solo al asignado.
+El rechazo vence la oferta propia. No se implementan matching geográfico, push ni tracking.
 
 Realtime publica orders, order_events y driver_locations. Las lecturas se sujetan a RLS;
-no publicar perfiles ni ofertas internas. El despacho futuro debe enviar ofertas con
-mínimos datos (sin dirección precisa) por un canal privado/endpoint autorizado.
+no publicar perfiles ni ofertas internas. Las ofertas se consultan por RPC autorizada
+con polling de 5 s solo con pantalla enfocada y AppState activo, validación zod y
+caché por usuario. La dirección se entrega tras aceptar. Ver ADR 0007.
 No crear canales públicos de coordenadas ni depender de notificaciones para consistencia.
+
+advance_driver_order verifica rol/aprobación y asignación, bloquea driver y pedido,
+y permite únicamente accepted → on_the_way → delivered. Reutiliza los triggers de
+transiciones y eventos; fija delivered_at existente. El driver sale de activos al
+entregar y reactiva disponibilidad manualmente. La migración nueva asegura orders
+en la publicación idempotentemente sin modificar RLS. Ver ADR 0008.
+
+El layout customer monta una suscripción filtrada por customer_id. Invalida el prefijo
+customer-orders por usuario para releer lista, detalle y eventos validados con zod.
+Sin conexión usa intervalo de 15 s en AppState activo; reconectar y volver a primer
+plano también invalidan. Canal, listener e intervalo se limpian al desmontar/cambiar
+identidad. La línea de tiempo lee order_events para conservar la historia real.
 
 ## Ubicación, mapas y pagos
 
@@ -96,7 +116,7 @@ simula authenticated con request.jwt.claims y revierte todos los datos con ROLLB
 Ver instrucciones de SQL Editor en README y ADR 0004. Para Auth pasaron las assertions
 locales de reglas, credenciales y almacenamiento seguro simulado. El typecheck posterior
 a la corrección de AppState y a la alineación con SDK 57 pasó antes del commit. Sin instalaciones, llamadas al
-proyecto cloud ni verificaciones visuales. La suite Auth y la migración siguen pendientes.
+proyecto cloud ni verificaciones visuales. La suite Auth sigue pendiente; la migración está aplicada.
 La aceptación usa un único UPDATE de orders condicionado a offered y sin asignación,
 con oferta dirigida vigente; el bloqueo de fila reevalúa ese predicado al competir.
 Los UPDATE de disponibilidad y los eventos comparten la transacción de la llamada.

@@ -1,88 +1,205 @@
-import { FlatList, Pressable, Text, View } from 'react-native';
+import { FlatList, StyleSheet, View } from 'react-native';
+import { Text } from '@/shared/ui/text';
+import { Button, Card, CashNote, Feedback, ui } from '@/shared/ui/components';
+import { Screen, screenStyles } from '@/shared/ui/screen';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { z } from 'zod';
-import { ActionButton, Feedback, Page, styles } from '@/shared/ui/page';
+import { useAuth } from '@/features/auth/auth-provider';
+import { Avatar } from '@/shared/ui/avatar';
+import { getDisplayName } from '@/shared/ui/display-name';
+import { CylinderIllustration } from '@/shared/ui/cylinder-illustration';
+import { ListRow } from '@/shared/ui/list-row';
+import { PulsePressable } from '@/shared/ui/pulse-pressable';
+import { Icon } from '@/shared/ui/icon';
+import { Skeleton } from '@/shared/ui/skeleton';
+import { BrandLogo, brandLogoKeys } from '@/shared/ui/brand-logo';
+import { theme } from '@/theme';
+
 import { canCancel, formatClp, statusLabels } from '@/shared/orders/contracts';
 import {
   useCatalogue,
   useOrders,
+  useOrderEvents,
   useOrdersList,
   useOrderActions,
   orderError,
 } from '@/features/orders/customer/order-data';
-import { Section, orderStyles } from '@/features/orders/customer/order-ui';
+import {
+  OrderTimeline,
+  OrderStatus,
+  Section,
+  orderStyles,
+  OrderProgressSummary,
+  orderHeadlines,
+} from '@/features/orders/customer/order-ui';
 
-export function OrdersScreen() {
+export function CustomerHomeScreen() {
+  return <OrdersScreen home />;
+}
+
+export function OrdersScreen({ home = false }: { home?: boolean }) {
   const orders = useOrdersList();
   const catalogue = useCatalogue();
+  const { session } = useAuth();
+  const name = getDisplayName(session?.user.user_metadata, session?.user.email);
+  const items = orders.data?.pages.flat() ?? [];
+  const activeOrder = items.find(
+    (order) => order.status !== 'delivered' && order.status !== 'cancelled',
+  );
+  const refreshAction = (
+    <PulsePressable
+      accessibilityRole="button"
+      accessibilityLabel="Actualizar pedidos"
+      accessibilityState={{ disabled: orders.isFetching }}
+      disabled={orders.isFetching}
+      onPress={() => void orders.refetch()}
+      style={[ui.iconButton, homeStyles.refresh]}
+    >
+      <Icon name="refresh" />
+    </PulsePressable>
+  );
   return (
-    <SafeAreaView style={styles.safe}>
+    <SafeAreaView edges={['top', 'left', 'right']} style={screenStyles.safe}>
       <FlatList
-        data={orders.data?.pages.flat() ?? []}
+        data={home ? [] : items}
         keyExtractor={(item) => item.id}
         contentContainerStyle={orderStyles.list}
-        refreshing={orders.isRefetching}
-        onRefresh={() => void orders.refetch()}
         ListHeaderComponent={
           <View style={orderStyles.header}>
-            <Text style={styles.brandText}>gasway</Text>
-            <Text accessibilityRole="header" style={styles.title}>
-              Mis pedidos
-            </Text>
-            <Feedback text="Tu gas, con pago al recibirlo." />
-            <ActionButton label="Nuevo pedido" onPress={() => router.push('/orders/new')} />
-            <ActionButton
-              secondary
-              label="Mi cuenta"
-              onPress={() => router.push('/customer/account')}
-            />
-            {orders.isPending ? <Feedback text="Cargando tus pedidos…" /> : null}
+            {home ? (
+              <>
+                <View style={homeStyles.greeting}>
+                  <View style={ui.flex}>
+                    <Text variant="note" style={ui.muted}>
+                      Qué bueno verte
+                    </Text>
+                    <Text accessibilityRole="header" variant="display">
+                      Hola, {name}
+                    </Text>
+                  </View>
+                  <PulsePressable
+                    accessibilityRole="button"
+                    accessibilityLabel="Ir a Mi cuenta"
+                    onPress={() => router.push('/customer/account')}
+                    style={homeStyles.avatarButton}
+                  >
+                    <Avatar name={name} />
+                  </PulsePressable>
+                </View>
+                {activeOrder ? (
+                  <Card
+                    style={homeStyles.active}
+                    accessibilityLabel={`Seguir mi pedido. ${statusLabels[activeOrder.status]}`}
+                    onPress={() =>
+                      router.push({ pathname: '/orders/[id]', params: { id: activeOrder.id } })
+                    }
+                  >
+                    <OrderStatus status={activeOrder.status} />
+                    <Text accessibilityRole="header" variant="title">
+                      {orderHeadlines[activeOrder.status]}
+                    </Text>
+                    <OrderProgressSummary status={activeOrder.status} />
+                    <View style={[ui.button, ui.secondary]}>
+                      <Text variant="label" compact style={ui.primaryText}>
+                        Seguir mi pedido
+                      </Text>
+                    </View>
+                  </Card>
+                ) : null}
+                <Card
+                  style={homeStyles.orderAction}
+                  accessibilityLabel="Pedir gas. Elegir mi cilindro"
+                  onPress={() => router.push('/orders/new')}
+                >
+                  <View style={homeStyles.cylinder}>
+                    <CylinderIllustration size="small" />
+                  </View>
+                  <View style={homeStyles.orderCopy}>
+                    <Text variant="subtitle" accessibilityRole="header">
+                      Pedir gas
+                    </Text>
+                    <Text variant="note" style={ui.muted}>
+                      Elegir mi cilindro
+                    </Text>
+                  </View>
+                  <View style={homeStyles.orderArrow}>
+                    <Icon name="arrowRight" color={theme.colors.onPrimary} />
+                  </View>
+                </Card>
+                <CashNote />
+              </>
+            ) : (
+              <>
+                <View style={ui.brandHeader}>
+                  <Text accessibilityRole="header" variant="display" style={ui.flex}>
+                    Tus pedidos
+                  </Text>
+                  {refreshAction}
+                </View>
+                <Feedback text="Todo lo que has pedido, en un solo lugar." />
+                <Button label="Pedir gas" onPress={() => router.push('/orders/new')} />
+              </>
+            )}
+            {orders.isPending ? <Skeleton /> : null}
             {orders.isError ? (
               <>
                 <Feedback error text="No pudimos actualizar tus pedidos." />
-                <ActionButton secondary label="Reintentar" onPress={() => void orders.refetch()} />
+                <Button
+                  variant="secondary"
+                  label="Reintentar"
+                  onPress={() => void orders.refetch()}
+                />
               </>
             ) : null}
+            {orders.isRefetching ? <Skeleton rows={1} /> : null}
           </View>
         }
         ListEmptyComponent={
-          !orders.isPending && !orders.isError ? (
-            <Feedback text="Todavía no tienes pedidos. Elige tu primer cilindro cuando lo necesites." />
+          !home && !orders.isPending && !orders.isError ? (
+            <View style={homeStyles.empty}>
+              <CylinderIllustration size="hero" weight={5} />
+              <Text variant="subtitle">Tu primer cilindro te espera</Text>
+              <Feedback text="Pide gas y lo verás aquí." />
+            </View>
           ) : null
         }
         ListFooterComponent={
-          orders.hasNextPage ? (
-            <ActionButton
-              secondary
-              label={orders.isFetchingNextPage ? 'Cargando…' : 'Ver más pedidos'}
-              disabled={orders.isFetchingNextPage}
-              onPress={() => void orders.fetchNextPage()}
-            />
+          !home && orders.hasNextPage ? (
+            <View style={homeStyles.more}>
+              {orders.isFetchingNextPage ? <Skeleton rows={1} /> : null}
+              <Button
+                variant="secondary"
+                label={orders.isFetchingNextPage ? 'Cargando…' : 'Ver más pedidos'}
+                disabled={orders.isFetchingNextPage}
+                onPress={() => void orders.fetchNextPage()}
+              />
+            </View>
           ) : null
         }
         renderItem={({ item }) => {
           const product = catalogue.data?.products.find((entry) => entry.id === item.product_id);
           return (
-            <Pressable
-              accessibilityRole="button"
+            <ListRow
               accessibilityLabel={`Ver pedido ${item.id}, ${statusLabels[item.status]}`}
               onPress={() => router.push({ pathname: '/orders/[id]', params: { id: item.id } })}
-              style={({ pressed }) => [orderStyles.row, pressed && styles.dimmed]}
-            >
-              <Text style={orderStyles.heading}>
-                {product ? `${product.brand} · ${product.weight_kg} kg` : 'Pedido de gas'} ·{' '}
-                {item.quantity} {item.quantity === 1 ? 'cilindro' : 'cilindros'}
-              </Text>
-              <Text style={styles.label}>
-                {statusLabels[item.status]} · {formatClp(item.total_clp)}
-              </Text>
-              <Text style={styles.body}>
-                {new Date(item.created_at).toLocaleString('es-CL')} · {item.delivery_address}
-              </Text>
-              <Text style={styles.label}>Ver detalle</Text>
-            </Pressable>
+              leading={
+                product ? (
+                  <BrandLogo
+                    brand={brandLogoKeys[product.brand]}
+                    variant="mark"
+                    size={theme.layout.brandMark}
+                  />
+                ) : (
+                  <Icon name="orders" />
+                )
+              }
+              leadingStyle={homeStyles.brandCircle}
+              title={product ? `${product.brand} · ${product.weight_kg} kg` : 'Pedido de gas'}
+              subtitle={`${item.quantity} ${item.quantity === 1 ? 'cilindro' : 'cilindros'} · ${formatClp(item.total_clp)}`}
+              trailing={<OrderStatus status={item.status} />}
+            />
           );
         }}
       />
@@ -96,13 +213,14 @@ export function OrderDetailScreen() {
   return parsed.success ? (
     <OrderDetail id={parsed.data} />
   ) : (
-    <Page title="Pedido no válido" description="Revisa el enlace del pedido.">
-      <ActionButton label="Ir a mis pedidos" onPress={() => router.replace('/customer')} />
-    </Page>
+    <Screen title="Pedido no válido" onBack={() => router.replace('/customer')}>
+      <Button label="Ir a mis pedidos" onPress={() => router.replace('/customer')} />
+    </Screen>
   );
 }
 function OrderDetail({ id }: { id: string }) {
   const orders = useOrders(id);
+  const events = useOrderEvents(id);
   const catalogue = useCatalogue();
   const { cancel } = useOrderActions();
   const [confirm, setConfirm] = useState(false);
@@ -110,49 +228,74 @@ function OrderDetail({ id }: { id: string }) {
   const product = catalogue.data?.products.find((entry) => entry.id === order?.product_id);
   const commune = catalogue.data?.communes.find((entry) => entry.code === order?.commune_code);
   return (
-    <Page title="Tu pedido" description="Consulta el estado y los datos de tu entrega.">
-      <ActionButton
-        secondary
-        label="Volver a mis pedidos"
-        onPress={() => router.replace('/customer')}
-      />
-      {orders.isPending ? <Feedback text="Cargando pedido…" /> : null}
+    <Screen
+      title={order ? orderHeadlines[order.status] : 'Tu pedido'}
+      onBack={() => router.replace('/customer')}
+    >
+      {orders.isPending ? <Skeleton /> : null}
       {orders.isError ? (
         <Feedback error text="No pudimos actualizar el pedido. Intenta nuevamente." />
       ) : null}
       {!orders.isPending && !orders.isError && !order ? (
         <Feedback text="No encontramos este pedido en tu cuenta." />
       ) : null}
-      <ActionButton
-        secondary
+      {orders.isRefetching && !orders.isPending ? <Skeleton rows={1} /> : null}
+      <Button
+        variant="secondary"
         label={orders.isRefetching ? 'Actualizando…' : 'Actualizar estado'}
         disabled={orders.isFetching}
-        onPress={() => void orders.refetch()}
+        onPress={() => {
+          void orders.refetch();
+          void events.refetch();
+        }}
       />
       {order ? (
         <>
-          <Section title={statusLabels[order.status]}>
-            <Text selectable style={styles.body}>
+          <OrderStatus status={order.status} />
+          <Section title="Así va tu pedido">
+            {events.isPending ? <Skeleton /> : null}
+            {events.isError ? (
+              <Feedback
+                error
+                text="No pudimos actualizar el progreso. Actualiza el estado para reintentar."
+              />
+            ) : null}
+            {events.data ? (
+              <OrderTimeline events={events.data} cancelled={order.status === 'cancelled'} />
+            ) : null}
+          </Section>
+          <Section title="Tu cilindro">
+            <View style={homeStyles.productSummary}>
+              {product ? (
+                <BrandLogo
+                  brand={brandLogoKeys[product.brand]}
+                  variant="horizontal"
+                  size={theme.layout.brandHorizontal}
+                />
+              ) : null}
+              <View style={ui.flex}>
+                <Text variant="title">
+                  {product ? `${product.brand} · ${product.weight_kg} kg` : 'Cilindro de gas'}
+                </Text>
+                <Text variant="display" style={orderStyles.total}>
+                  {formatClp(order.total_clp)}
+                </Text>
+              </View>
+            </View>
+            <Text selectable style={ui.muted}>
               Pedido {order.id}
             </Text>
             <Feedback text={new Date(order.created_at).toLocaleString('es-CL')} />
-            <Text style={styles.label}>
-              {product ? `${product.brand} · ${product.weight_kg} kg` : 'Cilindro de gas'}
-            </Text>
             <Feedback
               text={`${order.quantity} ${order.quantity === 1 ? 'cilindro' : 'cilindros'} · ${order.exchange_empty ? 'Con canje de envase vacío' : 'Sin canje de envase vacío'}`}
             />
-            <Text style={orderStyles.total}>{formatClp(order.total_clp)}</Text>
-            <Feedback text="Efectivo contra entrega" />
+            <CashNote />
           </Section>
           <Section title="Entrega">
-            <Text selectable style={styles.label}>
-              {order.delivery_address}
-            </Text>
-            <Feedback
-              text={
-                commune ? `${commune.name} (${commune.code})` : `Comuna CUT ${order.commune_code}`
-              }
+            <ListRow
+              title={order.delivery_address}
+              subtitle={commune ? commune.name : 'Comuna de entrega'}
+              leading={<Icon name="pin" />}
             />
             {order.notes ? <Feedback text={order.notes} /> : null}
           </Section>
@@ -162,20 +305,25 @@ function OrderDetail({ id }: { id: string }) {
               {confirm ? (
                 <>
                   <Feedback text="¿Confirmas que quieres cancelar este pedido?" />
-                  <ActionButton
+                  <Button
+                    variant="destructive"
                     label={cancel.isPending ? 'Cancelando…' : 'Sí, cancelar pedido'}
                     disabled={cancel.isPending}
                     onPress={() => cancel.mutate(order.id, { onSuccess: () => setConfirm(false) })}
                   />
-                  <ActionButton
-                    secondary
+                  <Button
+                    variant="secondary"
                     label="Conservar pedido"
                     disabled={cancel.isPending}
                     onPress={() => setConfirm(false)}
                   />
                 </>
               ) : (
-                <ActionButton secondary label="Cancelar pedido" onPress={() => setConfirm(true)} />
+                <Button
+                  variant="destructive"
+                  label="Cancelar pedido"
+                  onPress={() => setConfirm(true)}
+                />
               )}
             </Section>
           ) : null}
@@ -183,6 +331,53 @@ function OrderDetail({ id }: { id: string }) {
           {cancel.isSuccess ? <Feedback text="Pedido cancelado." /> : null}
         </>
       ) : null}
-    </Page>
+    </Screen>
   );
 }
+
+const homeStyles = StyleSheet.create({
+  brandCircle: {
+    width: theme.layout.avatar,
+    height: theme.layout.avatar,
+    backgroundColor: theme.colors.surface,
+  },
+  greeting: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.md,
+    paddingTop: theme.spacing.md,
+    paddingBottom: theme.spacing.lg,
+  },
+  avatarButton: { minWidth: theme.layout.touchTarget, minHeight: theme.layout.touchTarget },
+  refresh: { backgroundColor: theme.colors.warm, borderRadius: theme.radii.pill },
+  orderAction: {
+    backgroundColor: theme.colors.surface,
+    padding: theme.spacing.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.md,
+  },
+  orderCopy: { flex: 1, gap: theme.spacing.xs },
+  cylinder: {
+    padding: theme.spacing.sm,
+    backgroundColor: theme.colors.primaryLight,
+    borderRadius: theme.radii.control,
+  },
+  orderArrow: {
+    width: theme.layout.touchTarget,
+    height: theme.layout.touchTarget,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: theme.colors.primary,
+    borderRadius: theme.radii.pill,
+  },
+  active: { backgroundColor: theme.colors.primaryLight, gap: theme.spacing.md },
+  empty: { alignItems: 'center', gap: theme.spacing.sm, paddingVertical: theme.spacing.xl },
+  more: { paddingVertical: theme.spacing.lg, gap: theme.spacing.md },
+  productSummary: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: theme.spacing.lg,
+  },
+});

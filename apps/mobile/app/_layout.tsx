@@ -1,10 +1,13 @@
 import { AuthNavigator } from '@/features/auth/auth-navigator';
 import { AppProviders } from '@/shared/providers/app-providers';
+import { FontProvider } from '@/shared/ui/font-provider';
 
 export default function RootLayout() {
   return (
-    <AppProviders>
-      <AuthNavigator />
-    </AppProviders>
+    <FontProvider>
+      <AppProviders>
+        <AuthNavigator />
+      </AppProviders>
+    </FontProvider>
   );
 }

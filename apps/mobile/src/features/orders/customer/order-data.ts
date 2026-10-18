@@ -69,6 +69,30 @@ export function useOrders(id: string) {
     staleTime: 0,
   });
 }
+export function useOrderEvents(id: string) {
+  const { session } = useAuth();
+  return useQuery({
+    queryKey: ['customer-orders', session?.user.id, id, 'events'],
+    enabled: !!session,
+    queryFn: async () => {
+      const { data, error } = await getSupabase()
+        .from('order_events')
+        .select('to_status,created_at')
+        .eq('order_id', z.uuid().parse(id))
+        .order('id');
+      if (error) throw error;
+      return z
+        .array(
+          z.object({
+            to_status: orderSchema.shape.status,
+            created_at: z.iso.datetime({ offset: true }),
+          }),
+        )
+        .parse(data);
+    },
+    staleTime: 0,
+  });
+}
 export function useOrderActions() {
   const queryClient = useQueryClient();
   const { session } = useAuth();
