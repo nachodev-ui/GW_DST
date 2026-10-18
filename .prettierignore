@@ -1,0 +1,7 @@
+.agents/skills/
+node_modules/
+package-lock.json
+supabase/.temp/
+apps/mobile/android/
+apps/mobile/ios/
+.expo/

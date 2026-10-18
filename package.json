@@ -1,0 +1,30 @@
+{
+  "name": "gasway",
+  "version": "0.0.0",
+  "private": true,
+  "workspaces": [
+    "apps/*"
+  ],
+  "engines": {
+    "node": "^22.13.0 || ^24.3.0 || ^26.0.0 || >=27.0.0"
+  },
+  "scripts": {
+    "start": "npm run start --workspace @gasway/mobile",
+    "android": "npm run android --workspace @gasway/mobile",
+    "ios": "npm run ios --workspace @gasway/mobile",
+    "typecheck": "npm run typecheck --workspace @gasway/mobile",
+    "lint": "npm run lint --workspace @gasway/mobile",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "db:start": "supabase start",
+    "db:stop": "supabase stop",
+    "db:reset": "supabase db reset",
+    "db:lint": "supabase db lint --local",
+    "db:test": "supabase test db",
+    "db:types": "node scripts/generate-db-types.mjs"
+  },
+  "devDependencies": {
+    "prettier": "3.9.10",
+    "supabase": "2.121.0"
+  }
+}
