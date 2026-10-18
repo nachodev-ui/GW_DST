@@ -8,7 +8,8 @@ aceptarla. Más adelante habrá un panel de administración web.
 
 Base inicial más autenticación por correo/contraseña, sesión segura en Android/iOS
 y rutas protegidas de cliente, repartidor aprobado y solicitud pendiente.
-Las zonas son placeholders; pedidos, tracking y pagos no están implementados.
+El cliente puede crear pedidos, consultar su lista/detalle y cancelar antes de que
+estén en camino. La zona repartidor sigue en preparación; sin tracking ni pagos en línea.
 La migración inicial ya está aplicada en Supabase cloud, según lo informado por el
 usuario. Esta tarea no ejecutó SQL en la nube. No hay notificaciones enviadas ni
 servicios pagados activados. El pago del MVP será contra entrega.
@@ -143,7 +144,51 @@ y no usa APIs de rutas/geocoding. Tampoco promete que publicar en tiendas o usar
 servicios externos sea gratuito: esas decisiones quedan pendientes del presupuesto.
 Ver [ADR de costos](docs/decisions/0003-free-services.md).
 
-## Validación de esta entrega
+## Pedidos del cliente: aplicación manual y pendientes
+
+El usuario informó que completó los pasos 1–4 y creó un pedido correctamente.
+La ejecución cloud fue manual; el agente no ejecutó comandos ni consultas contra Supabase.
+Para aplicar en otro entorno, en el SQL Editor del dashboard, con rol postgres:
+
+1. Confirmar que están aplicadas la migración inicial y
+   `20261018020000_auth_roles.sql`; aplicar Auth primero si está pendiente.
+2. Pegar y ejecutar completo
+   [20261018030000_customer_orders.sql](supabase/migrations/20261018030000_customer_orders.sql),
+   incluyendo BEGIN/COMMIT. No volver a ejecutar las migraciones existentes.
+3. Pegar y ejecutar completo el único DO de
+   [customer_orders.sql](supabase/tests/customer_orders.sql).
+   Esperar NOTICE `PASS`; todo dato de prueba se revierte internamente, incluso
+   con autocommit. No ejecutar fragmentos. La secuencia de eventos puede avanzar.
+4. Configurar `products.unit_price_clp` con precios reales en CLP enteros no negativos
+   mediante una operación administrativa confiable. El seed anterior solo tiene las
+   combinaciones marca/peso; no asigna precios. Los productos con precio NULL o
+   inactivos no se pueden comprar. No configurar precios desde el cliente.
+5. Generar tipos reales y revisar permisos/advisors después de aplicar. Si se usa
+   un flujo CLI después de aplicar manualmente, reconciliar su historial de migraciones
+   para no aplicar el mismo archivo dos veces.
+
+La pantalla cliente permite marca/peso, cantidad 1–99, canje explícito, dirección,
+comuna del catálogo oficial y notas. La app muestra efectivo contra entrega como
+único método y CLP sin decimales; el total definitivo proviene de `create_order`.
+La RPC admite coordenadas opcionales, pero este formulario no solicita ubicación.
+Lista y detalle permiten actualizar estado manualmente; no hay suscripción Realtime.
+Ante un error ambiguo al crear, revisar Mis pedidos antes de repetir la operación.
+
+La interfaz usa el theme existente y controles compartidos, sin dependencias nuevas.
+Pendientes: completar precios del catálogo que falten, validar el resto del flujo en dispositivo
+real, idempotencia ante reintentos manuales, precios/stock por distribuidor, auditoría
+del catálogo e históricos y liberación de disponibilidad por el futuro backend.
+Ver [ADR 0006](docs/decisions/0006-customer-orders.md) y [roadmap](docs/roadmap.md).
+
+Verificación local de esta entrega: `node scripts/test-orders.cjs` aprobado;
+`npm run typecheck` aprobado en una sola ejecución. ESLint de los archivos móviles
+modificados aprobado. El lint global sigue fallando por dos errores preexistentes:
+`__dirname` en `metro.config.cjs` y `react-hooks/set-state-in-effect` en
+`auth-provider.tsx`. No se ejecutaron pruebas SQL, aplicación cloud, emuladores,
+capturas ni chequeos visuales por parte del agente. Publicación de la rama y PR
+autorizados posteriormente por el usuario.
+
+## Validación de Auth (entrega anterior)
 
 La entrega Auth reutiliza las dependencias instaladas, sin instalar paquetes.
 Pasaron las assertions locales para validación, selección de zona y almacenamiento
@@ -174,6 +219,13 @@ El seed contiene solo las 12 combinaciones de marca/peso y no es necesario para 
 
 ### 2026-10-18
 
+- Creado flujo cliente: nuevo pedido, lista, detalle y cancelación, con TanStack Query,
+  react-hook-form/zod, rutas protegidas, theme y textos es-CL; sin paquetes nuevos.
+- Preparadas RPC create_order/cancel_order, precio unitario de servidor, cantidad/notas,
+  coordenadas opcionales y catálogo CUT; RLS y permisos mínimos conservados.
+- Agregadas pruebas SQL autocontenidas con rollback, ADR 0006 e instrucciones manuales;
+  sin ejecutar Supabase ni chequeos visuales por parte del agente.
+- Usuario confirmó aplicación manual, configuración de precios y creación correcta de un pedido.
 - Eliminado baseUrl obsoleto del tsconfig móvil; alias @/* conservado con la ruta relativa explícita ./src/* para TypeScript 6.
 - Alineadas documentación y configuración con Expo SDK 57; documentado el criterio para subir a SDK 58 y simplificada la regla de shell.
 

@@ -4,9 +4,11 @@
 
 Monorepo npm con una app Expo Android/iOS. El futuro panel web no se crea todavía.
 app/ contiene rutas delgadas; src/features agrupa auth, orders, tracking, driver y
-profile; auth ya está implementado y las demás features siguen reservadas. shared
+profile; auth y orders/customer están implementados; las demás features siguen reservadas. shared
 contiene infraestructura compartida; theme exporta tokens semánticos propios.
-Las rutas componen AuthNavigator, AccessScreen y placeholders de zonas.
+Las rutas componen AuthNavigator, AccessScreen, pedidos cliente y zonas de repartidor/espera.
+El grupo (customer) protege también enlaces directos a nuevo pedido y detalle.
+Primitivas visuales compartidas viven en shared/ui; contratos neutrales en shared/orders.
 
 TanStack Query mantiene el acceso remoto, indexado por usuario, con validación zod.
 Zustand se reserva para estado UI; AuthProvider es la única fuente React de sesión.
@@ -25,23 +27,25 @@ La migración Auth se entrega sin aplicar; falta validar SQL y generar tipos rea
 
 Postgres 17 con PostGIS geography(Point,4326), índices GiST y UUIDs. Auth crea un
 perfil customer mediante trigger; no copia rol desde metadata editable. RLS está
-activado en las seis tablas públicas y en las ofertas privadas. Grants explícitos
+activado en todas las tablas públicas, incluido el catálogo de comunas, y en las ofertas privadas. Grants explícitos
 restringen al cliente a lecturas autorizadas, edición de campos seguros de su perfil
 y publicación de su propia ubicación cuando el repartidor está verificado.
 
-| Datos                | Lectura móvil                                    | Escritura móvil                         |
-| -------------------- | ------------------------------------------------ | --------------------------------------- |
-| profiles             | Propio                                           | display_name, rut, commune_code propios |
-| drivers              | Propio                                           | Solo RPC de solicitud pendiente         |
-| products             | Catálogo activo autenticado                      | Ninguna                                 |
-| orders               | Cliente o repartidor asignado                    | Solo RPC accept_order                   |
-| order_events         | Participantes del pedido                         | Ninguna                                 |
-| driver_locations     | Propia / cliente con pedido activo de ese driver | Driver verificado, propia               |
-| private.order_offers | Ninguna                                          | Ninguna                                 |
+| Datos                | Lectura móvil                                    | Escritura móvil                            |
+| -------------------- | ------------------------------------------------ | ------------------------------------------ |
+| profiles             | Propio                                           | display_name, rut, commune_code propios    |
+| drivers              | Propio                                           | Solo RPC de solicitud pendiente            |
+| products             | Catálogo activo autenticado                      | Ninguna                                    |
+| orders               | Cliente o repartidor asignado                    | RPC create_order/cancel_order/accept_order |
+| communes             | Catálogo CUT autenticado                         | Ninguna                                    |
+| order_events         | Participantes del pedido                         | Ninguna                                    |
+| driver_locations     | Propia / cliente con pedido activo de ese driver | Driver verificado, propia                  |
+| private.order_offers | Ninguna                                          | Ninguna                                    |
 
 No se habilitan escrituras generales para completar features todavía ausentes.
-Creación de pedidos, precios, aprobación, ofertas y demás transiciones requieren futuros endpoints
-con JWT verificado y zod antes de usar privilegios de servidor. service_role permanece
+Precios, aprobación, ofertas y demás transiciones requieren operaciones confiables;
+create_order y cancel_order ya encapsulan la escritura cliente en Postgres (ADR 0006).
+Los futuros endpoints con privilegios requieren JWT verificado y zod. service_role permanece
 solo en servidor. Leer RLS no sustituye autorización de acciones privilegiadas.
 
 request_driver_access() es un wrapper SECURITY INVOKER sobre una función privada
@@ -49,7 +53,7 @@ SECURITY DEFINER, con search_path vacío y EXECUTE solo para authenticated. Toma
 identidad exclusivamente de auth.uid(), inserta pendiente/no disponible y no cambia
 el rol. ON CONFLICT DO NOTHING preserva aprobaciones ante reintentos. La aprobación
 administrativa debe actualizar rol y verificación juntos en una transacción confiable.
-Ver ADR 0005. No se modificaron pedidos, tracking ni pagos en esta entrega Auth.
+Ver ADR 0005 para Auth y ADR 0006 para el flujo posterior de pedidos cliente.
 
 La implementación SECURITY DEFINER de aceptación vive en private, fuera del esquema
 API. search_path vacío, nombres calificados, identidad tomada de auth.uid(), grants de
