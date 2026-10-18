@@ -6,23 +6,25 @@ aceptarla. Más adelante habrá un panel de administración web.
 
 ## Estado actual
 
-Scaffolding inicial: estructura por features, configuración, tokens propios,
-contrato de pagos, documentación y skills de repositorio. La ruta inicial retorna
-null intencionalmente: no hay pantallas finales ni flujos de negocio implementados.
+Base inicial más autenticación por correo/contraseña, sesión segura en Android/iOS
+y rutas protegidas de cliente, repartidor aprobado y solicitud pendiente.
+Las zonas son placeholders; pedidos, tracking y pagos no están implementados.
 La migración inicial ya está aplicada en Supabase cloud, según lo informado por el
 usuario. Esta tarea no ejecutó SQL en la nube. No hay notificaciones enviadas ni
 servicios pagados activados. El pago del MVP será contra entrega.
 
 ## Stack
 
-- Expo SDK 58 estable (expo 58.0.14), React Native 0.88 y React 19.3;
+- Expo SDK 57 estable (expo 57.0.0), React Native 0.88 y React 19.3;
   versiones compatibles tomadas de bundledNativeModules de Expo y fijadas en lockfile.
 - Expo Router y TypeScript strict; TanStack Query, Zustand, react-hook-form y zod.
 - expo-location, expo-notifications, react-native-maps con Google Maps.
 - Supabase: Postgres 17 + PostGIS, Auth, Realtime, Edge Functions y RLS desde el inicio.
 - Theme central propio, tipografía del sistema y ninguna librería genérica de UI.
 
-Fuentes: [Expo SDK 58](https://expo.dev/changelog/sdk-58),
+Se subirá a Expo SDK 58 cuando esté estable y la Expo Go de la tienda lo soporte.
+
+Fuentes: [Expo SDK 57](https://expo.dev/changelog/sdk-57),
 [RLS de Supabase](https://supabase.com/docs/guides/database/postgres/row-level-security).
 
 ## Cómo correrlo
@@ -32,15 +34,15 @@ iOS requiere macOS/Xcode. Docker se necesita solo para Supabase local.
 
 1. En un checkout nuevo ejecutar npm ci (el lockfile está versionado).
 2. Copiar .env.example a apps/mobile/.env y completar solo claves públicas/restringidas.
-3. Para backend local: npm run db:start y luego npm run db:reset.
-   El reset destruye los datos locales y aplica migraciones más catálogo semilla.
-   Tomar URL/clave pública de la salida local; en un teléfono físico reemplazar
-   127.0.0.1 por la IP LAN alcanzable del computador. Nunca copiar service_role.
+3. Usar la URL del proyecto Supabase cloud y su clave pública publishable en
+   EXPO_PUBLIC_SUPABASE_URL y EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY.
+   Aplicar primero la nueva migración siguiendo la sección de autenticación.
+   Docker no está disponible en este entorno; no ejecutar db:start ni db:reset.
 4. Para instalar un development build en un dispositivo Android conectado:
    npm run android; en macOS, npm run ios para iOS. Estos comandos no se ejecutaron
    durante el scaffolding y requieren el entorno nativo correspondiente.
 5. Para iniciar Metro después de instalar el development build: npm start.
-   Seleccionar un dispositivo físico; la app mostrará una ruta vacía deliberadamente.
+   Seleccionar un dispositivo físico; sin sesión se muestra la pantalla de acceso.
 
 Expo carga .env desde apps/mobile; un .env solo en la raíz no basta. Las claves de
 Google Maps se leen en app.config.ts al compilar y requieren recompilar si cambian.
@@ -61,16 +63,52 @@ credenciales/configuración nativa posterior; no están activas en este scaffold
 | npm run db:test               | Ejecutar futuros tests pgTAP; no hay suite todavía |
 | npm run db:types              | Generar tipos reales desde Supabase local          |
 
-No se entregan tipos de base de datos inventados: generarlos una vez aplicada la
-migración y antes de conectar un cliente Supabase. La configuración de entorno es
-lazy y no realiza llamadas de red al iniciar.
+No se entregan tipos de base de datos inventados: generar los tipos completos después
+de aplicar la migración. Auth valida las respuestas de profiles/drivers con zod en
+su frontera. La configuración se valida al inicializar Auth; errores bloquean acceso.
+
+## Autenticación y roles
+
+- Registro e ingreso con email/contraseña, validación react-hook-form + zod y mensajes es-CL.
+- Si Supabase exige confirmar el correo, el registro informa que debe confirmarse
+  antes de iniciar sesión. Esta entrega no implementa enlace de acceso automático
+  ni recuperación de contraseña. Revisar las URLs de confirmación y la política
+  de contraseñas del proyecto antes de distribuir la app.
+- Android/iOS persisten sesión cifrada en expo-secure-store, en fragmentos pequeños
+  para admitir tokens grandes. Refresco solo en primer plano; cierre local borra la
+  sesión del dispositivo. En web la sesión es solo en memoria.
+- El servidor crea cada perfil como customer. Desde la zona de cliente se puede
+  solicitar ser repartidor mediante request_driver_access(), sin pasar IDs ni roles.
+- Una fila drivers con is_verified=false significa pendiente. Para entrar a la zona
+  de repartidor deben coincidir profiles.role=driver y drivers.is_verified=true.
+  La app consulta estos datos bajo RLS, al volver al primer plano, cada 30 segundos
+  en primer plano y mediante el botón de revisión. Ante errores bloquea la navegación.
+- Aprobar exige una operación administrativa confiable y transaccional que actualice
+  ambas filas. No hay endpoint de aprobación móvil ni panel admin en esta entrega.
+
+### Aplicar la migración (pendiente; no ejecutada aquí)
+
+En el SQL Editor del proyecto correcto de Supabase, con rol postgres, abrir y
+ejecutar completo [20261018020000_auth_roles.sql](supabase/migrations/20261018020000_auth_roles.sql).
+Es posterior a la migración inicial y usa una transacción. No volver a ejecutar
+la migración inicial ni el seed para este cambio. Si se usa CLI después, reconciliar
+primero el historial de migraciones aplicadas manualmente para evitar reaplicarlas.
+
+Después ejecutar completo [auth_roles.sql](supabase/tests/auth_roles.sql), también
+como postgres. La prueba verifica registro sin escalada por metadata, RLS, privilegios,
+solicitud idempotente y rechazo de autoaprobación; revierte sus fixtures incluso en
+autocommit. Se entrega sin ejecutar. La aprobación debe revisarse manualmente con
+una cuenta de prueba desde una operación de servidor, nunca desde la app.
+
+Ver [ADR 0005](docs/decisions/0005-auth-and-roles.md). Pruebas locales sin red:
+`node scripts/test-auth.cjs`.
 
 ## Estructura
 
 ```text
 apps/mobile/
-  app/                  # Router y ruta vacía
-  src/features/         # auth, orders, tracking, driver, profile (reservados)
+  app/                  # Rutas delgadas y navegación protegida
+  src/features/         # auth implementado; otras features reservadas
   src/shared/           # providers, config, payments y espacios reutilizables
   src/theme/            # colores, tipografía, espaciado y radios
 supabase/
@@ -88,7 +126,7 @@ docs/                   # arquitectura, dominio, roadmap, skills, ADRs
 ## Roadmap
 
 1. Ejecutar las pruebas SQL preparadas; validar concurrencia real en dos sesiones y generar tipos.
-2. Auth y alta controlada de repartidores; formularios es-CL, RUT y comunas.
+2. Aplicar migración Auth y validar flujo real; aprobación administrativa, RUT y comunas pendientes.
 3. Catálogo/precios por distribuidor, creación de pedidos y ofertas privadas.
 4. Aceptación, tracking, estados y notificaciones; pago contra entrega.
 5. Piloto local y panel admin web; evaluar gateways después del MVP.
@@ -107,12 +145,14 @@ Ver [ADR de costos](docs/decisions/0003-free-services.md).
 
 ## Validación de esta entrega
 
-Una sola instalación de dependencias completada y un solo typecheck final aprobado
-(tsc --noEmit, código de salida 0). No se ejecutan
-emuladores, capturas, renders ni comprobaciones visuales. La migración se entrega
-ya aplicada en cloud según el usuario; la suite SQL de esta tarea fue revisada por
-lectura y no ejecutada. El shell falló al iniciar y no se reintentó. La ejecución
-de pruebas y la concurrencia real quedan pendientes.
+La entrega Auth reutiliza las dependencias instaladas, sin instalar paquetes.
+Pasaron las assertions locales para validación, selección de zona y almacenamiento
+seguro simulado. El typecheck posterior a la corrección de AppState y a la alineación
+con SDK 57 pasó en una sola ejecución autorizada antes del commit.
+Sin emuladores, capturas, renders,
+verificación visual ni llamadas al proyecto cloud. Las pruebas SQL y el flujo en
+dispositivo real quedan pendientes. La CLI local falló al intentar escribir telemetría
+fuera del workspace; el nuevo archivo SQL se preparó directamente.
 
 ## Pruebas SQL de la migración inicial
 
@@ -132,7 +172,16 @@ El seed contiene solo las 12 combinaciones de marca/peso y no es necesario para 
 
 ## Changelog
 
+### 2026-10-18
+
+- Eliminado baseUrl obsoleto del tsconfig móvil; alias @/* conservado con la ruta relativa explícita ./src/* para TypeScript 6.
+- Alineadas documentación y configuración con Expo SDK 57; documentado el criterio para subir a SDK 58 y simplificada la regla de shell.
+
 ### 2026-10-17
+
+- Implementados registro, ingreso y cierre de sesión con persistencia segura, validación es-CL y guard por rol/aprobación.
+- Agregadas migración posterior y pruebas SQL para alta customer y solicitud idempotente de repartidor pendiente, sin permisos de autoaprobación.
+- Documentados aplicación manual, aprobación solo en servidor y pendientes en ADR 0005 y roadmap; sin ejecutar cambios cloud.
 
 - Corregida suite SQL: único DO con IDs locales, avisos por verificación y reversión interna, sin tablas auxiliares.
 
@@ -140,7 +189,7 @@ El seed contiene solo las 12 combinaciones de marca/peso y no es necesario para 
 - Confirmado por lectura el UPDATE condicional de aceptación; sin cambios a la migración aplicada.
 - Conservado seed idempotente de 12 productos; documentados SQL Editor y pendientes de ejecución/concurrencia.
 
-- Creado monorepo npm, base Expo SDK 58, configuración estricta y herramientas de formato/lint.
+- Creado monorepo npm, base Expo SDK 57, configuración estricta y herramientas de formato/lint.
 - Agregados theme central, providers mínimos, entorno de ejemplo y contrato de pagos.
 - Preparado esquema PostGIS con RLS, eventos, ofertas internas y aceptación atómica.
 - Documentados dominio chileno, arquitectura, roadmap, seguridad y decisiones de costo.

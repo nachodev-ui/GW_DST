@@ -4,17 +4,22 @@
 
 Monorepo npm con una app Expo Android/iOS. El futuro panel web no se crea todavía.
 app/ contiene rutas delgadas; src/features agrupa auth, orders, tracking, driver y
-profile, vacíos hasta su implementación. shared contiene infraestructura compartida;
-theme exporta tokens semánticos propios. La única ruta retorna null.
+profile; auth ya está implementado y las demás features siguen reservadas. shared
+contiene infraestructura compartida; theme exporta tokens semánticos propios.
+Las rutas componen AuthNavigator, AccessScreen y placeholders de zonas.
 
-TanStack Query administrará estado remoto y su invalidación. Zustand se reserva para
-estado local; no duplicar pedidos/sesiones en varios stores. react-hook-form + zod
-se usarán en formularios; hoy solo existe validación lazy de configuración.
-AppProviders inicializa QueryClient y SafeAreaProvider sin servicios de negocio.
-No hay cliente Supabase todavía: la migración inicial está aplicada en cloud según
-el usuario; falta validar pruebas y generar tipos reales.
-Antes de Auth elegir almacenamiento seguro de sesión y refresco ligado al ciclo de
-vida; expo-secure-store está instalado, sin persistencia de credenciales implementada.
+TanStack Query mantiene el acceso remoto, indexado por usuario, con validación zod.
+Zustand se reserva para estado UI; AuthProvider es la única fuente React de sesión.
+react-hook-form + zod validan credenciales. AppProviders inicializa QueryClient,
+SafeAreaProvider y AuthProvider. El cliente shared/supabase usa URL y publishable key
+públicas. SecureStore cifra fragmentos de sesión en Android/iOS, con manifiesto
+publicado al terminar la escritura; web conserva sesión solo en memoria.
+El refresco sigue AppState y las consultas se pausan en segundo plano. Eventos Auth
+limpian caché para evitar compartir datos entre identidades; errores bloquean el guard.
+Stack.Protected restringe cada ruta y elimina del historial las rutas no autorizadas.
+La zona driver exige rol driver y aprobación; solicitudes o estados incompletos
+van a espera. Se reconsulta al volver, cada 30 segundos en primer plano y manualmente.
+La migración Auth se entrega sin aplicar; falta validar SQL y generar tipos reales.
 
 ## Backend y confianza
 
@@ -27,7 +32,7 @@ y publicación de su propia ubicación cuando el repartidor está verificado.
 | Datos                | Lectura móvil                                    | Escritura móvil                         |
 | -------------------- | ------------------------------------------------ | --------------------------------------- |
 | profiles             | Propio                                           | display_name, rut, commune_code propios |
-| drivers              | Propio                                           | Ninguna                                 |
+| drivers              | Propio                                           | Solo RPC de solicitud pendiente         |
 | products             | Catálogo activo autenticado                      | Ninguna                                 |
 | orders               | Cliente o repartidor asignado                    | Solo RPC accept_order                   |
 | order_events         | Participantes del pedido                         | Ninguna                                 |
@@ -35,9 +40,16 @@ y publicación de su propia ubicación cuando el repartidor está verificado.
 | private.order_offers | Ninguna                                          | Ninguna                                 |
 
 No se habilitan escrituras generales para completar features todavía ausentes.
-Creación, precios, aprobación, ofertas y demás transiciones requieren futuros endpoints
+Creación de pedidos, precios, aprobación, ofertas y demás transiciones requieren futuros endpoints
 con JWT verificado y zod antes de usar privilegios de servidor. service_role permanece
 solo en servidor. Leer RLS no sustituye autorización de acciones privilegiadas.
+
+request_driver_access() es un wrapper SECURITY INVOKER sobre una función privada
+SECURITY DEFINER, con search_path vacío y EXECUTE solo para authenticated. Toma
+identidad exclusivamente de auth.uid(), inserta pendiente/no disponible y no cambia
+el rol. ON CONFLICT DO NOTHING preserva aprobaciones ante reintentos. La aprobación
+administrativa debe actualizar rol y verificación juntos en una transacción confiable.
+Ver ADR 0005. No se modificaron pedidos, tracking ni pagos en esta entrega Auth.
 
 La implementación SECURITY DEFINER de aceptación vive en private, fuera del esquema
 API. search_path vacío, nombres calificados, identidad tomada de auth.uid(), grants de
@@ -77,8 +89,10 @@ para un dispositivo físico. No fijar redirect wildcards en producción sin revi
 
 La suite supabase/tests/initial_schema.sql se entrega sin ejecutar: crea sus usuarios,
 simula authenticated con request.jwt.claims y revierte todos los datos con ROLLBACK.
-Ver instrucciones de SQL Editor en README y ADR 0004. El shell falló al iniciar; se
-continuó solo con archivos. Sin instalaciones, nube ni verificaciones visuales.
+Ver instrucciones de SQL Editor en README y ADR 0004. Para Auth pasaron las assertions
+locales de reglas, credenciales y almacenamiento seguro simulado. El typecheck posterior
+a la corrección de AppState y a la alineación con SDK 57 pasó antes del commit. Sin instalaciones, llamadas al
+proyecto cloud ni verificaciones visuales. La suite Auth y la migración siguen pendientes.
 La aceptación usa un único UPDATE de orders condicionado a offered y sin asignación,
 con oferta dirigida vigente; el bloqueo de fila reevalúa ese predicado al competir.
 Los UPDATE de disponibilidad y los eventos comparten la transacción de la llamada.

@@ -21,4 +21,7 @@ export const theme = {
   },
   spacing: { none: 0, xs: 4, sm: 8, md: 16, lg: 24, xl: 32, xxl: 48 },
   radii: { sm: 4, md: 8, lg: 16, pill: 999 },
+  borders: { thin: 1, accent: 4 },
+  layout: { touchTarget: 52, formWidth: 520 },
+  opacity: { disabled: 0.6 },
 } as const;

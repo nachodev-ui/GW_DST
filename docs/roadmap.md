@@ -15,9 +15,18 @@
 
 ## 1 — Identidad y habilitación
 
-Auth, persistencia segura, cierre/refresco de sesión; validación RUT módulo 11 y
-catálogo oficial de comunas; alta/aprobación de repartidores y navegación por rol.
-Mantener onboarding sin SMS de pago salvo nueva decisión de presupuesto.
+- [x] Registro e ingreso email/contraseña, cierre local y persistencia segura nativa.
+- [x] Formularios es-CL con react-hook-form/zod y navegación protegida por rol/aprobación.
+- [x] Migración nueva: customer por defecto y RPC idempotente de solicitud pendiente.
+- [x] Pruebas locales de reglas/almacenamiento y suite SQL preparada.
+- [x] Typecheck limpio tras corregir AppState y alinear SDK 57; una ejecución antes del commit.
+- [ ] Aplicar 20261018020000_auth_roles.sql en cloud y ejecutar auth_roles.sql.
+- [ ] Validar confirmación por correo, reinicio, refresco, cierre, enlaces directos,
+      errores de red y aprobación/revocación con dispositivo y cuentas reales.
+- [ ] Proveer operación administrativa confiable de aprobación transaccional y auditoría.
+- [ ] Recuperación de contraseña y enlaces de confirmación integrados, si se requieren.
+- [ ] Validación RUT módulo 11 y catálogo oficial de comunas en onboarding posterior.
+- [ ] Generar tipos reales tras aplicar migración; mantener onboarding sin SMS de pago.
 
 ## 2 — Pedido y oferta
 
