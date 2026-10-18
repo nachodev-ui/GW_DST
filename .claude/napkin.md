@@ -14,3 +14,5 @@
 
 1. **[2026-10-17] Preserve the scaffold boundary.**
    Do instead: keep feature folders empty until implementation is requested; make assignment atomic in Postgres and keep RLS enabled.
+2. **[2026-10-18] Catalogue products initially have no commercial prices.**
+   Do instead: require a configured products.unit_price_clp for purchase; never invent seed prices or accept mobile totals.

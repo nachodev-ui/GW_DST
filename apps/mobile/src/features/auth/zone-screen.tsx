@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { router } from 'expo-router';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { getSupabase } from '@/shared/supabase/client';
 import { useAuth } from '@/features/auth/auth-provider';
@@ -47,11 +48,16 @@ export function ZoneScreen() {
       ? 'Recibimos tu solicitud para repartir. El equipo debe aprobar tu acceso antes de habilitar tu zona.'
       : zone === 'driver'
         ? 'Tu acceso como repartidor está aprobado. Esta zona está en preparación.'
-        : 'Tu cuenta de cliente está lista. Estamos preparando este espacio para ti.';
+        : 'Administra tu sesión o solicita acceso para repartir.';
   return (
     <AuthPage title={title} description={description}>
       {zone === 'customer' ? (
         <>
+          <ActionButton
+            secondary
+            label="Volver a mis pedidos"
+            onPress={() => router.replace('/customer')}
+          />
           <Feedback text="¿Quieres repartir con Gasway? Envía tu solicitud para revisión." />
           <ActionButton
             label={request.isPending ? 'Enviando solicitud…' : 'Quiero ser repartidor'}

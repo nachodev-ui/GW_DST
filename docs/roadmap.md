@@ -30,9 +30,23 @@
 
 ## 2 — Pedido y oferta
 
-Catálogo por distribuidor con precio/stock, canje explícito y pedido con precio
-calculado en servidor. Motor de ofertas cercanas mediante PostGIS, vigencia y rechazo.
-Escribir ofertas privadas sin exponer datos personales antes de la asignación.
+- [x] Flujo cliente: marca/peso, cantidad, canje explícito, dirección/comuna y notas.
+- [x] Mis pedidos, detalle y cancelación antes de on_the_way; efectivo contra entrega.
+- [x] Migración posterior con precio products calculado en servidor, eventos atómicos,
+      coordenadas opcionales, catálogo CUT y RPC con mínimos privilegios.
+- [x] Pruebas SQL autocontenidas preparadas y decisión en ADR 0006.
+- [x] Assertions locales de formulario/contratos y único typecheck aprobados; lint
+      de archivos modificados aprobado. Lint global: dos errores preexistentes en
+      metro.config.cjs y auth-provider.tsx pendientes de otra tarea.
+- [x] Usuario informó aplicación manual de 20261018030000_customer_orders.sql y ejecución de customer_orders.sql.
+- [x] Usuario configuró precio en products.unit_price_clp y confirmó creación correcta de un pedido.
+- [ ] Completar los precios comerciales del resto del catálogo según corresponda; NULL bloquea compra.
+- [ ] Generar tipos reales, ejecutar advisors y validar flujo en dispositivo físico.
+- [ ] Revisar catálogo CUT contra cambios oficiales posteriores y validar FK de históricos.
+- [ ] Idempotencia de creación ante reintentos manuales/respuestas de red perdidas.
+- [ ] Catálogo por distribuidor con precios, stock y tarifas por canje si corresponden.
+- [ ] Motor de ofertas cercanas con PostGIS, vigencia y rechazo, sin exponer PII.
+- [ ] Pruebas con dos conexiones para cancelación concurrente con avance de estado.
 
 ## 3 — Entrega
 

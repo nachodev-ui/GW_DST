@@ -2,21 +2,27 @@
 
 ## Catálogo y compra
 
-Un pedido corresponde a un cilindro GLP de 5, 11, 15 o 45 kg, de Lipigas, Gasco o
-Abastible. exchange_empty distingue compra con o sin entrega de envase vacío.
+Un pedido corresponde a un producto GLP de 5, 11, 15 o 45 kg, de Lipigas, Gasco o
+Abastible, con cantidad de 1 a 99 cilindros de la misma combinación.
+exchange_empty distingue compra con o sin entrega de envase vacío para el pedido completo.
 La compatibilidad del envase, stock, zona y precio deben confirmarse por distribuidor;
 no se presume canje entre marcas. No hay precios, recargos ni reglas de stock ficticias.
-El catálogo inicial es global; precios/stock por distribuidor quedan para una migración futura.
+El catálogo es global: products.unit_price_clp guarda el precio unitario de servidor,
+nullable hasta configuración comercial. Sin precio no se puede comprar; sin recargos
+inventados por canje. Precios/stock por distribuidor quedan para una migración futura.
 
 La dirección tiene comuna identificada por código CUT de cinco dígitos y un punto
-geográfico WGS84. No usar el nombre de comuna como identificador. Aún falta integrar
-un catálogo oficial de comunas y validar existencia del código, no solo su formato.
+geográfico WGS84 opcional. No usar el nombre de comuna como identificador.
+La nueva migración incorpora el catálogo CUT de 346 comunas: zod y la RPC validan
+pertenencia; una FK NOT VALID preserva históricos y restringe nuevas escrituras.
+Procedencia y auditoría pendiente en ADR 0006.
 RUT canónico: sin puntos, guion y dígito verificador en mayúsculas; validar módulo 11
 con zod al implementar entradas. La restricción SQL actual valida solo formato.
 
 CLP se almacena como integer no negativo y se presenta con locale es-CL y cero decimales.
 No usar floats para dinero ni aceptar precios calculados en el dispositivo.
-El servidor fija total_clp al crear el pedido; términos comerciales son inmutables.
+create_order fija total_clp = products.unit_price_clp × quantity al crear el pedido;
+no recibe identidad ni precio. Los términos comerciales y datos de entrega son inmutables.
 No se considera el Cupón de Gas Licuado estatal vencido.
 
 ## Roles
@@ -44,6 +50,9 @@ puede volver a ofertar manteniendo offered. private.order_offers representa dest
 y expiración; se escribe solo desde el backend confiable. No hay algoritmo de despacho.
 La creación inicia en requested. Los triggers hacen cumplir el grafo y agregan eventos
 en la misma transacción; eventos sin actor corresponden a procesos de sistema.
+El cliente cancela solo pedidos propios requested/offered/accepted mediante cancel_order.
+No puede cancelar on_the_way ni terminales; la posibilidad en el grafo de cancelar
+en camino queda reservada para procesos confiables del backend.
 
 ## Aceptación atómica
 
