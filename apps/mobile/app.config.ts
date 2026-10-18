@@ -13,6 +13,7 @@ const config: ExpoConfig = {
     'expo-router',
     'expo-dev-client',
     'expo-secure-store',
+    'expo-status-bar',
     [
       'expo-location',
       {
