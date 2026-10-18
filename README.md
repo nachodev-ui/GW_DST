@@ -9,7 +9,10 @@ aceptarla. Más adelante habrá un panel de administración web.
 Base inicial más autenticación por correo/contraseña, sesión segura en Android/iOS
 y rutas protegidas de cliente, repartidor aprobado y solicitud pendiente.
 El cliente puede crear pedidos, consultar su lista/detalle y cancelar antes de que
-estén en camino. La zona repartidor sigue en preparación; sin tracking ni pagos en línea.
+estén en camino. El repartidor aprobado puede configurar disponibilidad/comunas,
+recibir ofertas, aceptar/rechazar, consultar su pedido y avanzar a en camino/entregado.
+El cliente recibe actualizaciones automáticas y ve una línea de tiempo de eventos.
+Sin tracking ni pagos en línea.
 La migración inicial ya está aplicada en Supabase cloud, según lo informado por el
 usuario. Esta tarea no ejecutó SQL en la nube. No hay notificaciones enviadas ni
 servicios pagados activados. El pago del MVP será contra entrega.
@@ -21,7 +24,9 @@ servicios pagados activados. El pago del MVP será contra entrega.
 - Expo Router y TypeScript strict; TanStack Query, Zustand, react-hook-form y zod.
 - expo-location, expo-notifications, react-native-maps con Google Maps.
 - Supabase: Postgres 17 + PostGIS, Auth, Realtime, Edge Functions y RLS desde el inicio.
-- Theme central propio, tipografía del sistema y ninguna librería genérica de UI.
+- Theme central propio con rojo frambuesa, blanco cálido y carbón, Figtree en acceso y cliente y ninguna librería genérica de UI.
+  Tokens, componentes y accesibilidad en [sistema visual](docs/design.md).
+- Logos locales de producto en el cliente, con uso limitado y aviso de independencia; ver [límites de marcas](docs/design.md#logos-de-marcas-de-productos).
 
 Se subirá a Expo SDK 58 cuando esté estable y la Expo Go de la tienda lo soporte.
 
@@ -51,11 +56,19 @@ Permisos de ubicación/notificaciones se configuraron, pero todavía no se solic
 Para un futuro mapa usar PROVIDER_GOOGLE también en iOS. Las push remotas requieren
 credenciales/configuración nativa posterior; no están activas en este scaffold.
 
+La web (`npm run web`, Metro) es solo para pruebas de desarrollo; la sesión vive en
+memoria y no persiste al recargar. Para la confirmación por correo, agregar
+`http://localhost:8081` (o el puerto que use Expo web) a **Authentication → URL
+Configuration → Redirect URLs** del proyecto Supabase. El registro web usa ese
+origen como retorno; después de confirmar, iniciar sesión con correo y contraseña.
+Ver [configuración de redirecciones](https://supabase.com/docs/guides/auth/redirect-urls).
+
 ## Comandos
 
 | Comando                       | Uso                                                |
 | ----------------------------- | -------------------------------------------------- |
 | npm run typecheck             | TypeScript sin emitir archivos                     |
+| npm run web                   | Expo web solo para pruebas de desarrollo           |
 | npm run lint                  | ESLint del proyecto móvil                          |
 | npm run format / format:check | Escribir / revisar formato propio                  |
 | npm run db:start / db:stop    | Supabase local                                     |
@@ -87,7 +100,10 @@ su frontera. La configuración se valida al inicializar Auth; errores bloquean a
 - Aprobar exige una operación administrativa confiable y transaccional que actualice
   ambas filas. No hay endpoint de aprobación móvil ni panel admin en esta entrega.
 
-### Aplicar la migración (pendiente; no ejecutada aquí)
+### Migración Auth aplicada
+
+El usuario confirmó que `20261018020000_auth_roles.sql` ya está aplicada en cloud.
+No volver a ejecutarla allí. Las instrucciones siguientes sirven para otro entorno.
 
 En el SQL Editor del proyecto correcto de Supabase, con rol postgres, abrir y
 ejecutar completo [20261018020000_auth_roles.sql](supabase/migrations/20261018020000_auth_roles.sql).
@@ -103,6 +119,12 @@ una cuenta de prueba desde una operación de servidor, nunca desde la app.
 
 Ver [ADR 0005](docs/decisions/0005-auth-and-roles.md). Pruebas locales sin red:
 `node scripts/test-auth.cjs`.
+
+Para un ingreso rechazado, ver [diagnóstico de Auth](docs/auth-troubleshooting.md).
+En PowerShell 7, `pwsh -File ./scripts/diagnose-login.ps1` prueba el acceso directo
+con contraseña oculta, sin imprimir tokens, y cierra solo su sesión de diagnóstico.
+La misma guía incluye `reset-auth-password.ps1` para reemplazar una contraseña
+mediante Auth Admin, solo en la terminal del propietario con su clave oculta.
 
 ## Estructura
 
@@ -127,9 +149,9 @@ docs/                   # arquitectura, dominio, roadmap, skills, ADRs
 ## Roadmap
 
 1. Ejecutar las pruebas SQL preparadas; validar concurrencia real en dos sesiones y generar tipos.
-2. Aplicar migración Auth y validar flujo real; aprobación administrativa, RUT y comunas pendientes.
-3. Catálogo/precios por distribuidor, creación de pedidos y ofertas privadas.
-4. Aceptación, tracking, estados y notificaciones; pago contra entrega.
+2. Aplicar la migración de ofertas y validar cuentas reales; Auth ya está aplicada.
+3. Catálogo/precios por distribuidor e idempotencia; pedidos y ofertas implementados.
+4. Aplicar progreso de entrega y validar Realtime; tracking y push quedan para otra tarea.
 5. Piloto local y panel admin web; evaluar gateways después del MVP.
 
 Ver [roadmap](docs/roadmap.md), [arquitectura](docs/architecture.md),
@@ -174,7 +196,11 @@ La RPC admite coordenadas opcionales, pero este formulario no solicita ubicació
 Lista y detalle permiten actualizar estado manualmente; no hay suscripción Realtime.
 Ante un error ambiguo al crear, revisar Mis pedidos antes de repetir la operación.
 
-La interfaz usa el theme existente y controles compartidos, sin dependencias nuevas.
+La interfaz cliente usa Figtree, Inicio/Pedidos/Cuenta, cilindros SVG propios, avatares, hojas de selección y tarjetas planas; ver [diseño](docs/design.md).
+Inicio presenta un acceso compacto a «Pedir gas» y el seguimiento del pedido activo;
+el historial, su estado vacío y la paginación quedan en la pestaña Pedidos.
+Nuevo pedido usa logos sin nombres duplicados, tamaños compactos con precio,
+paneles para cantidad/canje y entrega, y total con «Confirmar pedido» al pie.
 Pendientes: completar precios del catálogo que falten, validar el resto del flujo en dispositivo
 real, idempotencia ante reintentos manuales, precios/stock por distribuidor, auditoría
 del catálogo e históricos y liberación de disponibilidad por el futuro backend.
@@ -215,9 +241,138 @@ las pruebas conservan ese límite de privacidad. La aceptación se prueba en sec
 una carrera real requiere dos conexiones. Ver [detalle y decisión](docs/decisions/0004-initial-migration-tests.md).
 El seed contiene solo las 12 combinaciones de marca/peso y no es necesario para probar.
 
+## Ofertas del repartidor: aplicación manual pendiente
+
+Sin ejecutar SQL contra Supabase en esta tarea. En el SQL Editor del proyecto correcto,
+con rol postgres:
+
+1. Confirmar las tres migraciones previas aplicadas; Auth y pedidos cliente ya fueron
+   confirmadas por el usuario. No volver a ejecutarlas.
+2. Ejecutar completo [20261018040000_driver_offers.sql](supabase/migrations/20261018040000_driver_offers.sql),
+   incluidos BEGIN/COMMIT. Mantener el historial manual reconciliado antes de usar CLI.
+3. Ejecutar el único DO completo de [driver_offers.sql](supabase/tests/driver_offers.sql).
+   Esperar NOTICE PASS; revierte fixtures incluso con autocommit. Las secuencias pueden avanzar.
+   La suite [customer_orders.sql](supabase/tests/customer_orders.sql) ahora admite requested/offered al crear.
+4. Con una cuenta de prueba registrada, solicitar acceso desde la app. Copiar su UUID
+   de Auth y reemplazar el marcador en [approve-test-driver.sql](supabase/admin/approve-test-driver.sql).
+   Ejecutar el archivo completo **solo en SQL Editor como postgres, nunca desde la app**.
+5. Volver a abrir la app o revisar aprobación; elegir comunas CUT, guardarlas y activar
+   disponibilidad. Desde otra cuenta crear un pedido nuevo en una de esas comunas
+   con producto activo y precio configurado. La oferta vence en 60 s.
+6. Revisar permisos/advisors, generar tipos reales y probar una carrera con dos sesiones.
+
+Las ofertas muestran producto, cantidad, canje, comuna y total; dirección/notas solo
+tras aceptar. Las pantallas del grupo `(driver)` se protegen por rol y aprobación.
+La app consulta cada 5 s únicamente con pantalla enfocada y aplicación activa.
+Ante respuesta de aceptación perdida, actualizar y abrir «Ver mi pedido asignado»;
+las mutaciones no se reintentan automáticamente. La RPC distingue «ya fue tomado por
+otro repartidor», oferta vencida/rechazada y permisos insuficientes.
+
+Sin candidatos, el pedido queda requested; ofertas vencidas o rechazadas dejan offered.
+No hay redispatch automático al activar disponibilidad ni barrido de pedidos anteriores;
+probar con un pedido nuevo. Cambiar cobertura/desactivarse vence ofertas afectadas.
+La aceptación desactiva disponibilidad y un pedido activo impide reactivarla. Tras
+cancelación o entrega puede reactivarse manualmente en la pantalla de ofertas.
+
+Pendiente: aplicar la migración, ejecutar las suites SQL, validar concurrencia real,
+red/reinicio y dispositivo físico. Sin verificaciones visuales ni dependencias nuevas.
+Ver [ADR 0007](docs/decisions/0007-driver-offers.md). Assertions sin red:
+`node scripts/test-driver-offers.cjs` aprobadas, incluyendo pausa del polling por
+foco/AppState; también pasaron las assertions existentes de pedidos cliente.
+`npm run typecheck` aprobado en una única ejecución; ESLint de los archivos móviles
+modificados aprobado. Las pruebas SQL se entregan preparadas, sin ejecutar.
+
+## Progreso del pedido y actualización automática
+
+El repartidor asignado usa «Salir a entregar» y luego «Marcar como entregado», con
+confirmación antes de entregar. La RPC solo permite accepted → on_the_way → delivered;
+el pedido entregado deja de estar activo. Se conservan los triggers de estados/eventos
+y las políticas RLS. No hay tracking, mapas, push, pagos en línea ni cancelación driver.
+
+El layout cliente suscribe sus pedidos mediante Realtime e invalida lista, detalle y
+eventos. Si no está conectado, consulta cada 15 s solo en primer plano; al volver a
+la app o reconectar también actualiza. El desmontaje elimina canal/listener/intervalo.
+La línea de tiempo muestra los estados alcanzados según order_events, con zod,
+theme central y textos es-CL. Sin nuevas dependencias.
+
+Aplicación manual en Supabase cloud (no ejecutada por el agente):
+
+1. En SQL Editor como postgres, confirmar que se aplicaron las migraciones anteriores,
+   incluida `20261018040000_driver_offers.sql`.
+2. Ejecutar completo [20261018050000_driver_order_progress.sql](supabase/migrations/20261018050000_driver_order_progress.sql).
+3. Ejecutar completo [driver_order_progress.sql](supabase/tests/driver_order_progress.sql):
+   un solo DO con rollback interno. Debe terminar con avisos PASS; cualquier error
+   indica fallo. No conserva fixtures; las secuencias pueden avanzar.
+4. Pendiente: verificar con cliente/repartidor reales, desconexión y retorno a primer
+   plano, cambio de cuenta y carreras con cancelación en dos conexiones.
+
+Assertions locales sin red: `node scripts/test-driver-order-progress.cjs`.
+Validación de esta entrega: assertions de progreso, ofertas y pedidos aprobadas;
+lint de los archivos móviles modificados y único `npm run typecheck` aprobados.
+Sin ejecución SQL, emulador, capturas ni verificaciones visuales.
+Ver [ADR 0008](docs/decisions/0008-driver-order-progress.md).
+
 ## Changelog
 
 ### 2026-10-18
+
+- Preparada entrega conjunta de cliente, repartidor y seguimiento. Corregidos lint
+  de Metro y pulsación Reanimated; el reintento de sesión reinicia su estado desde
+  la acción del usuario y protege errores diferidos tras desmontar. Regresión local
+  de recuperación de sesión agregada a `scripts/test-auth.cjs`.
+
+- Rediseñado Nuevo pedido: logos sin texto repetido, tamaños compactos con selección
+  visible, paneles blancos para cantidad/canje y entrega y resumen mínimo en el pie.
+  Conservados catálogo, validación, precios del servidor y creación del pedido;
+  «Revisar mis pedidos» ahora abre la pestaña Pedidos.
+
+- Compactado «Pedir gas» en Inicio en una tarjeta horizontal con cilindro pequeño
+  y flecha de acceso. Retirados el historial «Tus pedidos», su vacío y la paginación
+  de Inicio; se conservan en Pedidos y se mantiene el seguimiento activo en Inicio.
+
+- Rehechos inicio de sesión y registro sin skills de diseño: blanco cálido, carbón,
+  rojo frambuesa, encabezado tipográfico y formulario sin bloque promocional ni
+  ilustración. Cambio de modo al pie, foco visible y contraste calculado de 5.45:1
+  en la acción principal (4.71:1 al pulsar). Los tokens centrales sustituyen la
+  combinación anterior; las demás composiciones quedan para una etapa posterior.
+  Detalles en [sistema visual](docs/design.md).
+
+- Integrados logos locales Lipigas/Gasco/Abastible en selección, pedidos y resúmenes del cliente, con aviso en Mi cuenta y límites documentados.
+
+- Rediseñadas las pantallas del cliente con display 34, paleta cálida, pestañas, avatares, cilindros SVG, esqueletos y pulsación 0.98; sin cambios de backend, datos ni lógica de negocio; único typecheck aprobado.
+- Renovado el sistema visual del cliente: tokens cálidos/primario petróleo, Figtree
+  400–700 con splash y respaldo del sistema, texto accesible y componentes propios.
+- Rediseñados Mis pedidos, Nuevo pedido, Mi cuenta y detalle, con estados legibles,
+  selección en columnas, contador y botón inferior. Sin cambios de negocio ni backend.
+- Conservada la presentación del repartidor y el soporte de web de pruebas;
+  documentadas reglas en docs/design.md. Sin ejecución ni verificación visual.
+- Único typecheck: detectó un tipo opcional de Input; corregido para admitir
+  undefined explícito, sin repetir el chequeo. Ejecución web/dispositivo pendiente.
+
+- Habilitado Expo web de desarrollo con dependencias compatibles, Metro y script web;
+  sesión en memoria, retorno de confirmación por correo y confirmación de entrega web.
+
+- Agregado avance de entrega exclusivo del repartidor asignado, confirmación de
+  entregado y eliminación inmediata del pedido activo en caché.
+- Preparadas migración 20261018050000, publicación idempotente de orders y suite SQL
+  con rollback para permisos, transiciones, eventos, marcas y publicación.
+- Agregados Realtime cliente con respaldo de 15 s en primer plano, línea de tiempo
+  de eventos, assertions locales y ADR 0008. Aplicación SQL y prueba real pendientes.
+
+- Agregado diagnóstico manual de ingreso directo a Auth con contraseña oculta y
+  guía para distinguir un rechazo del servidor de un problema en la app.
+- Agregada recuperación administrativa local por UUID/correo verificados, sin
+  depender del correo ni incluir claves privilegiadas en la app.
+- Corregidos headers del restablecimiento para `sb_secret_*` y User-Agent de
+  terminal; agregada regresión local sin red para claves modernas y heredadas.
+
+- Implementado flujo repartidor en grupo protegido `(driver)`: disponibilidad,
+  selección CUT, ofertas con polling de 5 s en primer plano, aceptación/rechazo y pedido asignado.
+- Preparada `20261018040000_driver_offers.sql`: despacho por comuna con ofertas de
+  60 s, RPC mínima sin PII, aceptación que reutiliza la operación atómica y rechazo.
+- Agregados suite SQL con rollback, aprobación de prueba solo SQL Editor y ADR 0007.
+- Auth marcada como aplicada según confirmación del usuario. Sin dependencias nuevas,
+  commits, push, PR ni ejecución contra Supabase en esta tarea.
 
 - Creado flujo cliente: nuevo pedido, lista, detalle y cancelación, con TanStack Query,
   react-hook-form/zod, rutas protegidas, theme y textos es-CL; sin paquetes nuevos.

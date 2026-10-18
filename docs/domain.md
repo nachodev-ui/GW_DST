@@ -45,9 +45,12 @@ no hay un tercer rol admin expuesto al móvil. Admin web futuro necesita un dise
 | delivered  | Entregado; terminal                           | Ninguno               |
 | cancelled  | Cancelado; terminal                           | Ninguno               |
 
-Una oferta rechazada o vencida no cancela automáticamente el pedido. Despacho futuro
-puede volver a ofertar manteniendo offered. private.order_offers representa destinatarios
-y expiración; se escribe solo desde el backend confiable. No hay algoritmo de despacho.
+Una oferta rechazada o vencida no cancela automáticamente el pedido. El despacho por
+comuna emite ofertas de 60 segundos desde create_order a repartidores aprobados,
+disponibles y con cobertura CUT, sin entrega activa. private.order_offers conserva
+destinatarios y expiración; la PK evita duplicar o renovar filas existentes.
+Sin candidatos el pedido queda requested; rechazo/vencimiento conservan offered.
+No hay reintento automático ni barrido de pedidos históricos. Ver ADR 0007.
 La creación inicia en requested. Los triggers hacen cumplir el grafo y agregan eventos
 en la misma transacción; eventos sin actor corresponden a procesos de sistema.
 El cliente cancela solo pedidos propios requested/offered/accepted mediante cancel_order.
@@ -62,11 +65,29 @@ con oferta dirigida vigente. Postgres reevalúa el predicado bajo bloqueo: un so
 Un índice único parcial impide dos pedidos accepted/on_the_way para el mismo repartidor.
 La función devuelve el UUID o falla: 42501 para identidad/permisos y 55000 para
 indisponibilidad, oferta expirada o pedido activo. Un reintento tras éxito falla;
-el cliente futuro debe releer su pedido ante respuesta de red ambigua.
+la app relee el pedido asignado ante respuesta de red ambigua.
 
-Al aceptar se desmarca disponibilidad. Liberarla tras entrega/cancelación pertenece
-al futuro backend y debe ocurrir en la misma transacción que ese cambio de estado.
-No se implementa esa operación ni botones de aceptar/rechazar en esta entrega.
+Al aceptar se desmarca disponibilidad. Tras entrega/cancelación el repartidor puede
+reactivarla manualmente mediante set_driver_settings al no tener un pedido activo;
+no se implementa reactivación automática.
+La app implementa aceptar/rechazar; la RPC accept_driver_offer reutiliza la aceptación
+existente y devuelve dirección/notas solo al ganador. get_driver_order recupera el
+pedido asignado, sin ampliar RLS. GW001 indica que otro repartidor lo tomó y GW002
+indica oferta vencida/rechazada. Disponibilidad/comunas se guardan por RPC; un pedido
+activo impide volver a estar disponible. Tras cancelación se puede reactivar manualmente.
+
+## Progreso de entrega
+
+Solo el repartidor aprobado asignado puede usar advance_driver_order para avanzar
+accepted → on_the_way → delivered. No puede saltar, retroceder, repetir estados ni
+cancelar por esta RPC. El servidor serializa la transición y sus eventos, preserva
+accepted_at y fija delivered_at; updated_at lo mantiene el trigger. Entregar es
+terminal y excluye el pedido de activos, sin confirmar un pago electrónico.
+
+El cliente recibe cambios de sus pedidos por Realtime, con lecturas sujetas a RLS
+y respaldo cada 15 s solo en primer plano si el canal está desconectado. Al volver
+a la app se actualizan consultas. La línea de tiempo usa order_events y no inventa
+estados alcanzados para pedidos cancelados. Ver ADR 0008.
 
 ## Pago y privacidad
 

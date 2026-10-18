@@ -20,10 +20,12 @@
 - [x] Migración nueva: customer por defecto y RPC idempotente de solicitud pendiente.
 - [x] Pruebas locales de reglas/almacenamiento y suite SQL preparada.
 - [x] Typecheck limpio tras corregir AppState y alinear SDK 57; una ejecución antes del commit.
-- [ ] Aplicar 20261018020000_auth_roles.sql en cloud y ejecutar auth_roles.sql.
+- [x] Migración 20261018020000_auth_roles.sql aplicada en cloud, confirmado por el usuario.
+- [ ] Ejecutar auth_roles.sql; aplicación de la migración no confirma ejecución de la suite.
 - [ ] Validar confirmación por correo, reinicio, refresco, cierre, enlaces directos,
       errores de red y aprobación/revocación con dispositivo y cuentas reales.
-- [ ] Proveer operación administrativa confiable de aprobación transaccional y auditoría.
+- [x] Script de aprobación transaccional de cuenta de prueba, solo SQL Editor (supabase/admin).
+- [ ] Operación administrativa de producción con auditoría.
 - [ ] Recuperación de contraseña y enlaces de confirmación integrados, si se requieren.
 - [ ] Validación RUT módulo 11 y catálogo oficial de comunas en onboarding posterior.
 - [ ] Generar tipos reales tras aplicar migración; mantener onboarding sin SMS de pago.
@@ -45,14 +47,32 @@
 - [ ] Revisar catálogo CUT contra cambios oficiales posteriores y validar FK de históricos.
 - [ ] Idempotencia de creación ante reintentos manuales/respuestas de red perdidas.
 - [ ] Catálogo por distribuidor con precios, stock y tarifas por canje si corresponden.
-- [ ] Motor de ofertas cercanas con PostGIS, vigencia y rechazo, sin exponer PII.
+- [x] Despacho por comuna, ofertas de 60 s, listado mínimo, aceptación atómica y rechazo.
+- [x] Disponibilidad y cobertura CUT; pantalla de ofertas y pedido asignado en features/driver.
+- [x] Suite SQL autocontenida preparada, script admin de prueba y ADR 0007.
+- [x] Assertions locales de contratos/privacidad y polling, lint acotado y único typecheck aprobados.
+- [ ] Aplicar 20261018040000_driver_offers.sql y ejecutar driver_offers.sql en SQL Editor.
+- [ ] Validar carreras con dos sesiones, recuperación tras fallo de red y flujo en dispositivo físico.
+- [ ] Recuperación de pedidos sin candidatos, redispatch/renovación y matching geográfico si se solicita.
 - [ ] Pruebas con dos conexiones para cancelación concurrente con avance de estado.
 
 ## 3 — Entrega
 
-RPC de aceptación, transiciones autorizadas restantes y liberación de disponibilidad
-transaccional. Tracking con consentimiento, permisos y límites de frecuencia; Realtime
-y push como mecanismos complementarios. Contra entrega como único pago del MVP.
+- [x] RPC de progreso accepted → on_the_way → delivered exclusiva del repartidor asignado.
+- [x] Acción por estado, confirmación de entrega, feedback y salida de pedidos activos.
+- [x] Realtime de pedidos propios del cliente; invalidación de lista/detalle/eventos,
+      respaldo de 15 s solo en primer plano, refetch al volver y limpieza del canal.
+- [x] Línea de tiempo con eventos reales, zod, theme y textos es-CL; ADR 0008.
+- [x] Suite SQL autocontenida con rollback y assertions locales sin red preparadas.
+- [x] Assertions locales de progreso/ofertas/pedidos, lint acotado y único typecheck aprobados.
+- [ ] Aplicar 20261018050000_driver_order_progress.sql después de ofertas y ejecutar
+      supabase/tests/driver_order_progress.sql en SQL Editor; no ejecutado por el agente.
+- [ ] Validar Realtime/reconexión, segundo plano, cambio de usuario y confirmación en dispositivo.
+- [ ] Validar avance concurrente, entrega repetida y cancelación concurrente con dos conexiones.
+- [ ] Automatización de disponibilidad, solo si se solicita; hoy se reactiva manualmente.
+- [ ] Tracking con consentimiento/permisos y push en tareas separadas.
+
+Contra entrega continúa como único pago del MVP.
 
 ## 4 — Piloto
 

@@ -8,7 +8,11 @@ const ts = require('typescript');
 function load(source, mocks = {}) {
   const filename = path.join(__dirname, '..', source);
   const code = ts.transpileModule(fs.readFileSync(filename, 'utf8'), {
-    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
+    compilerOptions: {
+      module: ts.ModuleKind.CommonJS,
+      target: ts.ScriptTarget.ES2022,
+      jsx: ts.JsxEmit.ReactJSX,
+    },
   }).outputText;
   const module = { exports: {} };
   vm.runInNewContext(
@@ -16,6 +20,7 @@ function load(source, mocks = {}) {
     {
       module,
       exports: module.exports,
+      queueMicrotask,
       require: (name) => (name in mocks ? mocks[name] : require(name)),
     },
     { filename },
@@ -84,6 +89,80 @@ async function main() {
   await secureStorage.removeItem('session');
   assert.equal(await secureStorage.getItem('session'), null);
   assert.equal(values.size, 0);
+
+  // Missing configuration reports a recoverable error, and retry resets loading.
+  const states = [];
+  let hookIndex = 0;
+  let effect;
+  let receivedSession;
+  let configured = false;
+  const queryClient = { clear() {}, invalidateQueries: async () => {} };
+  const { AuthProvider } = load('apps/mobile/src/features/auth/auth-provider.tsx', {
+    react: {
+      createContext: () => ({ Provider: 'provider' }),
+      useContext() {},
+      useEffect: (callback) => {
+        effect = callback;
+      },
+      useState: (initial) => {
+        const index = hookIndex++;
+        if (!(index in states)) states[index] = initial;
+        return [
+          states[index],
+          (value) => {
+            states[index] = typeof value === 'function' ? value(states[index]) : value;
+          },
+        ];
+      },
+    },
+    'react-native': {
+      AppState: { currentState: 'active', addEventListener: () => ({ remove() {} }) },
+    },
+    '@tanstack/react-query': {
+      focusManager: { setFocused() {} },
+      useQueryClient: () => queryClient,
+      useQuery: () => ({ isPending: false, isError: false }),
+    },
+    '@/features/auth/access': {},
+    '@/shared/supabase/client': {
+      getSupabase: () => {
+        if (!configured) throw new Error('Missing configuration');
+        return {
+          auth: {
+            onAuthStateChange: (callback) => {
+              receivedSession = callback;
+              return { data: { subscription: { unsubscribe() {} } } };
+            },
+            getSession: async () => ({ data: { session: null }, error: null }),
+            startAutoRefresh() {},
+            stopAutoRefresh() {},
+          },
+        };
+      },
+    },
+  });
+  const renderAuth = () => {
+    hookIndex = 0;
+    return AuthProvider({ children: null }).props.value;
+  };
+  assert.equal(renderAuth().loading, true);
+  const cleanupFailure = effect();
+  await Promise.resolve();
+  const failedAuth = renderAuth();
+  assert.equal(failedAuth.error, true);
+  assert.equal(failedAuth.loading, false);
+  configured = true;
+  await failedAuth.retry();
+  assert.equal(renderAuth().loading, true);
+  assert.equal(renderAuth().error, false);
+  cleanupFailure();
+  const cleanupSuccess = effect();
+  await Promise.resolve();
+  assert.equal(renderAuth().loading, false);
+  assert.equal(renderAuth().session, null);
+  cleanupSuccess();
+  receivedSession('SIGNED_IN', { user: { id: 'stale-session' } });
+  assert.equal(renderAuth().session, null);
   console.log(
     'PASS: role guards, boundary validation, credentials, secure session roundtrip, interrupted writes, renewal and logout cleanup',
   );

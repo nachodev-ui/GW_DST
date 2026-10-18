@@ -34,7 +34,7 @@ export function AuthNavigator() {
         <Stack.Screen name="(customer)" />
       </Stack.Protected>
       <Stack.Protected guard={!!session && zone === 'driver'}>
-        <Stack.Screen name="driver" />
+        <Stack.Screen name="(driver)" />
       </Stack.Protected>
       <Stack.Protected guard={!!session && zone === 'pending'}>
         <Stack.Screen name="pending" />
