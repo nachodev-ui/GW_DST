@@ -2,11 +2,13 @@ import { z } from 'zod';
 
 export const brands = ['Lipigas', 'Gasco', 'Abastible'] as const;
 export const weights = [5, 11, 15, 45] as const;
+export const productVariants = ['standard', 'vma', 'vm'] as const;
 export const clpSchema = z.number().int().min(0).max(2147483647);
 export const productSchema = z.object({
   id: z.uuid(),
   brand: z.enum(brands),
   weight_kg: z.union([z.literal(5), z.literal(11), z.literal(15), z.literal(45)]),
+  variant: z.enum(productVariants).default('standard'),
   unit_price_clp: clpSchema.nullable(),
 });
 export const communeSchema = z.object({
@@ -29,6 +31,9 @@ export const orderSchema = z.object({
   created_at: z.iso.datetime({ offset: true }),
 });
 export type Product = z.infer<typeof productSchema>;
+export function productLabel(product: Pick<Product, 'weight_kg' | 'variant'>) {
+  return `${product.variant === 'standard' ? '' : `${product.variant.toUpperCase()} `}${product.weight_kg} kg`;
+}
 export type Commune = z.infer<typeof communeSchema>;
 export type Order = z.infer<typeof orderSchema>;
 export const statusLabels: Record<Order['status'], string> = {

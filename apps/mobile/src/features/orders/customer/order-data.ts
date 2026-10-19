@@ -16,9 +16,10 @@ export function useCatalogue() {
       const [products, communes] = await Promise.all([
         getSupabase()
           .from('products')
-          .select('id,brand,weight_kg,unit_price_clp')
+          .select('id,brand,weight_kg,variant,unit_price_clp')
           .eq('is_active', true)
-          .order('weight_kg'),
+          .order('weight_kg')
+          .order('variant'),
         getSupabase().from('communes').select('code,name').order('name'),
       ]);
       if (products.error) throw products.error;

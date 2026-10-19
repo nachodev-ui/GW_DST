@@ -1,3 +1,4 @@
+import { Platform } from 'react-native';
 import Svg, { Path, Circle } from 'react-native-svg';
 import { theme } from '@/theme';
 
@@ -41,7 +42,7 @@ export function Icon({
       strokeWidth={1.8}
       strokeLinecap="round"
       strokeLinejoin="round"
-      accessible={false}
+      {...(Platform.OS === 'web' ? {} : { accessible: false })}
       aria-hidden
     >
       {name === 'clock' ? <Circle cx="12" cy="12" r="9" /> : null}

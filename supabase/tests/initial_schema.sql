@@ -1,4 +1,4 @@
--- Ejecutar TODO como postgres en SQL Editor. Solo requiere la migración inicial.
+-- Ejecutar TODO como postgres en SQL Editor después de todas las migraciones.
 -- Un único DO: sin tablas auxiliares, funciones de prueba ni sesión previa.
 -- El bloque revierte sus fixtures incluso si el editor usa autocommit.
 -- La aceptación se prueba en secuencia; una carrera real requiere dos conexiones.
@@ -16,6 +16,7 @@ declare
   v_assigned_a uuid := gen_random_uuid();
   v_assigned_c uuid := gen_random_uuid();
   v_product uuid;
+  v_organization uuid := gen_random_uuid();
   v_rejected boolean;
 begin
   -- Este subbloque es una subtransacción: GW001 al final revierte todos los datos.
@@ -31,9 +32,12 @@ begin
     where id in (v_driver_a, v_driver_b, v_driver_c);
     insert into public.drivers (id, is_verified, is_available)
     values (v_driver_a, true, true), (v_driver_b, true, true), (v_driver_c, true, true);
+    insert into public.distributors(id,name,is_verified) values(v_organization,'Negocio de prueba inicial',true);
+    insert into public.distributor_brands values(v_organization,'Lipigas');
+    update public.drivers set distributor_id=v_organization where id in(v_driver_a,v_driver_b,v_driver_c);
 
     insert into public.products (brand, weight_kg) values ('Lipigas', 5)
-    on conflict (brand, weight_kg) do nothing;
+    on conflict (brand, weight_kg, variant) do nothing;
     select id into strict v_product from public.products where brand = 'Lipigas' and weight_kg = 5;
     insert into public.orders (
       id, customer_id, product_id, exchange_empty, total_clp,

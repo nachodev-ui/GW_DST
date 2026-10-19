@@ -15,7 +15,9 @@ function load(source) {
   return module.exports;
 }
 const { createOrderFormSchema } = load('apps/mobile/src/features/orders/customer/order-form.ts');
-const { canCancel, formatClp, productSchema } = load('apps/mobile/src/shared/orders/contracts.ts');
+const { canCancel, formatClp, productSchema, productLabel } = load(
+  'apps/mobile/src/shared/orders/contracts.ts',
+);
 const schema = createOrderFormSchema([{ code: '13101', name: 'Santiago' }]);
 const form = {
   productId: '10000000-0000-4000-8000-000000000001',
@@ -54,6 +56,12 @@ assert.equal(productSchema.safeParse(product).success, true);
 assert.equal(productSchema.safeParse({ ...product, unit_price_clp: 0 }).success, true);
 assert.equal(productSchema.safeParse({ ...product, unit_price_clp: 1.5 }).success, false);
 assert.equal(productSchema.safeParse({ ...product, unit_price_clp: -1 }).success, false);
+assert.equal(productLabel(productSchema.parse(product)), '11 kg');
+for (const variant of ['vma', 'vm']) {
+  const cylinder = productSchema.parse({ ...product, brand: 'Abastible', weight_kg: 15, variant });
+  assert.equal(productLabel(cylinder), `${variant.toUpperCase()} 15 kg`);
+}
+assert.equal(productSchema.safeParse({ ...product, variant: 'unknown' }).success, false);
 console.log(
   'PASS: order form, official catalogue membership, integer quantity/CLP, explicit exchange and cancellation visibility',
 );

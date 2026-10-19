@@ -1,3 +1,5 @@
+-- Historical open-enrolment suite for its original migration. Since 20261019004638,
+-- those RPC grants are retired; use business_driver_invitations.sql on the current schema.
 -- Run the entire DO in SQL Editor as postgres, after both migrations.
 -- Test rows are rolled back internally even in autocommit mode.
 do $$

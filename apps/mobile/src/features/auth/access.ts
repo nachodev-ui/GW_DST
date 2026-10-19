@@ -3,14 +3,13 @@ import { getSupabase } from '@/shared/supabase/client';
 
 export const profileSchema = z.object({ role: z.enum(['customer', 'driver']) });
 export const driverSchema = z.object({ is_verified: z.boolean() });
-export type Zone = 'customer' | 'driver' | 'pending';
+export type Zone = 'customer' | 'driver';
 
 export function resolveZone(
   profile: z.infer<typeof profileSchema>,
   driver: z.infer<typeof driverSchema> | null,
 ): Zone {
   if (profile.role === 'driver' && driver?.is_verified) return 'driver';
-  if (driver || profile.role === 'driver') return 'pending';
   return 'customer';
 }
 

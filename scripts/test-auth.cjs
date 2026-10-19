@@ -36,10 +36,10 @@ async function main() {
     },
   );
   assert.equal(resolveZone({ role: 'customer' }, null), 'customer');
-  assert.equal(resolveZone({ role: 'customer' }, { is_verified: false }), 'pending');
-  assert.equal(resolveZone({ role: 'customer' }, { is_verified: true }), 'pending');
-  assert.equal(resolveZone({ role: 'driver' }, null), 'pending');
-  assert.equal(resolveZone({ role: 'driver' }, { is_verified: false }), 'pending');
+  assert.equal(resolveZone({ role: 'customer' }, { is_verified: false }), 'customer');
+  assert.equal(resolveZone({ role: 'customer' }, { is_verified: true }), 'customer');
+  assert.equal(resolveZone({ role: 'driver' }, null), 'customer');
+  assert.equal(resolveZone({ role: 'driver' }, { is_verified: false }), 'customer');
   assert.equal(resolveZone({ role: 'driver' }, { is_verified: true }), 'driver');
   assert.equal(profileSchema.safeParse({ role: 'admin' }).success, false);
   assert.equal(driverSchema.safeParse({ is_verified: 'true' }).success, false);

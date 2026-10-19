@@ -226,7 +226,7 @@ export function SegmentedChoice({
       {[true, false].map((option) => (
         <View key={String(option)} style={ui.flex}>
           <OptionCard
-            label={option ? 'Entrego envase vacío' : 'Compro envase nuevo'}
+            label={option ? 'Entrego envase vacío' : 'Necesito envase'}
             selected={value === option}
             onPress={() => onChange(option)}
             disabled={disabled}

@@ -7,12 +7,18 @@ aceptarla. Más adelante habrá un panel de administración web.
 ## Estado actual
 
 Base inicial más autenticación por correo/contraseña, sesión segura en Android/iOS
-y rutas protegidas de cliente, repartidor aprobado y solicitud pendiente.
+y rutas protegidas de cliente y repartidor aprobado, con postulación en Mi cuenta.
 El cliente puede crear pedidos, consultar su lista/detalle y cancelar antes de que
 estén en camino. El repartidor aprobado puede configurar disponibilidad/comunas,
 recibir ofertas, aceptar/rechazar, consultar su pedido y avanzar a en camino/entregado.
 El cliente recibe actualizaciones automáticas y ve una línea de tiempo de eventos.
 Sin tracking ni pagos en línea.
+
+El espacio de conductor usa ahora el sistema visual actual: **Ofertas, Cobertura y
+Cuenta**, con negocio afiliado, bloqueo explicado, disponibilidad separada de los
+borradores de cobertura y entrega con confirmación explícita. La entrada sigue
+requiriendo habilitación de Gasway; aceptar una invitación no basta. Ver
+[flujo del conductor](docs/driver-workspace.md).
 La migración inicial ya está aplicada en Supabase cloud, según lo informado por el
 usuario. Esta tarea no ejecutó SQL en la nube. No hay notificaciones enviadas ni
 servicios pagados activados. El pago del MVP será contra entrega.
@@ -91,9 +97,14 @@ su frontera. La configuración se valida al inicializar Auth; errores bloquean a
 - Android/iOS persisten sesión cifrada en expo-secure-store, en fragmentos pequeños
   para admitir tokens grandes. Refresco solo en primer plano; cierre local borra la
   sesión del dispositivo. En web la sesión es solo en memoria.
-- El servidor crea cada perfil como customer. Desde la zona de cliente se puede
-  solicitar ser repartidor mediante request_driver_access(), sin pasar IDs ni roles.
-- Una fila drivers con is_verified=false significa pendiente. Para entrar a la zona
+- El servidor crea cada perfil como customer. El negocio invita desde **Mi negocio →
+  Equipo**; el conductor acepta con su correo confirmado y completa sus antecedentes
+  desde **Mi cuenta → Activar mi acceso como conductor**. Las RPC de postulación
+  abierta anteriores están retiradas; no concederles permisos de nuevo.
+- Una fila drivers con is_verified=false indica acceso no habilitado. El estado de
+  postulación pending/approved/rejected vive en driver_applications tras ADR 0009.
+  Mi cuenta muestra estado, motivo y fecha; pendientes y rechazados pueden seguir comprando.
+  Para entrar a la zona
   de repartidor deben coincidir profiles.role=driver y drivers.is_verified=true.
   La app consulta estos datos bajo RLS, al volver al primer plano, cada 30 segundos
   en primer plano y mediante el botón de revisión. Ante errores bloquea la navegación.
@@ -120,11 +131,184 @@ una cuenta de prueba desde una operación de servidor, nunca desde la app.
 Ver [ADR 0005](docs/decisions/0005-auth-and-roles.md). Pruebas locales sin red:
 `node scripts/test-auth.cjs`.
 
+### Distribuidores y revisión: primera fase
+
+Referencia histórica: la incorporación abierta descrita en las primeras fases se
+reemplazó por [Equipo e invitaciones](docs/driver-team.md). Las decisiones y datos
+anteriores se conservan; las nuevas incorporaciones parten del negocio.
+
+Aplicada [migración de distribuidores](supabase/migrations/20261018195303_distributors_driver_review.sql),
+posterior a `20261018050000`. Modela negocios, responsables owner/manager y una
+afiliación por conductor. No cambia los roles móviles customer/driver.
+
+Aplicar el archivo completo como postgres en SQL Editor del proyecto correcto y
+ejecutar después [la suite transaccional](supabase/tests/distributors_driver_review.sql).
+Luego [revisar solicitudes](supabase/admin/review-driver-application.sql): aprobación
+requiere distribuidor verificado; rechazo requiere motivo; ambas decisiones registran
+operador y fecha. El motivo es visible al postulante bajo RLS; la auditoría es privada.
+La referencia manual del operador no concede permisos. El script de aprobación de
+cuenta de prueba ahora requiere esta migración, un negocio verificado y un operador.
+
+El 2026-10-18 se confirmó el proyecto `gleltbrvpfvfgggcatpt` (Gasway Project), se
+verificó el esquema previo hasta `20261018050000` y se concilió el historial de las
+cuatro migraciones manuales. La CLI aplicó únicamente `20261018195303`, como postgres.
+La suite SQL completa pasó y los conteos antes/después confirmaron rollback de todos
+sus fixtures. RLS está activo en las cuatro tablas nuevas. Los advisors de seguridad
+solo advirtieron que la protección de Auth contra contraseñas filtradas está desactivada.
+
+La migración conserva acceso y datos existentes, sin inventar afiliaciones. Se listó
+y rechazó la solicitud pendiente por instrucción explícita del usuario; se verificaron
+motivo, auditoría, acceso de conductor deshabilitado y cero solicitudes pendientes.
+No hay distribuidores registrados; aprobar nuevas solicitudes exige negocio verificado
+y vinculación confirmada. La app ya muestra rechazo/motivo y permite seguir comprando;
+el formulario ya registra datos y distribuidor solicitado. Faltan el alta comercial
+en la app, la interfaz de confirmación del negocio y vincular conductores anteriores.
+Precios/stock, identificación del vendedor en el pedido y despacho por negocio siguen
+pendientes; tampoco hay panel web ni suspensión. Ver [ADR 0009](docs/decisions/0009-distributors-and-driver-review.md).
+
+### Respuesta al postulante y nueva solicitud
+
+Mi cuenta muestra la postulación propia, su motivo y fecha de revisión. La consulta
+usa zod, se actualiza al volver al primer plano, cada 30 segundos y manualmente;
+un fallo de consulta no bloquea comprar. Los enlaces antiguos `/pending` abren Mi cuenta.
+Solo rol driver y verificación operativa habilitan las rutas de repartidor.
+
+Tras un rechazo, «Volver a postular» abre el formulario para corregir antecedentes
+y confirmar que el usuario revisó y resolvió el motivo. «Confirmar nueva solicitud»
+llama submit_driver_application() con intención explícita de nueva postulación;
+exige identidad propia, perfil customer, sin habilitación ni entrega activa.
+Vuelve a pending sin aprobar ni afiliar y conserva las revisiones anteriores en
+auditoría privada. Reintentar una solicitud pendiente no cambia su fecha; request_driver_access()
+por sí sola nunca borra un rechazo.
+
+Aplicada en Gasway cloud [20261018205226_driver_reapplication.sql](supabase/migrations/20261018205226_driver_reapplication.sql).
+La [suite SQL](supabase/tests/driver_reapplication.sql) pasó y revierte sus datos temporales.
+Pasaron `node scripts/test-auth.cjs`, `node scripts/test-driver-application.cjs`, un
+typecheck y lint acotado. Sin abrir la app ni hacer verificaciones visuales. Ver
+[ADR 0010](docs/decisions/0010-applicant-status-and-reapplication.md) y probar en dispositivo antes del piloto.
+
+### Formulario de postulación y distribuidor solicitado
+
+Desde Mi cuenta, «Quiero ser repartidor», «Completar mi postulación» o «Volver a
+postular» abre un formulario con nombre, RUT, teléfono de contacto y distribuidor.
+Zod normaliza entradas y SQL vuelve a validar RUT módulo 11 y teléfono chileno.
+El envío no concede afiliación ni acceso. Los datos son privados bajo RLS;
+cada revisión nueva conserva una copia privada de los antecedentes enviados.
+
+La lista solo muestra id/nombre de negocios con is_verified=true y
+accepts_driver_applications=true. Este último indicador empieza en false y solo
+lo cambia un operador confiable tras confirmar que el negocio desea recibir
+postulaciones. No hay negocios registrados actualmente: se muestra un estado vacío
+y se mantiene la compra disponible, sin crear distribuidores ficticios.
+
+Aplicada [20261018211559_driver_application_details.sql](supabase/migrations/20261018211559_driver_application_details.sql).
+Pasaron la suite nueva y las de revisión/nueva postulación anteriores, con fixtures
+revertidos y conteos reales intactos; también pruebas locales, typecheck y lint acotado.
+El script [de revisión SQL](supabase/admin/review-driver-application.sql) muestra ahora
+los antecedentes; aprobar exige datos completos y el distribuidor elegido. Ver
+[ADR 0012](docs/decisions/0012-driver-application-details.md) para alta manual y límites.
+
 Para un ingreso rechazado, ver [diagnóstico de Auth](docs/auth-troubleshooting.md).
 En PowerShell 7, `pwsh -File ./scripts/diagnose-login.ps1` prueba el acceso directo
 con contraseña oculta, sin imprimir tokens, y cierra solo su sesión de diagnóstico.
 La misma guía incluye `reset-auth-password.ps1` para reemplazar una contraseña
 mediante Auth Admin, solo en la terminal del propietario con su clave oculta.
+
+## Contexto operativo y confirmación del negocio
+
+El contexto verificado del mercado chileno y la distinción negocio/conductor están
+guardados en [market-context-chile.md](docs/market-context-chile.md).
+
+La base ya exige confirmación del negocio antes de la aprobación final de Gasway.
+Un responsable autenticado lista las postulaciones propias del negocio mediante
+list_distributor_driver_applications() y confirma su versión exacta con
+confirm_driver_affiliation(driver_id, requested_at). No recibe RUT/teléfono ni
+habilita conductores por sí mismo. «Mi negocio» permite hacerlo con su propia sesión.
+
+Las marcas se configuran en distributor_brands, sin presumir exclusividad universal.
+Ofertas y aceptación verifican negocio/marca; el pedido fija su distribuidor al aceptar.
+Un conductor anterior sin afiliación conserva acceso e historial, pero requiere
+regularizar el negocio y sus marcas para recibir ofertas nuevas. Las entregas ya
+asignadas pueden terminar. El precio por negocio y la identificación del vendedor
+antes de comprar siguen pendientes del prototipo. Ver [ADR 0013](docs/decisions/0013-business-confirmation-and-brand-dispatch.md).
+
+No se rechaza un envase solo por su marca ni se agrega un recargo por cambiarla;
+su seguridad y características deben revisarse. «Necesito envase» evita presumir
+su compra en propiedad. Falta registrar el detalle del envase devuelto.
+
+## Mi negocio y entorno de prueba
+
+En **Mi cuenta → Mi negocio** se registra una distribuidora o se gestiona la que
+corresponda a la membresía autenticada. Los repartidores acceden desde «Mi negocio»
+en su pantalla de ofertas. La sección tiene rutas y feature propias: una membresía
+owner/manager no cambia profiles.role ni habilita conducción. Un mismo usuario
+puede ser cliente, responsable del negocio y conductor si obtiene cada permiso.
+
+El alta registra nombre, RUT, responsable/contacto, recinto, comuna CUT, marcas y
+referencias privadas de antecedentes comerciales/seguridad. Administración resuelve
+como postgres con [review-distributor-application.sql](supabase/admin/review-distributor-application.sql),
+motivo, versión exacta y auditoría. No se suben documentos todavía: las referencias
+declaradas no sustituyen contrastar evidencia vigente para operar realmente.
+
+La gestión incluye **Equipo**, invitaciones personales, importación CSV con vista previa,
+estados de invitación/habilitación separados y catálogo propio con precio CLP, stock e inclusión por
+producto. Las escrituras se validan en el servidor; las revisiones evitan sobrescribir
+cambios de otro encargado y conservan auditoría de precio/stock. Estos valores aún
+**no alimentan create_order**: faltan vendedor elegido antes de comprar y reserva/
+liberación de stock. El catálogo global anterior sigue siendo un prototipo.
+
+Por autorización explícita se creó **Gasway Demo Santiago**, marcado is_demo=true,
+para `a30a8236-175c-424d-9bf4-ff753d695649`, con dirección/contacto/antecedentes
+ficticios, comuna 13101 y Lipigas. La revisión dice expresamente que es una prueba.
+[create-demo-business.sql](supabase/admin/create-demo-business.sql) es repetible sin
+reiniciar precios/stock editados; no crea usuarios ni aprueba conductores. Ver el
+[paso a paso de prueba](docs/business-demo.md) y [ADR 0014](docs/decisions/0014-business-workspace-and-demo.md).
+
+Migraciones `20261018215921` y `20261018220732` aplicadas en Gasway cloud.
+La suite [business_onboarding.sql](supabase/tests/business_onboarding.sql) verifica
+aislamiento, permisos, rechazo/reenvío/reintentos, versión, revisión administrativa,
+membresías, catálogo y auditoría con fixtures revertidos. Validaciones locales:
+`node scripts/test-business.cjs` y las regresiones de postulación de conductor.
+
+La migración `20261019004638_business_driver_invitations.sql` reemplaza el directorio
+de postulación por invitaciones emitidas por owner/manager. Se pueden crear hasta
+100 por lote; vencen a los 7 días y solo las acepta la cuenta con el correo confirmado
+registrado en Auth, sin confiar en metadata. No se crean contraseñas ni usuarios desde
+el negocio. Las invitaciones aparecen dentro de Gasway: no se enviaron ni se envían
+correos automáticamente. Compartir instrucciones requiere la acción del usuario.
+
+La planilla admite CSV UTF-8 con `nombre,correo`, coma o punto y coma, comillas y BOM;
+permite seleccionar archivo o pegar contenido, marca errores/duplicados y requiere
+confirmar la vista previa. Equipo ofrece búsqueda y páginas de 20 personas.
+La aceptación no habilita reparto. Una revisión rechazada requiere otra invitación del
+negocio y mantiene su auditoría. Ver [guía](docs/driver-team.md),
+[CSV de ejemplo](docs/examples/equipo-demo.csv) y [ADR 0015](docs/decisions/0015-business-led-driver-invitations.md).
+
+Se añadieron expo-document-picker y expo-file-system compatibles con SDK 57 para leer
+el CSV. Un development build instalado debe recompilarse para incorporar esos módulos;
+el pegado de CSV es una alternativa de entrada. No se compiló ni abrió la app en esta tarea.
+
+## Espacio del conductor
+
+Las rutas `/driver`, `/driver-coverage` y `/driver-account` tienen navegación propia
+dentro de `(driver)` y siguen protegidas por perfil/driver verificado. `/driver-order/[id]`
+es el detalle de la entrega asignada y no muestra dirección antes de la aceptación.
+El servidor expone solo el contexto propio mediante `get_my_driver_workspace()`:
+negocio, marcas, habilitación y motivo de bloqueo, sin cambiar permisos ni revelar
+datos de otros conductores. «Gestionar mi negocio» aparece solo con membresía confiable.
+
+Los conductores aprobados pueden entrar a las rutas de compra mediante **Cuenta →
+Comprar como cliente**, y volver desde Mi cuenta. La navegación no cambia roles;
+solo las rutas de conductor requieren aprobación. Realtime de compras sigue usuario,
+foco del layout y AppState, conservando limpieza y canales independientes.
+
+Migración `20261019011756_driver_workspace.sql` aplicada. Suite
+[driver_workspace.sql](supabase/tests/driver_workspace.sql) aprobada: invitación,
+aceptación, revisión, cobertura, oferta privada, asignación y entrega, más bloqueos
+por negocio/marcas/habilitación y compra propia, con fixtures revertidos.
+Assertions locales: `node scripts/test-driver-workspace.cjs`,
+`node scripts/test-driver-offers.cjs` y `node scripts/test-driver-order-progress.cjs`.
+No se inició la app ni se hicieron comprobaciones visuales.
 
 ## Estructura
 
@@ -149,9 +333,9 @@ docs/                   # arquitectura, dominio, roadmap, skills, ADRs
 ## Roadmap
 
 1. Ejecutar las pruebas SQL preparadas; validar concurrencia real en dos sesiones y generar tipos.
-2. Aplicar la migración de ofertas y validar cuentas reales; Auth ya está aplicada.
+2. Validar ofertas con cuentas reales; migraciones hasta distribuidores confirmadas en cloud.
 3. Catálogo/precios por distribuidor e idempotencia; pedidos y ofertas implementados.
-4. Aplicar progreso de entrega y validar Realtime; tracking y push quedan para otra tarea.
+4. Validar progreso de entrega y Realtime; tracking y push quedan para otra tarea.
 5. Piloto local y panel admin web; evaluar gateways después del MVP.
 
 Ver [roadmap](docs/roadmap.md), [arquitectura](docs/architecture.md),
@@ -241,10 +425,10 @@ las pruebas conservan ese límite de privacidad. La aceptación se prueba en sec
 una carrera real requiere dos conexiones. Ver [detalle y decisión](docs/decisions/0004-initial-migration-tests.md).
 El seed contiene solo las 12 combinaciones de marca/peso y no es necesario para probar.
 
-## Ofertas del repartidor: aplicación manual pendiente
+## Ofertas del repartidor: aplicación y pruebas pendientes
 
-Sin ejecutar SQL contra Supabase en esta tarea. En el SQL Editor del proyecto correcto,
-con rol postgres:
+Migración confirmada en cloud e historial conciliado el 2026-10-18. Su suite SQL
+sigue pendiente. Para otro entorno, en SQL Editor con rol postgres:
 
 1. Confirmar las tres migraciones previas aplicadas; Auth y pedidos cliente ya fueron
    confirmadas por el usuario. No volver a ejecutarlas.
@@ -274,7 +458,7 @@ probar con un pedido nuevo. Cambiar cobertura/desactivarse vence ofertas afectad
 La aceptación desactiva disponibilidad y un pedido activo impide reactivarla. Tras
 cancelación o entrega puede reactivarse manualmente en la pantalla de ofertas.
 
-Pendiente: aplicar la migración, ejecutar las suites SQL, validar concurrencia real,
+Pendiente: ejecutar las suites SQL de ofertas, validar concurrencia real,
 red/reinicio y dispositivo físico. Sin verificaciones visuales ni dependencias nuevas.
 Ver [ADR 0007](docs/decisions/0007-driver-offers.md). Assertions sin red:
 `node scripts/test-driver-offers.cjs` aprobadas, incluyendo pausa del polling por
@@ -292,10 +476,13 @@ y las políticas RLS. No hay tracking, mapas, push, pagos en línea ni cancelaci
 El layout cliente suscribe sus pedidos mediante Realtime e invalida lista, detalle y
 eventos. Si no está conectado, consulta cada 15 s solo en primer plano; al volver a
 la app o reconectar también actualiza. El desmontaje elimina canal/listener/intervalo.
+Cada suscripción usa un nombre de canal distinto para permitir volver desde Mi negocio
+o remontar el layout mientras termina la eliminación asíncrona del canal anterior.
 La línea de tiempo muestra los estados alcanzados según order_events, con zod,
 theme central y textos es-CL. Sin nuevas dependencias.
 
-Aplicación manual en Supabase cloud (no ejecutada por el agente):
+Migración confirmada en cloud e historial conciliado el 2026-10-18; su suite SQL
+sigue pendiente. Para otro entorno:
 
 1. En SQL Editor como postgres, confirmar que se aplicaron las migraciones anteriores,
    incluida `20261018040000_driver_offers.sql`.
@@ -315,6 +502,83 @@ Ver [ADR 0008](docs/decisions/0008-driver-order-progress.md).
 ## Changelog
 
 ### 2026-10-18
+
+- Regularizada una sola cuenta antigua sin afiliación mediante script exclusivo de
+  postgres: identidad e historial conservados, estado anterior auditado en privado
+  y acceso pendiente hasta aceptar invitación y completar la revisión administrativa.
+  No se añade una vía pública de conversión ni de traslado de conductores.
+
+- Corregido parpadeo de «Actualizar jornada»: el sondeo automático ya no cambia el
+  botón ni el indicador manual. El refresco espera las cuatro consultas y evita
+  duplicados. SVG decorativos omiten `accessible` en web para evitar el aviso DOM.
+
+- Espacio de conductor actualizado a Figtree/tema actual: Ofertas, Cobertura, Cuenta
+  y entrega asignada; se retiraron Page/ActionButton y theme/legacy de esas pantallas.
+- Negocio afiliado y bloqueos operativos consultados con RPC propia; disponibilidad
+  usa cobertura guardada, ofertas vencidas dejan de ofrecer aceptación y errores
+  de lectura impiden asumir que no existe otra entrega activa.
+- Compra como cliente sin cambiar permisos, regreso a reparto y Realtime sujeto al
+  foco del layout; acceso suspendido deja de presentarse como aprobación en espera.
+- Entrega con confirmación explícita común a web/nativo y prueba completa desde una
+  invitación; migración aplicada, fixtures revertidos y documentación en ADR 0016.
+
+- Corregida reutilización de canales Realtime al volver al inicio; regresión local
+  para remontaje con eliminación pendiente y callbacks tardíos.
+
+- Incorporación de conductores iniciada por el negocio: Equipo, invitaciones individuales,
+  importación CSV con revisión, aceptación por correo confirmado y revisión final de Gasway.
+- Estados separados de invitación/habilitación, búsqueda/paginación, cancelación,
+  vencimiento, reintentos seguros y renovación del consentimiento tras rechazo.
+- Retiradas las RPC de postulación abierta; historial conservado y suite de invitaciones
+  aplicada en cloud con fixtures revertidos. Sin envío automático de correos.
+
+- Alta y revisión de distribuidores con referencias privadas, motivo y auditoría;
+  «Mi negocio» separado de cliente/conductor por membresías y guardas de navegación.
+- Gestión autenticada de vinculación de repartidores, apertura de postulaciones y
+  catálogo propio con precio/stock, revisión concurrente y auditoría, aún sin compras.
+- Negocio demo ficticio autorizado para el responsable indicado; datos repetibles,
+  señalización visible y revisión de prueba sin habilitar automáticamente al conductor.
+
+- Guardado contexto operativo de GLP con fuentes oficiales y precisiones sobre
+  exclusividad, intercambio, licencias, capacitación y límites del alcance.
+- Aplicadas confirmación del negocio por versión de postulación, marcas configuradas,
+  filtros de despacho/aceptación y distribuidor inmutable del pedido; nueve suites SQL aprobadas.
+- Preservados históricos y entregas asignadas; cuentas anteriores sin negocio no
+  reciben ofertas nuevas. Sin asignaciones ficticias ni ampliación a GN o granel.
+
+- Incorporado formulario de postulación con nombre, RUT módulo 11, teléfono y
+  distribuidor solicitado, manteniendo las compras y solicitudes existentes.
+- Aplicada migración con directorio autenticado de negocios que aceptan postulaciones,
+  validación SQL, aprobación coincidente y copias privadas de antecedentes revisados.
+- Pruebas locales, typecheck, lint y tres suites SQL aprobadas; datos reales intactos.
+  Sin negocios ficticios, cambio de rama ni comprobaciones visuales.
+
+- Nuevo pedido usa las seis fotografías adjuntas para Abastible (5/11/15/45 kg,
+  VMA 15 kg y VM 15 kg); las otras marcas conservan su ilustración.
+- Catálogo ampliado con variantes VMA/VM exclusivas de Abastible 15 kg, sin precios
+  ficticios; selección y resúmenes cliente/repartidor distinguen cada producto.
+  Migración aplicada y verificada en cloud; ver ADR 0011.
+
+- Integrado estado/motivo/fecha de postulación en Mi cuenta, conservando compras
+  de pendientes/rechazados y errores de consulta locales; `/pending` redirige a cuenta.
+- Agregada confirmación de nueva solicitud tras rechazo y RPC idempotente aplicada
+  en cloud, sin conceder habilitación ni borrar revisiones; suite SQL aprobada.
+- Pruebas locales de contratos/interacción, regresión Auth, typecheck y lint acotado
+  aprobados. Sin dependencias, cambio de rama ni comprobaciones visuales.
+
+- Confirmadas migraciones previas hasta 20261018050000 en Gasway cloud, comparando
+  funciones y esquema; conciliado historial de cuatro aplicaciones manuales.
+- Aplicada 20261018195303 como postgres mediante CLI; suite SQL completa aprobada
+  y rollback verificado por conteos. Revisados advisors de seguridad.
+- Listada y rechazada la solicitud pendiente por instrucción explícita del usuario;
+  motivo y auditoría verificados, sin solicitudes pendientes ni negocios inventados.
+
+- Preparada base de distribuidores como organizaciones, responsables y afiliación
+  única de conductores; roles móviles conservados.
+- Agregadas solicitudes pending/approved/rejected y revisión SQL privilegiada con
+  motivo, auditoría privada, aprobación transaccional y suite SQL con rollback.
+- Actualizado script de aprobación de prueba. Migración y suite cloud pendientes;
+  pantallas de postulación, catálogo y despacho por distribuidor siguen pendientes.
 
 - Preparada entrega conjunta de cliente, repartidor y seguimiento. Corregidos lint
   de Metro y pulsación Reanimated; el reintento de sesión reinicia su estado desde

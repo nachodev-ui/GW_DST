@@ -15,12 +15,18 @@ import {
   ui,
 } from '@/shared/ui/components';
 import { Screen } from '@/shared/ui/screen';
-import { brands, weights, formatClp, type Commune, type Product } from '@/shared/orders/contracts';
+import {
+  brands,
+  formatClp,
+  productLabel,
+  type Commune,
+  type Product,
+} from '@/shared/orders/contracts';
 import { useCatalogue, useOrderActions, orderError } from '@/features/orders/customer/order-data';
 import { createOrderFormSchema, type OrderForm } from '@/features/orders/customer/order-form';
 import { theme } from '@/theme';
 import { BottomSheet } from '@/shared/ui/bottom-sheet';
-import { CylinderIllustration } from '@/shared/ui/cylinder-illustration';
+import { ProductImage } from '@/shared/ui/product-image';
 import { ListRow } from '@/shared/ui/list-row';
 import { Icon } from '@/shared/ui/icon';
 import { Skeleton } from '@/shared/ui/skeleton';
@@ -123,7 +129,7 @@ function OrderFields({
               <Text variant="label">Total a pagar</Text>
               {product ? (
                 <Text variant="note" style={ui.muted}>
-                  {values.quantity} × {product.weight_kg} kg
+                  {values.quantity} × {productLabel(product)}
                 </Text>
               ) : null}
             </View>
@@ -191,49 +197,48 @@ function OrderFields({
           accessibilityRole="radiogroup"
           accessibilityLabel="Tamaño del cilindro"
         >
-          {weights.map((weight) => {
-            const option = products.find(
-              (entry) => entry.brand === brand && entry.weight_kg === weight,
-            );
-            const available = option?.unit_price_clp != null;
-            const selected = product?.weight_kg === weight;
-            return (
-              <View key={weight} style={formStyles.cell}>
-                <PulsePressable
-                  accessibilityRole="radio"
-                  accessibilityLabel={`${weight} kg, ${option?.unit_price_clp != null ? formatClp(option.unit_price_clp) : 'No disponible'}`}
-                  accessibilityState={{
-                    checked: selected,
-                    disabled: create.isPending || !available,
-                  }}
-                  style={[
-                    formStyles.sizeCard,
-                    selected && formStyles.sizeSelected,
-                    !available && formStyles.unavailable,
-                  ]}
-                  disabled={create.isPending || !available}
-                  onPress={() => {
-                    if (option) setValue('productId', option.id, { shouldValidate: true });
-                  }}
-                >
-                  <View style={formStyles.sizeHeading}>
-                    <Text variant="subtitle" style={ui.flex}>
-                      {weight} kg
+          {products
+            .filter((entry) => entry.brand === brand)
+            .map((option) => {
+              const available = option.unit_price_clp != null;
+              const selected = product?.id === option.id;
+              return (
+                <View key={option.id} style={formStyles.cell}>
+                  <PulsePressable
+                    accessibilityRole="radio"
+                    accessibilityLabel={`${productLabel(option)}, ${option.unit_price_clp != null ? formatClp(option.unit_price_clp) : 'No disponible'}`}
+                    accessibilityState={{
+                      checked: selected,
+                      disabled: create.isPending || !available,
+                    }}
+                    style={[
+                      formStyles.sizeCard,
+                      selected && formStyles.sizeSelected,
+                      !available && formStyles.unavailable,
+                    ]}
+                    disabled={create.isPending || !available}
+                    onPress={() => {
+                      setValue('productId', option.id, { shouldValidate: true });
+                    }}
+                  >
+                    <View style={formStyles.sizeHeading}>
+                      <Text variant="subtitle" style={ui.flex}>
+                        {productLabel(option)}
+                      </Text>
+                      <View style={ui.choiceMark}>{selected ? <Icon name="check" /> : null}</View>
+                    </View>
+                    <View style={formStyles.sizeArt}>
+                      <ProductImage product={option} />
+                    </View>
+                    <Text variant="note" style={selected ? ui.primaryText : ui.muted}>
+                      {option?.unit_price_clp != null
+                        ? formatClp(option.unit_price_clp)
+                        : 'No disponible'}
                     </Text>
-                    <View style={ui.choiceMark}>{selected ? <Icon name="check" /> : null}</View>
-                  </View>
-                  <View style={formStyles.sizeArt}>
-                    <CylinderIllustration weight={weight} size="small" />
-                  </View>
-                  <Text variant="note" style={selected ? ui.primaryText : ui.muted}>
-                    {option?.unit_price_clp != null
-                      ? formatClp(option.unit_price_clp)
-                      : 'No disponible'}
-                  </Text>
-                </PulsePressable>
-              </View>
-            );
-          })}
+                  </PulsePressable>
+                </View>
+              );
+            })}
         </View>
         <Text variant="note" style={ui.muted}>
           Los tamaños atenuados no están disponibles por ahora.
