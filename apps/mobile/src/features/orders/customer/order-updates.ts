@@ -1,16 +1,20 @@
 import { useEffect } from 'react';
 import { AppState } from 'react-native';
 import { useQueryClient } from '@tanstack/react-query';
+import { useIsFocused } from 'expo-router/react-navigation';
 import { useAuth } from '@/features/auth/auth-provider';
 import { getSupabase } from '@/shared/supabase/client';
 
+let subscriptionId = 0;
+
 // Mounted once in the customer layout: list and detail share the subscription.
 export function useCustomerOrderUpdates() {
-  const { session, zone } = useAuth();
+  const { session } = useAuth();
   const client = useQueryClient();
+  const focused = useIsFocused();
   const userId = session?.user.id;
   useEffect(() => {
-    if (!userId || zone !== 'customer') return;
+    if (!userId || !focused) return;
     const supabase = getSupabase();
     let active = AppState.currentState === 'active';
     let connected = false;
@@ -31,8 +35,9 @@ export function useCustomerOrderUpdates() {
       timer = undefined;
       if (active && !connected && !disposed) timer = setInterval(refresh, 15_000);
     };
+    // Removal is asynchronous; a remount must not reuse a subscribed channel.
     const channel = supabase
-      .channel(`customer-orders:${userId}`)
+      .channel(`customer-orders:${userId}:${++subscriptionId}`)
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'orders', filter: `customer_id=eq.${userId}` },
@@ -59,5 +64,5 @@ export function useCustomerOrderUpdates() {
       listener.remove();
       void supabase.removeChannel(channel);
     };
-  }, [client, userId, zone]);
+  }, [client, userId, focused]);
 }

@@ -6,6 +6,7 @@ declare
   other_customer uuid := gen_random_uuid();
   driver uuid := gen_random_uuid();
   product uuid;
+  organization uuid := gen_random_uuid();
   created public.orders;
   repriced public.orders;
   cancelled public.orders;
@@ -14,9 +15,12 @@ begin
     insert into auth.users (id) values (customer), (other_customer), (driver);
     update public.profiles set role = 'driver' where id = driver;
     insert into public.drivers (id, is_verified, is_available) values (driver, true, true);
+    insert into public.distributors(id,name,is_verified) values(organization,'Negocio de prueba de pedidos',true);
+    insert into public.distributor_brands values(organization,'Gasco');
+    update public.drivers set distributor_id=organization where id=driver;
     insert into public.products (brand, weight_kg, unit_price_clp, is_active)
       values ('Gasco', 11, 12345, true)
-      on conflict (brand, weight_kg) do update set unit_price_clp = 12345, is_active = true
+      on conflict (brand, weight_kg, variant) do update set unit_price_clp = 12345, is_active = true
       returning id into product;
     if has_table_privilege('authenticated', 'public.orders', 'INSERT')
       or has_table_privilege('authenticated', 'public.orders', 'UPDATE')

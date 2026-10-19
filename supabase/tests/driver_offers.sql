@@ -9,6 +9,7 @@ declare
   outside_driver uuid := gen_random_uuid();
   offline_driver uuid := gen_random_uuid();
   product uuid;
+  organization uuid := gen_random_uuid();
   offered public.orders;
   expired public.orders;
   foreign_order public.orders;
@@ -25,12 +26,15 @@ begin
     insert into public.drivers (id, is_verified, is_available) values
       (first_driver, true, true), (second_driver, true, true), (pending_driver, false, true),
       (outside_driver, true, true), (offline_driver, true, false);
+    insert into public.distributors(id,name,is_verified) values(organization,'Negocio de prueba de ofertas',true);
+    insert into public.distributor_brands values(organization,'Gasco');
+    update public.drivers set distributor_id=organization where id in(first_driver,second_driver,pending_driver,outside_driver,offline_driver);
     insert into public.driver_communes (driver_id, commune_code) values
       (first_driver, '13101'), (second_driver, '13101'), (pending_driver, '13101'),
       (offline_driver, '13101'), (outside_driver, '13102');
     insert into public.products (brand, weight_kg, unit_price_clp, is_active)
       values ('Gasco', 11, 12345, true)
-      on conflict (brand, weight_kg) do update set unit_price_clp = 12345, is_active = true
+      on conflict (brand, weight_kg, variant) do update set unit_price_clp = 12345, is_active = true
       returning id into product;
     if has_table_privilege('authenticated', 'private.order_offers', 'SELECT')
       or has_table_privilege('authenticated', 'public.driver_communes', 'INSERT')
@@ -81,7 +85,7 @@ begin
     end if;
     if exists (select 1 from jsonb_array_elements(payload) f,
       lateral jsonb_object_keys(f) key where key not in
-      ('order_id','brand','weight_kg','quantity','exchange_empty','commune_code','commune_name','total_clp','expires_at'))
+      ('order_id','brand','weight_kg','variant','quantity','exchange_empty','commune_code','commune_name','total_clp','expires_at'))
       or exists (select 1 from public.orders where id = offered.id)
       or public.get_driver_order(offered.id) is not null then
       raise exception 'FAIL: PII visible before acceptance';

@@ -6,6 +6,7 @@ declare
   assigned_driver uuid := gen_random_uuid();
   other_driver uuid := gen_random_uuid();
   product uuid;
+  organization uuid := gen_random_uuid();
   target uuid;
   actor uuid;
   next_status public.order_status;
@@ -17,9 +18,12 @@ begin
     update public.profiles set role = 'driver' where id in (assigned_driver, other_driver);
     insert into public.drivers (id, is_verified, is_available)
       values (assigned_driver, true, true), (other_driver, true, true);
+    insert into public.distributors(id,name,is_verified) values(organization,'Negocio de prueba de entregas',true);
+    insert into public.distributor_brands values(organization,'Gasco');
+    update public.drivers set distributor_id=organization where id in(assigned_driver,other_driver);
     insert into public.products (brand, weight_kg, unit_price_clp, is_active)
       values ('Gasco', 11, 12345, true)
-      on conflict (brand, weight_kg) do update set unit_price_clp = 12345, is_active = true
+      on conflict (brand, weight_kg, variant) do update set unit_price_clp = 12345, is_active = true
       returning id into product;
     insert into public.orders (customer_id, product_id, exchange_empty, total_clp,
       delivery_address, commune_code)

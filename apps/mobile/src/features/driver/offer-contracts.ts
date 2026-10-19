@@ -5,6 +5,7 @@ const summary = {
   order_id: z.uuid(),
   brand: z.enum(brands),
   weight_kg: productSchema.shape.weight_kg,
+  variant: productSchema.shape.variant,
   quantity: z.number().int().min(1).max(99),
   exchange_empty: z.boolean(),
   commune_code: z.string().regex(/^\d{5}$/),
@@ -27,6 +28,45 @@ export const settingsSchema = z.object({
 });
 export type DriverSettings = z.infer<typeof settingsSchema>;
 export type DriverOffer = z.infer<typeof offerSchema>;
+
+export const driverWorkspaceSchema = z
+  .object({
+    is_verified: z.boolean(),
+    application_status: z.enum(['pending', 'approved', 'rejected']).nullable(),
+    business: z
+      .object({
+        id: z.uuid(),
+        name: z.string().min(1).max(120),
+        is_verified: z.boolean(),
+        is_demo: z.boolean(),
+        brands: z.array(z.enum(brands)),
+      })
+      .strict()
+      .nullable(),
+    can_manage_business: z.boolean(),
+    can_receive_offers: z.boolean(),
+    blocking_reason: z
+      .enum(['not_approved', 'no_business', 'business_disabled', 'no_brands'])
+      .nullable(),
+  })
+  .strict()
+  .refine((value) => value.can_receive_offers === (value.blocking_reason === null));
+export type DriverWorkspace = z.infer<typeof driverWorkspaceSchema>;
+export const driverBlockingMessages: Record<
+  NonNullable<DriverWorkspace['blocking_reason']>,
+  string
+> = {
+  not_approved: 'Tu habilitación de reparto no está activa. Contacta a administración de Gasway.',
+  no_business:
+    'Tu cuenta aún no tiene un negocio afiliado. Solicita a administración que regularice tu vinculación.',
+  business_disabled:
+    'Tu negocio no está habilitado para nuevos repartos. Contacta a su responsable.',
+  no_brands:
+    'Tu negocio aún no tiene marcas configuradas. Su responsable debe revisarlo con administración.',
+};
+export function isDriverOfferCurrent(offer: DriverOffer, now: number) {
+  return Date.parse(offer.expires_at) > now;
+}
 
 export function driverProgressError(error: unknown) {
   const parsed = z.object({ code: z.string() }).safeParse(error);

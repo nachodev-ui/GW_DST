@@ -92,6 +92,16 @@ teclado y escalado real pendientes de prueba manual.
 
 ## Logos de marcas de productos
 
+El espacio del conductor se alineó con el sistema actual: fondo #FAF9F6, superficies
+blancas, acciones frambuesa #C62D42, texto carbón #24242B y Figtree. Se reutilizan
+Screen/Text/Button/Card/StatusBadge, iconos propios y tokens centrales. Ofertas prioriza
+negocio, estado de jornada y entrega actual; Cobertura separa selección y guardado;
+Cuenta distingue afiliación de permisos de gestión. Barra propia de tres destinos:
+Ofertas/Cobertura/Cuenta. El detalle de entrega tiene confirmación en el flujo, sin
+diálogos distintos para web/nativo. No se añadieron logos oficiales al conductor,
+mapas ficticios ni métricas de jornada inventadas. Solo revisión de código y pruebas
+sin render; dispositivos, tamaños de texto y teclado siguen pendientes de prueba visual.
+
 - `BrandLogo` en `src/shared/ui/brand-logo.tsx` recibe `brand` (`lipigas`, `gasco`,
   `abastible`), `variant` (`mark`, `horizontal`, `stacked`) y `size` (alto de imagen).
   Usa nueve `require` estáticos de los PNG locales en `assets/brands`, compatibles

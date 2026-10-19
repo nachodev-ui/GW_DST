@@ -27,17 +27,18 @@ export function AuthNavigator() {
   return (
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="index" />
+      <Stack.Protected guard={!!session}>
+        <Stack.Screen name="(business)" />
+      </Stack.Protected>
       <Stack.Protected guard={!session}>
         <Stack.Screen name="access" />
       </Stack.Protected>
-      <Stack.Protected guard={!!session && zone === 'customer'}>
+      <Stack.Protected guard={!!session}>
         <Stack.Screen name="(customer)" />
+        <Stack.Screen name="pending" />
       </Stack.Protected>
       <Stack.Protected guard={!!session && zone === 'driver'}>
         <Stack.Screen name="(driver)" />
-      </Stack.Protected>
-      <Stack.Protected guard={!!session && zone === 'pending'}>
-        <Stack.Screen name="pending" />
       </Stack.Protected>
     </Stack>
   );

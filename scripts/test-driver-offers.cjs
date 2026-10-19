@@ -40,6 +40,12 @@ const summary = {
 };
 const offer = { ...summary, expires_at: '2026-10-18T12:00:00+00:00' };
 assert.equal(offerSchema.safeParse(offer).success, true);
+for (const variant of ['standard', 'vma', 'vm']) {
+  assert.equal(
+    offerSchema.parse({ ...offer, brand: 'Abastible', weight_kg: 15, variant }).variant,
+    variant,
+  );
+}
 for (const privateField of [
   'delivery_address',
   'notes',
@@ -120,6 +126,9 @@ for (const [screenFocused, state, expected] of [
   assert.equal(offers.refetchInterval, expected ? 5000 : false);
   assert.equal(hooks.useAssignedOrder().enabled, expected);
 }
+focused = true;
+appState.currentState = 'active';
+assert.equal(hooks.useAssignedOrder('invalid-order-id').enabled, false);
 console.log(
   'PASS: driver privacy boundary, assigned details, settings, result messages and foreground-only polling',
 );

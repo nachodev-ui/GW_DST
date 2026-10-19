@@ -3,10 +3,16 @@
 ## Catálogo y compra
 
 Un pedido corresponde a un producto GLP de 5, 11, 15 o 45 kg, de Lipigas, Gasco o
-Abastible, con cantidad de 1 a 99 cilindros de la misma combinación.
+Abastible, con cantidad de 1 a 99 cilindros del mismo producto.
+El catálogo distingue `variant`: `standard`, `vma` y `vm`; VMA y VM solo existen
+en Abastible de 15 kg. La identidad única es marca + peso + variante; los pedidos
+siguen referenciando el UUID del producto. No se presume compatibilidad entre válvulas.
+Ver [ADR 0011](decisions/0011-product-cylinder-variants.md).
 exchange_empty distingue compra con o sin entrega de envase vacío para el pedido completo.
-La compatibilidad del envase, stock, zona y precio deben confirmarse por distribuidor;
-no se presume canje entre marcas. No hay precios, recargos ni reglas de stock ficticias.
+El derecho de intercambio no se rechaza solo por la marca del envase devuelto;
+no implica compatibilidad de válvulas ni aptitud de seguridad del cilindro.
+Se deben registrar y revisar sus características. Stock, zona y precio dependen
+del negocio; no se inventan precios ni recargos por cambiar de marca.
 El catálogo es global: products.unit_price_clp guarda el precio unitario de servidor,
 nullable hasta configuración comercial. Sin precio no se puede comprar; sin recargos
 inventados por canje. Precios/stock por distribuidor quedan para una migración futura.
@@ -16,8 +22,9 @@ geográfico WGS84 opcional. No usar el nombre de comuna como identificador.
 La nueva migración incorpora el catálogo CUT de 346 comunas: zod y la RPC validan
 pertenencia; una FK NOT VALID preserva históricos y restringe nuevas escrituras.
 Procedencia y auditoría pendiente en ADR 0006.
-RUT canónico: sin puntos, guion y dígito verificador en mayúsculas; validar módulo 11
-con zod al implementar entradas. La restricción SQL actual valida solo formato.
+RUT canónico: sin puntos, guion y dígito verificador en mayúsculas. La postulación
+valida módulo 11 mediante zod y una función SQL; la columna independiente profiles.rut
+conserva su restricción de formato anterior y no se actualiza desde el formulario.
 
 CLP se almacena como integer no negativo y se presenta con locale es-CL y cero decimales.
 No usar floats para dinero ni aceptar precios calculados en el dispositivo.
@@ -34,7 +41,68 @@ no concede permisos. Un repartidor puede comprar cuando no actúa como repartido
 pero no aceptar su propio pedido. El rol del perfil identifica su capacidad principal;
 no hay un tercer rol admin expuesto al móvil. Admin web futuro necesita un diseño propio.
 
+Primera fase de distribuidores: distributors representa al negocio, con responsables
+owner/manager en distributor_members y afiliación única en drivers.distributor_id.
+No son nuevos roles móviles. La sección business usa membresías owner/manager, sin
+añadir otro valor a profiles.role. distributor_applications registra el alta del
+negocio, sus referencias privadas y la decisión administrativa versionada. Solo la
+aprobación SQL confiable crea el negocio y su responsable; no crea un driver ni
+cambia su habilitación. is_demo=true señala una revisión con datos ficticios, sin
+acreditar cumplimiento real. Ver ADR 0014.
+
+driver_applications registra pending/approved/rejected;
+solo una revisión administrativa confiable aprueba y vincula al conductor a un negocio
+verificado, o rechaza con motivo. La decisión de incorporación no sustituye la
+habilitación operativa. No hay suspensión ni reapertura automática. Mi cuenta muestra
+estado, motivo y fecha sin bloquear compras. La incorporación comienza en el negocio:
+owner/manager emite una invitación individual o en lote. Solo la acepta la cuenta
+con el correo confirmado correspondiente en Auth. La aceptación reconoce el vínculo,
+sin exigir vehículo propio ni conceder habilitación operativa. El conductor completa
+nombre/RUT/contacto privados mediante submit_invited_driver_application, que fija el
+negocio desde la invitación y registra el consentimiento versionado del negocio.
+Tras rechazo se necesita una nueva invitación, corrección y envío explícito. La revisión
+conserva copia privada de antecedentes, invitador y aceptación. Las RPC de solicitud
+abierta y el directorio anterior perdieron EXECUTE móvil; no basta ocultar la interfaz.
+Ver ADR 0015 y los ADRs 0009–0013 para antecedentes históricos.
+Un negocio registrado no implica validación legal automática.
+
+El contexto aportado por el usuario, sus precisiones y fuentes oficiales están en
+[market-context-chile.md](market-context-chile.md). Distribuidor identifica al negocio
+vendedor; conductor identifica la entrega. Un dueño puede ser ambos y un prestador
+independiente no implica vehículo propio ni un contrato laboral determinado.
+El negocio inicia cada incorporación mediante un responsable autenticado y
+administración aprueba al final. Las solicitudes antiguas conservan su confirmación
+manual versionada y pueden regularizarse mediante una invitación al mismo negocio.
+Las marcas se configuran por negocio, sin presumir
+exclusividad universal. RUT/contacto no bastan para habilitar reparto real: faltan
+evidencias vigentes de conductor, vehículo y operación según corresponda.
+
+«Mi negocio» permite preparar distributor_products por producto UUID: precio CLP
+entero nullable, stock no negativo e inclusión. El servidor exige negocio verificado,
+membresía y marca configurada, y audita cada edición. revision evita pisar cambios
+concurrentes; un reintento idéntico ya guardado no duplica cambios. No hay reservas,
+consumo de existencias ni vínculo de esta tabla con create_order en esta fase.
+Solo el negocio demo autorizado tiene valores comerciales ficticios de ejemplo.
+
+Invitación y habilitación son estados distintos: pending/accepted/cancelled/expired
+describen la invitación; incomplete/in_review/enabled/rejected/suspended describen
+la vista de habilitación. No hay autoaprobación, autosuspensión ni traslado entre
+negocios al aceptar una invitación. Una afiliación aceptada en curso impide aceptar
+otra; un conductor operativo no puede ser reasignado por este onboarding.
+
 ## Estados
+
+El conductor aprobado entra a su espacio de reparto; tener una invitación aceptada
+o membresía del negocio no sustituye esa habilitación. Para recibir ofertas nuevas
+necesita negocio afiliado verificado, marcas configuradas, comunas guardadas y
+disponibilidad, además de no tener otra entrega activa. La cuenta explica qué falta
+sin permitir autoaprobarse. Un acceso operativo suspendido conserva la decisión
+histórica, pero no se presenta como una aprobación aún en proceso.
+
+Disponibilidad y borrador de cobertura son independientes: activarse usa las comunas
+guardadas. Un conductor también puede comprar con su misma cuenta; cambiar de vista
+no cambia permisos ni permite aceptar su propio pedido. No se habilita gestión de
+distribuidora a un conductor por el solo hecho de estar afiliado.
 
 | Estado     | Significado                                   | Siguientes permitidos |
 | ---------- | --------------------------------------------- | --------------------- |
@@ -49,6 +117,9 @@ Una oferta rechazada o vencida no cancela automáticamente el pedido. El despach
 comuna emite ofertas de 60 segundos desde create_order a repartidores aprobados,
 disponibles y con cobertura CUT, sin entrega activa. private.order_offers conserva
 destinatarios y expiración; la PK evita duplicar o renovar filas existentes.
+Además exige negocio verificado y una marca comercializada configurada que coincida
+con el producto. La aceptación fija orders.distributor_id de forma inmutable. Los
+históricos sin ese dato no se rellenan por suposición. Ver ADR 0013.
 Sin candidatos el pedido queda requested; rechazo/vencimiento conservan offered.
 No hay reintento automático ni barrido de pedidos históricos. Ver ADR 0007.
 La creación inicia en requested. Los triggers hacen cumplir el grafo y agregan eventos

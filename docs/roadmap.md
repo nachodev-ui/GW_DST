@@ -26,8 +26,38 @@
       errores de red y aprobación/revocación con dispositivo y cuentas reales.
 - [x] Script de aprobación transaccional de cuenta de prueba, solo SQL Editor (supabase/admin).
 - [ ] Operación administrativa de producción con auditoría.
+- [x] Preparada primera fase de organizaciones, responsables y afiliación única de conductor.
+- [x] Preparada revisión SQL privilegiada de solicitudes con motivo, auditoría y RLS; ADR 0009.
+- [x] Aplicada 20261018195303_distributors_driver_review.sql como postgres en Gasway cloud;
+      suite completa aprobada y fixtures revertidos, verificado por conteos.
+- [x] Conciliado historial de migraciones manuales 20261018020000 a 20261018050000
+      tras comparar funciones/esquema, sin repetirlas; advisors de seguridad revisados.
+- [x] Listada y rechazada la solicitud pendiente por instrucción explícita del usuario;
+      verificados motivo y auditoría. Estado histórico previo al negocio demo autorizado.
+- [x] Mostrar estado/motivo/fecha en Mi cuenta y conservar compras para pendientes/rechazados;
+      consulta propia con zod y errores locales, ADR 0010.
+- [x] Nueva postulación explícita tras rechazo, sin habilitación ni entrega activa;
+      revisión anterior conservada en auditoría y RPC idempotente aplicada en cloud.
+- [x] Pruebas locales, typecheck y lint acotado; suite SQL de nueva postulación aprobada.
+- [ ] Validar respuesta al postulante, caché al cambiar de usuario y nueva solicitud en dispositivo.
+- [ ] Vincular conductores existentes a negocios revisados antes del piloto.
+- [x] Backend de confirmación del negocio por versión exacta de postulación y aprobación
+      administrativa posterior; RLS, actor y auditoría; ADR 0013.
+- [x] Equipo del negocio con invitaciones individuales/lote y aceptación personal; postulación abierta retirada.
+- [x] Importación CSV con errores por fila, vista previa, duplicados, búsqueda y paginación de 20 personas.
+- [x] Correo confirmado de Auth, expiración/cancelación, idempotencia y auditoría de invitación/aceptación.
+- [x] Estados de invitación y habilitación separados; rechazo exige nueva invitación y conserva decisiones previas.
+- [ ] Validar en dispositivo invitaciones, CSV/picker, aceptación, revocación de permisos y cambio de usuario.
+- [ ] Suspensión segura y panel administrativo web.
+- [ ] Registrar y revisar evidencias vigentes de licencia, vehículo/inscripción y capacitación antes del piloto.
 - [ ] Recuperación de contraseña y enlaces de confirmación integrados, si se requieren.
-- [ ] Validación RUT módulo 11 y catálogo oficial de comunas en onboarding posterior.
+- [x] Formulario con nombre, RUT módulo 11 y contacto; negocio fijado desde invitación aceptada.
+      El directorio anterior de ADR 0012 se retiró en ADR 0015.
+- [x] Validación SQL y copias privadas de antecedentes por revisión; migración y tres suites aprobadas.
+- [x] Alta del distribuidor en la app, revisión SQL privilegiada/auditada y workspace por membresía.
+- [x] Negocio ficticio autorizado con responsable indicado, datos de prueba y catálogo propio configurable.
+- [ ] Contrastar antecedentes vigentes y habilitar negocio real antes del piloto; validación en dispositivo pendiente.
+- [ ] Catálogo oficial de comunas en onboarding posterior, si se requiere antes de disponibilidad.
 - [ ] Generar tipos reales tras aplicar migración; mantener onboarding sin SMS de pago.
 
 ## 2 — Pedido y oferta
@@ -46,12 +76,17 @@
 - [ ] Generar tipos reales, ejecutar advisors y validar flujo en dispositivo físico.
 - [ ] Revisar catálogo CUT contra cambios oficiales posteriores y validar FK de históricos.
 - [ ] Idempotencia de creación ante reintentos manuales/respuestas de red perdidas.
-- [ ] Catálogo por distribuidor con precios, stock y tarifas por canje si corresponden.
+- [x] Marcas configuradas por negocio, despacho/aceptación filtrados y vendedor inmutable al asignar.
+- [x] Preparación del catálogo por distribuidor: precios/stock/inclusión por producto, CAS y auditoría.
+- [ ] Conectar catálogo por distribuidor a compra, reservas y vendedor identificado antes de comprar;
+      separar suministro/garantía del envase, sin recargo por cambiar de marca.
+- [ ] Registrar marca/peso/tipo/condición del envase devuelto y su logística inversa.
 - [x] Despacho por comuna, ofertas de 60 s, listado mínimo, aceptación atómica y rechazo.
 - [x] Disponibilidad y cobertura CUT; pantalla de ofertas y pedido asignado en features/driver.
 - [x] Suite SQL autocontenida preparada, script admin de prueba y ADR 0007.
 - [x] Assertions locales de contratos/privacidad y polling, lint acotado y único typecheck aprobados.
-- [ ] Aplicar 20261018040000_driver_offers.sql y ejecutar driver_offers.sql en SQL Editor.
+- [x] Confirmada 20261018040000_driver_offers.sql en cloud y conciliado su historial.
+- [ ] Ejecutar driver_offers.sql en SQL Editor; no ejecutada en esta operación.
 - [ ] Validar carreras con dos sesiones, recuperación tras fallo de red y flujo en dispositivo físico.
 - [ ] Recuperación de pedidos sin candidatos, redispatch/renovación y matching geográfico si se solicita.
 - [ ] Pruebas con dos conexiones para cancelación concurrente con avance de estado.
@@ -65,8 +100,8 @@
 - [x] Línea de tiempo con eventos reales, zod, theme y textos es-CL; ADR 0008.
 - [x] Suite SQL autocontenida con rollback y assertions locales sin red preparadas.
 - [x] Assertions locales de progreso/ofertas/pedidos, lint acotado y único typecheck aprobados.
-- [ ] Aplicar 20261018050000_driver_order_progress.sql después de ofertas y ejecutar
-      supabase/tests/driver_order_progress.sql en SQL Editor; no ejecutado por el agente.
+- [x] Confirmada 20261018050000_driver_order_progress.sql en cloud y conciliado su historial.
+- [ ] Ejecutar supabase/tests/driver_order_progress.sql en SQL Editor; no ejecutada en esta operación.
 - [ ] Validar Realtime/reconexión, segundo plano, cambio de usuario y confirmación en dispositivo.
 - [ ] Validar avance concurrente, entrega repetida y cancelación concurrente con dos conexiones.
 - [ ] Automatización de disponibilidad, solo si se solicita; hoy se reactiva manualmente.
@@ -75,6 +110,14 @@
 Contra entrega continúa como único pago del MVP.
 
 ## 4 — Piloto
+
+- [x] Espacio del conductor con diseño actual, Ofertas/Cobertura/Cuenta y afiliación visible.
+- [x] Verificación completa desde invitación hasta entrega, con razones operativas y RLS.
+- [x] Disponibilidad separada del borrador de comunas, ofertas vencidas, lectura fallida
+      de asignación y confirmación de entrega contempladas en UI/servidor.
+- [x] Compra del conductor como cliente sin alterar rol; Realtime con foco y sesión.
+- [ ] Comprobar visualmente las pantallas del conductor en dispositivo, incluyendo
+      letra grande, teclado, reanudación y la transición de aprobación/suspensión.
 
 Pruebas RLS, carreras, recuperación tras desconexión y errores; retención/minimización
 de datos; evaluación de seguridad, costos y cuotas gratuitas. Verificar costo real de

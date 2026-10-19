@@ -17,7 +17,7 @@ import { Skeleton } from '@/shared/ui/skeleton';
 import { BrandLogo, brandLogoKeys } from '@/shared/ui/brand-logo';
 import { theme } from '@/theme';
 
-import { canCancel, formatClp, statusLabels } from '@/shared/orders/contracts';
+import { productLabel, canCancel, formatClp, statusLabels } from '@/shared/orders/contracts';
 import {
   useCatalogue,
   useOrders,
@@ -196,7 +196,7 @@ export function OrdersScreen({ home = false }: { home?: boolean }) {
                 )
               }
               leadingStyle={homeStyles.brandCircle}
-              title={product ? `${product.brand} · ${product.weight_kg} kg` : 'Pedido de gas'}
+              title={product ? `${product.brand} · ${productLabel(product)}` : 'Pedido de gas'}
               subtitle={`${item.quantity} ${item.quantity === 1 ? 'cilindro' : 'cilindros'} · ${formatClp(item.total_clp)}`}
               trailing={<OrderStatus status={item.status} />}
             />
@@ -275,7 +275,7 @@ function OrderDetail({ id }: { id: string }) {
               ) : null}
               <View style={ui.flex}>
                 <Text variant="title">
-                  {product ? `${product.brand} · ${product.weight_kg} kg` : 'Cilindro de gas'}
+                  {product ? `${product.brand} · ${productLabel(product)}` : 'Cilindro de gas'}
                 </Text>
                 <Text variant="display" style={orderStyles.total}>
                   {formatClp(order.total_clp)}

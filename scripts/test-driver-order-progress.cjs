@@ -26,6 +26,7 @@ function load(filename, overrides = {}, globals = {}) {
 const userId = '10000000-0000-4000-8000-000000000001';
 const orderId = '10000000-0000-4000-8000-000000000002';
 let zone = 'customer';
+let customerFocused = true;
 let effect;
 let appState;
 let onChange;
@@ -39,32 +40,47 @@ const timers = new Map();
 const invalidations = [];
 const client = { invalidateQueries: (value) => invalidations.push(value) };
 const auth = { useAuth: () => ({ session: { user: { id: userId } }, zone }) };
-const channel = {
-  on: (event, options, callback) => {
-    assert.equal(event, 'postgres_changes');
-    filter = options;
-    onChange = callback;
-    return channel;
-  },
-  subscribe: (callback) => {
-    onStatus = callback;
-    return channel;
-  },
-};
+const channels = new Map();
+const pendingRemovals = [];
 const supabase = {
   channel: (name) => {
     channelName = name;
+    if (channels.has(name)) return channels.get(name);
+    let subscribed = false;
+    const channel = {
+      on: (event, options, callback) => {
+        assert.equal(subscribed, false, 'cannot add postgres_changes after subscribe');
+        assert.equal(event, 'postgres_changes');
+        filter = options;
+        onChange = callback;
+        return channel;
+      },
+      subscribe: (callback) => {
+        subscribed = true;
+        onStatus = callback;
+        return channel;
+      },
+    };
+    channels.set(name, channel);
     return channel;
   },
   removeChannel: (value) => {
-    assert.equal(value, channel);
+    const entry = [...channels].find(([, channel]) => channel === value);
+    assert.ok(entry, 'remove only the owned channel');
     removeChannel++;
+    return new Promise((resolve) => {
+      pendingRemovals.push(() => {
+        channels.delete(entry[0]);
+        resolve('ok');
+      });
+    });
   },
 };
 const { useCustomerOrderUpdates } = load(
   'apps/mobile/src/features/orders/customer/order-updates.ts',
   {
     react: { useEffect: (callback) => (effect = callback) },
+    'expo-router/react-navigation': { useIsFocused: () => customerFocused },
     'react-native': {
       AppState: {
         currentState: 'active',
@@ -90,7 +106,8 @@ const { useCustomerOrderUpdates } = load(
 );
 useCustomerOrderUpdates();
 const cleanup = effect();
-assert.equal(channelName, `customer-orders:${userId}`);
+assert.ok(channelName.startsWith(`customer-orders:${userId}:`));
+const firstChannelName = channelName;
 assert.equal(filter.filter, `customer_id=eq.${userId}`);
 assert.equal(filter.table, 'orders');
 assert.equal(filter.schema, 'public');
@@ -126,9 +143,33 @@ const previous = invalidations.length;
 onStatus('SUBSCRIBED');
 onChange({});
 assert.equal(invalidations.length, previous, 'ignore late callbacks after unmount');
+const oldOnStatus = onStatus;
+const oldOnChange = onChange;
+const remountCleanup = effect();
+assert.notEqual(channelName, firstChannelName, 'new channel during asynchronous removal');
+assert.equal(channels.size, 2, 'old channel remains registered until removal completes');
+oldOnStatus('SUBSCRIBED');
+oldOnChange({});
+assert.equal(invalidations.length, previous, 'old callbacks cannot refresh the remount');
+pendingRemovals.shift()();
+assert.equal(channels.size, 1, 'old cleanup preserves the new subscription');
+onStatus('SUBSCRIBED');
+onChange({});
+assert.equal(invalidations.length, previous + 2, 'remounted subscription receives updates');
+remountCleanup();
+pendingRemovals.shift()();
+assert.equal(channels.size, 0);
+assert.equal(timers.size, 0);
+assert.equal(removeListener, 2);
 zone = 'driver';
 useCustomerOrderUpdates();
-assert.equal(effect(), undefined, 'no customer channel for driver role');
+const driverBuyingCleanup = effect();
+assert.equal(channels.size, 1, 'approved driver buying as customer keeps own order updates');
+driverBuyingCleanup();
+pendingRemovals.shift()();
+customerFocused = false;
+useCustomerOrderUpdates();
+assert.equal(effect(), undefined, 'no customer subscription outside the customer layout focus');
 
 const contracts = load('apps/mobile/src/shared/orders/contracts.ts');
 const driverContracts = load('apps/mobile/src/features/driver/offer-contracts.ts', {

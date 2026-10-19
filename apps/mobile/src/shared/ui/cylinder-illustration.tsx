@@ -1,3 +1,4 @@
+import { Platform } from 'react-native';
 import Svg, { Ellipse, Path, Rect } from 'react-native-svg';
 import { theme } from '@/theme';
 
@@ -27,7 +28,7 @@ export function CylinderIllustration({
       width={width}
       height={(width * 180) / 140}
       viewBox="0 0 140 180"
-      accessible={false}
+      {...(Platform.OS === 'web' ? {} : { accessible: false })}
       aria-hidden
     >
       <Ellipse cx="70" cy="168" rx="47" ry="6" fill={theme.colors.cylinderDark} opacity="0.12" />

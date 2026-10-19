@@ -8,6 +8,7 @@ import { getSupabase } from '@/shared/supabase/client';
 import { communeSchema } from '@/shared/orders/contracts';
 import {
   assignedOrderSchema,
+  driverWorkspaceSchema,
   offerSchema,
   settingsSchema,
   type DriverSettings,
@@ -24,7 +25,36 @@ function useForegroundScreen() {
   return focused && active;
 }
 
-export function useDriverOffers() {
+export function useDriverWorkspace() {
+  const { session, zone } = useAuth();
+  const foreground = useForegroundScreen();
+  const enabled = !!session && zone === 'driver' && foreground;
+  return useQuery({
+    queryKey: ['driver', session?.user.id, 'workspace'],
+    enabled,
+    staleTime: 0,
+    refetchInterval: enabled ? pollMs : false,
+    refetchIntervalInBackground: false,
+    queryFn: async () => {
+      const { data, error } = await getSupabase().rpc('get_my_driver_workspace');
+      if (error) throw error;
+      return driverWorkspaceSchema.parse(data);
+    },
+  });
+}
+
+export function useDriverClock() {
+  const foreground = useForegroundScreen();
+  const [now, setNow] = useState(Date.now);
+  useEffect(() => {
+    if (!foreground) return;
+    const timer = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, [foreground]);
+  return now;
+}
+
+export function useDriverSettings() {
   const { session, zone } = useAuth();
   const foreground = useForegroundScreen();
   const enabled = !!session && zone === 'driver' && foreground;
@@ -32,6 +62,8 @@ export function useDriverOffers() {
     queryKey: ['driver', session?.user.id, 'settings'],
     enabled,
     staleTime: 0,
+    refetchInterval: enabled ? pollMs : false,
+    refetchIntervalInBackground: false,
     queryFn: async () => {
       const { data, error } = await getSupabase().rpc('get_driver_settings');
       if (error) throw error;
@@ -41,6 +73,7 @@ export function useDriverOffers() {
   const communes = useQuery({
     queryKey: ['driver', session?.user.id, 'communes'],
     enabled,
+    staleTime: Infinity,
     queryFn: async () => {
       const { data, error } = await getSupabase()
         .from('communes')
@@ -50,6 +83,14 @@ export function useDriverOffers() {
       return z.array(communeSchema).parse(data);
     },
   });
+  return { settings, communes };
+}
+
+export function useDriverOffers() {
+  const { session, zone } = useAuth();
+  const foreground = useForegroundScreen();
+  const enabled = !!session && zone === 'driver' && foreground;
+  const { settings, communes } = useDriverSettings();
   const offers = useQuery({
     queryKey: ['driver', session?.user.id, 'offers'],
     enabled,
@@ -70,7 +111,11 @@ export function useAssignedOrder(id: string | null = null) {
   const foreground = useForegroundScreen();
   return useQuery({
     queryKey: ['driver', session?.user.id, 'assigned', id],
-    enabled: !!session && zone === 'driver' && foreground,
+    enabled:
+      !!session &&
+      zone === 'driver' &&
+      foreground &&
+      (id === null || z.uuid().safeParse(id).success),
     staleTime: 0,
     refetchInterval: foreground ? pollMs : false,
     refetchIntervalInBackground: false,
