@@ -21,17 +21,18 @@ begin
     insert into public.distributors(id,name,is_verified) values(organization,'Negocio de prueba de entregas',true);
     insert into public.distributor_brands values(organization,'Gasco');
     update public.drivers set distributor_id=organization where id in(assigned_driver,other_driver);
+    insert into public.distributor_communes values(organization,'13101');
     insert into public.products (brand, weight_kg, unit_price_clp, is_active)
       values ('Gasco', 11, 12345, true)
       on conflict (brand, weight_kg, variant) do update set unit_price_clp = 12345, is_active = true
       returning id into product;
-    insert into public.orders (customer_id, product_id, exchange_empty, total_clp,
-      delivery_address, commune_code)
-      values (customer, product, true, 12345, 'Dirección de prueba 123', '13101')
-      returning id into target;
-    update public.orders set status = 'offered' where id = target;
-    insert into private.order_offers (order_id, driver_id, expires_at)
-      values (target, assigned_driver, clock_timestamp() + interval '1 hour');
+    insert into public.distributor_products(distributor_id,product_id,unit_price_clp,stock,is_listed)
+      values(organization,product,12345,1,true);
+    perform set_config('request.jwt.claims',json_build_object('sub',customer)::text,true);
+    execute 'set local role authenticated';
+    target := (public.create_distributor_order(organization,product,1,true,'unknown',
+      'Dirección de prueba 123','13101',null,12345,gen_random_uuid())).id;
+    execute 'reset role';
 
     if not exists (select 1 from pg_publication_tables
       where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'orders') then

@@ -2,13 +2,24 @@
 
 ## Execution & Validation (Highest Priority)
 
+1. **[2026-10-22] Register source maps before trusting transpiled test coverage**
+   Do instead: use the common module loader with inline maps and Node source-map
+   support; verify findSourceMap returns the original TypeScript source. VM-only
+   execution does not register maps for V8 and can report shifted uncovered lines.
+
 1. **[2026-10-18] Respect the requested validation budget**
    Do instead: follow the current task’s explicit validation budget; by default run only a final typecheck, with no rendering, screenshots, UI installs or backend commands. Explicit user exceptions take precedence.
 
-2. **[2026-10-21] Bound image height explicitly in Expo web cards**
+1. **[2026-10-21] Bound image height explicitly in Expo web cards**
    Do instead: give React Native Image both width and height; relative width and
    aspectRatio alone can retain the PNG's intrinsic height on web. Avoid vertical
    flex growth inside content-sized cards in a ScrollView.
+
+1. **[2026-10-22] Trace configured callers before claiming runtime exposure**
+   Do instead: follow Expo Router's getLinkingConfig into its forks; SDK 57's active
+   query parser uses URLSearchParams, while the bundled React Navigation base parser
+   uses query-string.parse. An installed/imported decoder alone does not prove a
+   vulnerable call from external URLs.
 
 ## Domain Behavior Guardrails
 
@@ -31,24 +42,29 @@
 
 ## Shell & Command Reliability
 
+1. **[2026-10-22] Explicit cloud targets still require the linked selector in CLI 2.121**
+   Do instead: use `--linked --project-ref <ref>` for db query and migration up.
+   Gasway Test is xnrueexpwzvxotgwmamj; preserve the app project's CLI link and run
+   mutations only through the test-target guards for regression tasks.
+
 1. **[2026-10-22] Offline npm can report an empty audit without checking advisories**
    Do instead: for dependency reviews, use explicit `--offline=false --prefer-offline=false`,
    inspect the exit code and error body, and discard offline zero-vulnerability reports.
    Resolve package versions from the mobile workspace; root React can be a different version.
 
-2. **[2026-10-21] Cloud CLI SQL sessions share a temporary login role**
+1. **[2026-10-21] Cloud CLI SQL sessions share a temporary login role**
    Do instead: run Supabase cloud SQL/advisor commands sequentially; concurrent role
    initialization can invalidate another connection's temporary password. Use the linked
    CLI session when the connector belongs to a different account; never expose credentials.
 
-3. **[2026-10-21] Preserve SQL dollar delimiters in JavaScript replacements**
+1. **[2026-10-21] Preserve SQL dollar delimiters in JavaScript replacements**
    Do instead: use a replacement callback when inserting SQL with `String.replace`;
    a replacement string collapses `$$` to `$` and corrupts function bodies.
 
-4. **[2026-10-21] Pass ripgrep globs through its own filter on Windows**
+1. **[2026-10-21] Pass ripgrep globs through its own filter on Windows**
    Do instead: search a directory with `rg -g '*.sql' ... supabase/migrations`;
    do not pass a wildcard filename as a positional PowerShell path.
 
-5. **[2026-10-20] Explicit UTF-8 for Python file edits on Windows**
+1. **[2026-10-20] Explicit UTF-8 for Python file edits on Windows**
    Do instead: pass encoding="utf-8" to both read_text and write_text; the default
    Windows encoding can corrupt Spanish copy when mixed with UTF-8 writes.

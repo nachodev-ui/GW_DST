@@ -32,14 +32,14 @@ Se retiraron ui-ux-pro-max, frontend-design, ponytail y react-native-skills por 
 Fuentes primarias de cada autor, no agregadores ni imitaciones. Snapshot del 2026-10-17;
 ver docs/skill-sources.json para rutas y revisiones legibles por herramientas.
 
-| Directorio             | Fuente original fijada                                                                                                                                                     | Commit                                   |
-| ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------- |
-| expo-overview          | [expo/skills](https://github.com/expo/skills/tree/7ddc1f5796996e5c7efe2fc3fa9168eb24e8dac1/plugins/expo/skills/expo-overview)                                              | 7ddc1f5796996e5c7efe2fc3fa9168eb24e8dac1 |
-| expo-project-structure | [expo/skills](https://github.com/expo/skills/tree/7ddc1f5796996e5c7efe2fc3fa9168eb24e8dac1/plugins/expo/skills/expo-project-structure)                                     | 7ddc1f5796996e5c7efe2fc3fa9168eb24e8dac1 |
-| expo-router            | [expo/skills](https://github.com/expo/skills/tree/7ddc1f5796996e5c7efe2fc3fa9168eb24e8dac1/plugins/expo/skills/expo-router)                                                | 7ddc1f5796996e5c7efe2fc3fa9168eb24e8dac1 |
-| expo-upgrade           | [expo/skills](https://github.com/expo/skills/tree/7ddc1f5796996e5c7efe2fc3fa9168eb24e8dac1/plugins/expo/skills/expo-upgrade)                                               | 7ddc1f5796996e5c7efe2fc3fa9168eb24e8dac1 |
-| caveman                | [JuliusBrussee/caveman](https://github.com/JuliusBrussee/caveman/tree/bad48a0e1df55e05e3f52249afa35ecc1909ee76/skills/caveman)                                             | bad48a0e1df55e05e3f52249afa35ecc1909ee76 |
-| napkin                 | [blader/napkin](https://github.com/blader/napkin/tree/27fa60a895de4383b26a539136bc983155cb979c/)                                                                           | 27fa60a895de4383b26a539136bc983155cb979c |
+| Directorio             | Fuente original fijada                                                                                                                 | Commit                                   |
+| ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------- |
+| expo-overview          | [expo/skills](https://github.com/expo/skills/tree/7ddc1f5796996e5c7efe2fc3fa9168eb24e8dac1/plugins/expo/skills/expo-overview)          | 7ddc1f5796996e5c7efe2fc3fa9168eb24e8dac1 |
+| expo-project-structure | [expo/skills](https://github.com/expo/skills/tree/7ddc1f5796996e5c7efe2fc3fa9168eb24e8dac1/plugins/expo/skills/expo-project-structure) | 7ddc1f5796996e5c7efe2fc3fa9168eb24e8dac1 |
+| expo-router            | [expo/skills](https://github.com/expo/skills/tree/7ddc1f5796996e5c7efe2fc3fa9168eb24e8dac1/plugins/expo/skills/expo-router)            | 7ddc1f5796996e5c7efe2fc3fa9168eb24e8dac1 |
+| expo-upgrade           | [expo/skills](https://github.com/expo/skills/tree/7ddc1f5796996e5c7efe2fc3fa9168eb24e8dac1/plugins/expo/skills/expo-upgrade)           | 7ddc1f5796996e5c7efe2fc3fa9168eb24e8dac1 |
+| caveman                | [JuliusBrussee/caveman](https://github.com/JuliusBrussee/caveman/tree/bad48a0e1df55e05e3f52249afa35ecc1909ee76/skills/caveman)         | bad48a0e1df55e05e3f52249afa35ecc1909ee76 |
+| napkin                 | [blader/napkin](https://github.com/blader/napkin/tree/27fa60a895de4383b26a539136bc983155cb979c/)                                       | 27fa60a895de4383b26a539136bc983155cb979c |
 
 ## Pendientes
 

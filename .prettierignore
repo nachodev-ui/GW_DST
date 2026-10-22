@@ -1,5 +1,6 @@
 .agents/skills/
 node_modules/
+coverage/
 package-lock.json
 supabase/.temp/
 apps/mobile/android/

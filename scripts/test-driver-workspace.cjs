@@ -1,28 +1,6 @@
 // Offline view/logic checks with mocked hooks. No rendering, native runtime or network.
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const vm = require('node:vm');
-const ts = require('typescript');
-function load(file, mocks = {}, globals = {}) {
-  const module = { exports: {} };
-  vm.runInNewContext(
-    ts.transpileModule(fs.readFileSync(file, 'utf8'), {
-      compilerOptions: {
-        module: ts.ModuleKind.CommonJS,
-        target: ts.ScriptTarget.ES2022,
-        jsx: ts.JsxEmit.ReactJSX,
-      },
-    }).outputText,
-    {
-      module,
-      exports: module.exports,
-      ...globals,
-      require: (name) => (name in mocks ? mocks[name] : require(name)),
-    },
-    { filename: file },
-  );
-  return module.exports;
-}
+const { load } = require('./testing/load.cjs');
 const contracts = load('apps/mobile/src/features/driver/offer-contracts.ts', {
   '@/shared/orders/contracts': load('apps/mobile/src/shared/orders/contracts.ts'),
 });

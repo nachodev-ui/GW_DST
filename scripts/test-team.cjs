@@ -1,23 +1,5 @@
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const vm = require('node:vm');
-const ts = require('typescript');
-function load(filename, mocks = {}) {
-  const module = { exports: {} };
-  vm.runInNewContext(
-    ts.transpileModule(fs.readFileSync(filename, 'utf8'), {
-      compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
-    }).outputText,
-    {
-      module,
-      exports: module.exports,
-      Set,
-      require: (name) => (name in mocks ? mocks[name] : require(name)),
-    },
-    { filename },
-  );
-  return module.exports;
-}
+const { load } = require('./testing/load.cjs');
 async function main() {
   const contracts = load('apps/mobile/src/features/business/team-contracts.ts');
   const csv = load('apps/mobile/src/features/business/team-import.ts', {

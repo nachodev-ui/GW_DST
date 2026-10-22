@@ -10,13 +10,13 @@ de conducción. El panel administrativo web queda para una etapa posterior.
 Hay flujos implementados sobre Supabase; el proyecto ya supera el scaffold inicial,
 pero todavía requiere validación y trabajo antes de un piloto real.
 
-| Área | Disponible en el código | Pendiente |
-| --- | --- | --- |
-| Acceso | Registro/ingreso por correo y contraseña, sesión segura nativa, guards y consulta de permisos de servidor. | Recuperación de contraseña dentro de la app y validación completa de enlaces/sesión en dispositivos. |
-| Cliente | Dirección y comuna CUT, marca/formato/variante, cantidad, canje explícito, selección de distribuidora, revisión, compra, historial, detalle, cancelación y eventos. | Resolver automáticamente pedidos sin asignación y ampliar regresiones de concurrencia. |
-| Distribuidora | Alta y revisión administrativa SQL; catálogo con precio CLP, stock/publicación, horarios/ETA/contacto opcionales; equipo, invitaciones individuales/CSV y cobertura propia. | Panel admin web, suspensión operativa y verificación de evidencia vigente para negocios reales. |
-| Repartidor | Invitación aceptada y postulación, aprobación administrativa, Ofertas/Cobertura/Cuenta, disponibilidad, aceptación/rechazo y avance a en camino/entregado. | Push y tracking; la cobertura se hereda del negocio y el conductor solo edita disponibilidad. |
-| Backend | Migraciones Postgres/PostGIS, RLS, RPC, asignación atómica, reserva/liberación de stock e idempotencia de compra. | Tipos generados integrados, pruebas actuales automatizadas y revisión del entorno concreto del piloto. |
+| Área          | Disponible en el código                                                                                                                                                     | Pendiente                                                                                            |
+| ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| Acceso        | Registro/ingreso por correo y contraseña, sesión segura nativa, guards y consulta de permisos de servidor.                                                                  | Recuperación de contraseña dentro de la app y validación completa de enlaces/sesión en dispositivos. |
+| Cliente       | Dirección y comuna CUT, marca/formato/variante, cantidad, canje explícito, selección de distribuidora, revisión, compra, historial, detalle, cancelación y eventos.         | Resolver automáticamente pedidos sin asignación y ampliar regresiones de concurrencia.               |
+| Distribuidora | Alta y revisión administrativa SQL; catálogo con precio CLP, stock/publicación, horarios/ETA/contacto opcionales; equipo, invitaciones individuales/CSV y cobertura propia. | Panel admin web, suspensión operativa y verificación de evidencia vigente para negocios reales.      |
+| Repartidor    | Invitación aceptada y postulación, aprobación administrativa, Ofertas/Cobertura/Cuenta, disponibilidad, aceptación/rechazo y avance a en camino/entregado.                  | Push y tracking; la cobertura se hereda del negocio y el conductor solo edita disponibilidad.        |
+| Backend       | Migraciones Postgres/PostGIS, RLS, RPC, asignación atómica, reserva/liberación de stock e idempotencia de compra.                                                           | Tipos generados integrados, pruebas de concurrencia real y revisión del entorno concreto del piloto. |
 
 El cliente recibe cambios de sus pedidos por Realtime y polling de respaldo en
 primer plano. El repartidor consulta ofertas cada 5 s con pantalla enfocada y app
@@ -38,9 +38,21 @@ a comprobar el cloud ni se ejecutaron pruebas o la app durante esta revisión.
 Detalles, fuentes y límites: [informe técnico](docs/review-2026-10-22.md).
 Plan priorizado: [docs/ROADMAP.md](docs/ROADMAP.md).
 
+DT-01 aplica parches de Expo 57/Router/Location y ESLint y retira la cadena antigua de uuid.
+La auditoría posterior baja a **22 paquetes afectados** (19 altos y 3 moderados).
+Persisten excepciones temporales con responsable y vencimiento: braces y node-forge
+sin parche, dependencia de decodificación de Router y ESLint 9 sin soporte. El parser
+configurado usa URLSearchParams; su exposición debe verificarse antes del piloto. Alcance, medidas y
+validación en [seguridad de dependencias](docs/dependency-security.md).
+
+DT-02 añade `npm test`, cobertura de siete módulos críticos y CI Linux/Windows con
+tipos, lint y formato. Hay 12 suites Node y una PowerShell; siete SQL vigentes y
+nueve históricos clasificados. El proyecto separado **Gasway Test** recibe las
+migraciones y regresiones con rollback. Configuración y límites: [pruebas](docs/testing.md).
+
 ## Stack
 
-- npm workspaces; Expo SDK 57: rango `^57.0.0`, lockfile **57.0.30**.
+- npm workspaces; Expo SDK 57: rango `^57.0.31`, lockfile **57.0.31**.
 - App móvil: **React Native 0.86.3**, **React/React DOM 19.2.3**, Expo Router y
   TypeScript 6 estricto. Estas son las versiones resueltas desde `apps/mobile`,
   coherentes con `bundledNativeModules` del Expo instalado.
@@ -138,25 +150,31 @@ para confirmar correo; después iniciar sesión con contraseña. Ver
 
 ## Comandos y pruebas
 
-| Comando | Uso y límites |
-| --- | --- |
-| `npm start` | Metro para el development build instalado. |
-| `npm run android` / `npm run ios` | Compilar/instalar nativo; iOS exige macOS. |
-| `npm run web` | Web de desarrollo. |
-| `npm run typecheck` | TypeScript sin emitir archivos. |
-| `npm run lint` | ESLint móvil. |
-| `npm run format` / `npm run format:check` | Escribir/revisar formato. |
-| `node scripts/test-<nombre>.cjs` | Assertions offline específicas; no hay comando global `npm test`. |
-| `pwsh -File scripts/test-reset-auth-password.ps1` | Regresión offline del script administrativo, requiere PowerShell 7. |
-| `npm run db:types` | Generador actual **local**; requiere Supabase local. Integración cloud/tipos pendiente. |
-| `npm run db:lint` | Lint SQL **local**; no comprueba el cloud. |
-| `npm run db:test` | Runner de Supabase local; los SQL actuales no son una suite pgTAP compatible sin adaptación. |
+| Comando                                                     | Uso y límites                                                                                       |
+| ----------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| `npm start`                                                 | Metro para el development build instalado.                                                          |
+| `npm run android` / `npm run ios`                           | Compilar/instalar nativo; iOS exige macOS.                                                          |
+| `npm run web`                                               | Web de desarrollo.                                                                                  |
+| `npm run typecheck`                                         | TypeScript sin emitir archivos.                                                                     |
+| `npm run lint`                                              | ESLint móvil.                                                                                       |
+| `npm test`                                                  | Regresiones offline Node + PowerShell 7, sin cloud ni render.                                       |
+| `npm run test:coverage`                                     | Offline con C8; umbrales sobre siete módulos críticos, LCOV y resumen.                              |
+| `npm run db:test:list`                                      | Allowlist SQL vigente; comprueba clasificación de todos los SQL.                                    |
+| `npm run db:test:prepare`                                   | Migraciones y catálogo solo en Gasway Test; exige ref explícita.                                    |
+| `npm run db:test:cloud`                                     | Siete SQL en Gasway Test, con timeout, destino protegido y rollback.                                |
+| `npm run format` / `npm run format:check`                   | Escribir/revisar formato.                                                                           |
+| `node scripts/test-<nombre>.cjs`                            | Assertions específicas; `npm test` ejecuta el conjunto offline.                                     |
+| `pwsh -File scripts/test-reset-auth-password.ps1`           | Regresión offline del script administrativo, requiere PowerShell 7.                                 |
+| `npm run db:types`                                          | Generador actual **local**; requiere Supabase local. Integración cloud/tipos pendiente.             |
+| `npm run db:lint`                                           | Lint SQL **local**; no comprueba el cloud.                                                          |
+| `npm run db:test`                                           | Runner de Supabase local; los SQL actuales no son una suite pgTAP compatible sin adaptación.        |
 | `npm run db:start` / `npm run db:stop` / `npm run db:reset` | Herramientas locales con Docker; reset destruye datos locales. No iniciar/resetear en este entorno. |
 
-Hay 11 scripts CommonJS de pruebas y uno PowerShell, para Auth, pedidos, ofertas,
+Hay 12 suites CommonJS de pruebas y una PowerShell, para Auth, pedidos, ofertas,
 progreso, postulación, negocio, equipo, disponibilidad y cobertura. Usan assertions,
-transpilación y mocks; no equivalen a pruebas reales de dispositivo. No hay CI ni
-cobertura porcentual instrumentada. Esta entrega documental no los ejecutó.
+transpilación y mocks; no equivalen a pruebas reales de dispositivo. CI y cobertura
+de lógica crítica se incorporan en DT-02; Actions requiere publicar la rama, y el
+workflow SQL manual requiere configurar su environment y credenciales privadas.
 
 Las suites SQL se ejecutan completas como postgres en el entorno de prueba
 correspondiente y revierten sus fixtures; las secuencias pueden avanzar. Consultar
@@ -197,7 +215,7 @@ supabase/
   tests/                # 16 SQL; vigentes e históricos clasificados en su README
   admin/                # Operaciones privilegiadas de revisión y demo
   functions/            # Reservado, sin handlers
-  seed.sql              # 12 combinaciones base marca/peso, sin precios comerciales
+  seed.sql              # 14 productos con variantes, sin precios comerciales
   config.toml           # Configuración local; no acredita ajustes cloud
 scripts/                # Pruebas offline, diagnóstico y generación de tipos
 docs/                   # Roadmap, revisión, arquitectura, dominio, guías y ADRs
@@ -254,6 +272,16 @@ GLP vencido.
 
 ### 2026-10-22
 
+- DT-02: runner offline, loader común con mapas de origen, C8 con umbrales y CI
+  Linux/Windows de tipos/lint/formato/cobertura. SQL clasificado (7 vigentes, 9
+  históricos), progreso/workspace adaptados a ADR 0021 y proyecto Free Gasway Test
+  separado con migraciones, catálogo y ejecución transaccional. Baseline de formato
+  normalizado; guía en docs/testing.md y decisión en ADR 0022.
+- DT-01: Expo 57.0.31, Router 57.0.29, Location 57.0.22 y ESLint 9.39.5;
+  auditoría de 25 a 22 paquetes afectados. Config-plugins 57.0.11/xcode 4
+  eliminan uuid 7. Excepciones de seguridad/soporte con responsable, fechas y revisión
+  de rutas previa al piloto en docs/dependency-security.md. Matriz Expo y typecheck
+  correctos; lint sin errores, con cinco advertencias en archivos no modificados.
 - Consolidados los cambios locales de experiencia de cliente, gestión del negocio,
   cobertura, recursos visuales y documentación para integrar la base previa al ROADMAP.
 - Revisados estructura, arquitectura, código, seguridad, dependencias, pruebas, errores,
@@ -262,7 +290,7 @@ GLP vencido.
   técnica y funcionalidades; checklist anterior conservado en docs/roadmap-history.md.
 - README actualizado con alcance real, versiones del workspace, instalación, uso,
   estructura y pruebas vigentes. Notas anteriores conservadas en docs/readme-history.md.
-- Auditoría npm en línea: 25 paquetes afectados (19 altos, 6 moderados). Sin cambios
+- Revisión inicial: auditoría npm con 25 paquetes afectados (19 altos, 6 moderados). Sin cambios
   de dependencias, ejecución de suites, SQL cloud ni comprobaciones visuales.
 
 - Reducido el círculo de quitar comuna de 24 a 20 y su icono a 14, con más margen

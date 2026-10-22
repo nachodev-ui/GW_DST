@@ -1,30 +1,7 @@
 // Offline assertions for the driver response boundary; no database/native runtime.
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const vm = require('node:vm');
-const ts = require('typescript');
 
-function load(filename, overrides = {}) {
-  const module = { exports: {} };
-  const code = ts.transpileModule(fs.readFileSync(filename, 'utf8'), {
-    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
-  }).outputText;
-  vm.runInNewContext(
-    code,
-    {
-      module,
-      exports: module.exports,
-      Intl,
-      require: (name) =>
-        overrides[name] ??
-        (name === '@/shared/orders/contracts'
-          ? load('apps/mobile/src/shared/orders/contracts.ts')
-          : require(name)),
-    },
-    { filename },
-  );
-  return module.exports;
-}
+const { load } = require('./testing/load.cjs');
 const { offerSchema, assignedOrderSchema, settingsSchema, driverError } = load(
   'apps/mobile/src/features/driver/offer-contracts.ts',
 );

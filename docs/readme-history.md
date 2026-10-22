@@ -523,4 +523,3 @@ Validación de esta entrega: assertions de progreso, ofertas y pedidos aprobadas
 lint de los archivos móviles modificados y único `npm run typecheck` aprobados.
 Sin ejecución SQL, emulador, capturas ni verificaciones visuales.
 Ver [ADR 0008](decisions/0008-driver-order-progress.md).
-

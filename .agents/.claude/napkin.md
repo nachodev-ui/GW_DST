@@ -35,4 +35,3 @@
    Do instead: start onboarding from a business invitation accepted by the confirmed-email account, then require admin approval; keep legacy confirmations versioned. Dispatch only configured business brands; never reject an empty solely for its brand. See ADR 0015 and docs/market-context-chile.md.
 
 ## User Directives
-
