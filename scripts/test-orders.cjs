@@ -15,7 +15,7 @@ function load(source) {
   return module.exports;
 }
 const { createOrderFormSchema } = load('apps/mobile/src/features/orders/customer/order-form.ts');
-const { canCancel, formatClp, productSchema, productLabel } = load(
+const { canCancel, formatClp, productSchema, productLabel, clpSchema } = load(
   'apps/mobile/src/shared/orders/contracts.ts',
 );
 const schema = createOrderFormSchema([{ code: '13101', name: 'Santiago' }]);
@@ -51,11 +51,11 @@ assert.equal(
     maximumFractionDigits: 0,
   }).format(37035),
 );
-const product = { id: form.productId, brand: 'Gasco', weight_kg: 11, unit_price_clp: null };
+const product = { id: form.productId, brand: 'Gasco', weight_kg: 11 };
 assert.equal(productSchema.safeParse(product).success, true);
-assert.equal(productSchema.safeParse({ ...product, unit_price_clp: 0 }).success, true);
-assert.equal(productSchema.safeParse({ ...product, unit_price_clp: 1.5 }).success, false);
-assert.equal(productSchema.safeParse({ ...product, unit_price_clp: -1 }).success, false);
+assert.equal(clpSchema.safeParse(0).success, true);
+assert.equal(clpSchema.safeParse(1.5).success, false);
+assert.equal(clpSchema.safeParse(-1).success, false);
 assert.equal(productLabel(productSchema.parse(product)), '11 kg');
 for (const variant of ['vma', 'vm']) {
   const cylinder = productSchema.parse({ ...product, brand: 'Abastible', weight_kg: 15, variant });

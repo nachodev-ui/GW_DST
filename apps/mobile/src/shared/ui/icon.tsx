@@ -23,14 +23,22 @@ const paths = {
 } as const;
 export type IconName = keyof typeof paths;
 
+const filledPaths: Partial<Record<IconName, string>> = {
+  home: 'M2 10 12 2l10 8-2 2-1-1v11h-5v-8h-4v8H5V11l-1 1Z',
+  orders: 'M8 2h8v5H8ZM4 4h3v4h10V4h3v18H4Zm3 7v2h10v-2Zm0 5v2h8v-2Z',
+  user: 'M12 2a5 5 0 1 0 0 10 5 5 0 0 0 0-10ZM3 22v-2a9 7 0 0 1 18 0v2Z',
+};
+
 export function Icon({
   name,
   color = theme.colors.primary,
   size = theme.layout.icon,
+  filled = false,
 }: {
   name: IconName;
   color?: string;
   size?: number;
+  filled?: boolean;
 }) {
   return (
     <Svg
@@ -46,7 +54,11 @@ export function Icon({
       aria-hidden
     >
       {name === 'clock' ? <Circle cx="12" cy="12" r="9" /> : null}
-      <Path d={paths[name]} />
+      {filled && filledPaths[name] ? (
+        <Path d={filledPaths[name]} fill={color} fillRule="evenodd" stroke="none" />
+      ) : (
+        <Path d={paths[name]} />
+      )}
     </Svg>
   );
 }

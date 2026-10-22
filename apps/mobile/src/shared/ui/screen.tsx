@@ -10,7 +10,16 @@ export function Screen({
   children,
   footer,
   tabbed = false,
-}: PropsWithChildren<{ title: string; onBack: () => void; footer?: ReactNode; tabbed?: boolean }>) {
+  list,
+  compactHeader = false,
+}: PropsWithChildren<{
+  title: string;
+  onBack: () => void;
+  footer?: ReactNode;
+  tabbed?: boolean;
+  list?: ReactNode;
+  compactHeader?: boolean;
+}>) {
   return (
     <SafeAreaView
       edges={tabbed ? ['top', 'left', 'right'] : ['top', 'bottom', 'left', 'right']}
@@ -21,14 +30,16 @@ export function Screen({
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
         <View style={screenStyles.header}>
-          <ScreenHeader title={title} onBack={onBack} />
+          <ScreenHeader title={title} onBack={onBack} compact={compactHeader} />
         </View>
-        <ScrollView
-          keyboardShouldPersistTaps="handled"
-          contentContainerStyle={screenStyles.content}
-        >
-          {children}
-        </ScrollView>
+        {list ?? (
+          <ScrollView
+            keyboardShouldPersistTaps="handled"
+            contentContainerStyle={screenStyles.content}
+          >
+            {children}
+          </ScrollView>
+        )}
         {footer ? <View style={screenStyles.footer}>{footer}</View> : null}
       </KeyboardAvoidingView>
     </SafeAreaView>

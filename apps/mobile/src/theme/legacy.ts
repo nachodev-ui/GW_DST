@@ -1,21 +1,10 @@
-// Frozen presentation for existing screens outside the client redesign.
-import { Platform } from 'react-native';
+// Compatibility layout for older screens; colors follow the current palette.
+import { theme as currentTheme } from './index';
 
 export const theme = {
-  colors: {
-    primary: '#125C4C',
-    onPrimary: '#FFFFFF',
-    accent: '#F5B942',
-    background: '#F7F9F8',
-    surface: '#FFFFFF',
-    text: '#142923',
-    textMuted: '#53675F',
-    border: '#CEDBD5',
-    error: '#B42318',
-    success: '#167044',
-  },
+  colors: currentTheme.colors,
   typography: {
-    family: Platform.select({ ios: 'System', android: 'sans-serif', default: 'system-ui' }),
+    family: currentTheme.typography.family,
     sizes: { caption: 12, body: 16, subtitle: 20, title: 28 },
     weights: { regular: '400', medium: '500', bold: '700' },
     lineHeights: { body: 24, title: 36 },

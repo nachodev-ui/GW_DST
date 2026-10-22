@@ -72,6 +72,7 @@ export const businessProductSchema = z
     weight_kg: z.union([z.literal(5), z.literal(11), z.literal(15), z.literal(45)]),
     variant: z.enum(productVariants),
     unit_price_clp: clpSchema.nullable(),
+    price_without_exchange_clp: clpSchema.nullable(),
     stock: z.number().int().min(0).max(1000000),
     is_listed: z.boolean(),
     revision: z.number().int().min(0),
@@ -81,6 +82,12 @@ export type BusinessProduct = z.infer<typeof businessProductSchema>;
 
 export const businessProductFormSchema = z
   .object({
+    priceWithoutExchange: z
+      .string()
+      .refine(
+        (value) => value === '' || (/^\d+$/.test(value) && Number(value) <= 2147483647),
+        'Ingresa pesos enteros entre 0 y 2.147.483.647.',
+      ),
     price: z
       .string()
       .refine(

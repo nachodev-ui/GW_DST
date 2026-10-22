@@ -9,7 +9,6 @@ export const productSchema = z.object({
   brand: z.enum(brands),
   weight_kg: z.union([z.literal(5), z.literal(11), z.literal(15), z.literal(45)]),
   variant: z.enum(productVariants).default('standard'),
-  unit_price_clp: clpSchema.nullable(),
 });
 export const communeSchema = z.object({
   code: z.string().regex(/^\d{5}$/),
@@ -19,6 +18,11 @@ export const orderSchema = z.object({
   id: z.uuid(),
   customer_id: z.uuid(),
   product_id: z.uuid(),
+  distributor_id: z.uuid().nullable().default(null),
+  returned_brand: z
+    .enum([...brands, 'unknown'])
+    .nullable()
+    .default(null),
   quantity: z.number().int().min(1).max(99),
   exchange_empty: z.boolean(),
   status: z.enum(['requested', 'offered', 'accepted', 'on_the_way', 'delivered', 'cancelled']),

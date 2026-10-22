@@ -57,7 +57,7 @@ export function DriverAccountScreen() {
       )}
       <ListRow
         title="Disponibilidad y cobertura"
-        subtitle="Configura tus comunas de reparto"
+        subtitle="Consulta las comunas de tu distribuidora"
         leading={<Icon name="pin" />}
         onPress={() => router.replace('/driver-coverage')}
       />

@@ -13,9 +13,10 @@ El derecho de intercambio no se rechaza solo por la marca del envase devuelto;
 no implica compatibilidad de válvulas ni aptitud de seguridad del cilindro.
 Se deben registrar y revisar sus características. Stock, zona y precio dependen
 del negocio; no se inventan precios ni recargos por cambiar de marca.
-El catálogo es global: products.unit_price_clp guarda el precio unitario de servidor,
-nullable hasta configuración comercial. Sin precio no se puede comprar; sin recargos
-inventados por canje. Precios/stock por distribuidor quedan para una migración futura.
+El producto/variante es global; precio y stock para compras nuevas proceden de
+distributor_products, por vendedor. unit_price_clp es el precio con canje y
+price_without_exchange_clp incluye el envase; NULL impide comprar esa modalidad.
+No se inventan recargos por marca devuelta. Ver ADR 0018 y distributor-shopping.md.
 
 La dirección tiene comuna identificada por código CUT de cinco dígitos y un punto
 geográfico WGS84 opcional. No usar el nombre de comuna como identificador.
@@ -28,8 +29,10 @@ conserva su restricción de formato anterior y no se actualiza desde el formular
 
 CLP se almacena como integer no negativo y se presenta con locale es-CL y cero decimales.
 No usar floats para dinero ni aceptar precios calculados en el dispositivo.
-create_order fija total_clp = products.unit_price_clp × quantity al crear el pedido;
-no recibe identidad ni precio. Los términos comerciales y datos de entrega son inmutables.
+create_distributor_order fija total_clp con el precio comercial bloqueado × quantity;
+compara el precio que el cliente revisó, sin usarlo como autoridad. Vendedor, términos
+comerciales y entrega son inmutables. La creación anterior con precio global pierde
+EXECUTE móvil; las órdenes existentes se conservan.
 No se considera el Cupón de Gas Licuado estatal vencido.
 
 ## Roles
@@ -80,9 +83,18 @@ evidencias vigentes de conductor, vehículo y operación según corresponda.
 «Mi negocio» permite preparar distributor_products por producto UUID: precio CLP
 entero nullable, stock no negativo e inclusión. El servidor exige negocio verificado,
 membresía y marca configurada, y audita cada edición. revision evita pisar cambios
-concurrentes; un reintento idéntico ya guardado no duplica cambios. No hay reservas,
-consumo de existencias ni vínculo de esta tabla con create_order en esta fase.
+concurrentes; un reintento idéntico ya guardado no duplica cambios.
 Solo el negocio demo autorizado tiene valores comerciales ficticios de ejemplo.
+Desde ADR 0018 el catálogo propio se conecta a la compra y reserva stock atómicamente;
+cancelar lo repone una vez y entregar lo consume. El cliente elige vendedor antes
+de comprar y sus ofertas solo se dirigen a conductores de ese negocio.
+La búsqueda muestra stock publicado aunque no haya cobertura operativa. `has_coverage`
+y `has_available_driver` distinguen esa situación de inventario agotado; la compra
+sigue requiriendo cobertura y una oferta emitible. Ver ADR 0019.
+El responsable configura las comunas en Mi negocio → Cobertura, incluso sin equipo.
+`distributor_communes` es la única fuente y todos los conductores afiliados heredan
+esa cobertura. Cada conductor solo cambia su disponibilidad. Cobertura declarada
+no implica que haya un conductor habilitado/disponible para entregar. Ver ADR 0021.
 
 Invitación y habilitación son estados distintos: pending/accepted/cancelled/expired
 describen la invitación; incomplete/in_review/enabled/rejected/suspended describen
@@ -94,13 +106,13 @@ otra; un conductor operativo no puede ser reasignado por este onboarding.
 
 El conductor aprobado entra a su espacio de reparto; tener una invitación aceptada
 o membresía del negocio no sustituye esa habilitación. Para recibir ofertas nuevas
-necesita negocio afiliado verificado, marcas configuradas, comunas guardadas y
+necesita negocio afiliado verificado, marcas configuradas, cobertura definida por el negocio y
 disponibilidad, además de no tener otra entrega activa. La cuenta explica qué falta
 sin permitir autoaprobarse. Un acceso operativo suspendido conserva la decisión
 histórica, pero no se presenta como una aprobación aún en proceso.
 
-Disponibilidad y borrador de cobertura son independientes: activarse usa las comunas
-guardadas. Un conductor también puede comprar con su misma cuenta; cambiar de vista
+La disponibilidad del conductor y la cobertura del negocio son independientes:
+activarse usa las comunas vigentes de la distribuidora, sin permitir modificarlas. Un conductor también puede comprar con su misma cuenta; cambiar de vista
 no cambia permisos ni permite aceptar su propio pedido. No se habilita gestión de
 distribuidora a un conductor por el solo hecho de estar afiliado.
 
@@ -122,6 +134,8 @@ con el producto. La aceptación fija orders.distributor_id de forma inmutable. L
 históricos sin ese dato no se rellenan por suposición. Ver ADR 0013.
 Sin candidatos el pedido queda requested; rechazo/vencimiento conservan offered.
 No hay reintento automático ni barrido de pedidos históricos. Ver ADR 0007.
+Para compras nuevas, `create_distributor_order` exige oferta emitible y revierte si
+no hay reparto; los estados requested sin candidatos describen órdenes históricas.
 La creación inicia en requested. Los triggers hacen cumplir el grafo y agregan eventos
 en la misma transacción; eventos sin actor corresponden a procesos de sistema.
 El cliente cancela solo pedidos propios requested/offered/accepted mediante cancel_order.
@@ -139,7 +153,7 @@ indisponibilidad, oferta expirada o pedido activo. Un reintento tras éxito fall
 la app relee el pedido asignado ante respuesta de red ambigua.
 
 Al aceptar se desmarca disponibilidad. Tras entrega/cancelación el repartidor puede
-reactivarla manualmente mediante set_driver_settings al no tener un pedido activo;
+reactivarla manualmente mediante set_driver_availability al no tener un pedido activo;
 no se implementa reactivación automática.
 La app implementa aceptar/rechazar; la RPC accept_driver_offer reutiliza la aceptación
 existente y devuelve dirección/notas solo al ganador. get_driver_order recupera el

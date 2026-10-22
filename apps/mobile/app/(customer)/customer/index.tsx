@@ -1,1 +1,1 @@
-export { CustomerHomeScreen as default } from '@/features/orders/customer/orders-screen';
+export { CustomerHomeScreen as default } from '@/features/orders/customer/customer-home-screen';

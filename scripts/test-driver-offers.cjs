@@ -85,11 +85,15 @@ assert.equal(
 );
 assert.equal(assignedOrderSchema.safeParse(summary).success, false);
 assert.equal(
-  settingsSchema.safeParse({ is_available: true, commune_codes: ['13101'] }).success,
+  settingsSchema.safeParse({ is_available: true, communes: [{ code: '13101', name: 'Santiago' }] })
+    .success,
   true,
 );
 assert.equal(
-  settingsSchema.safeParse({ is_available: 'true', commune_codes: ['Santiago'] }).success,
+  settingsSchema.safeParse({
+    is_available: 'true',
+    communes: [{ code: 'Santiago', name: 'Santiago' }],
+  }).success,
   false,
 );
 assert.match(driverError({ code: 'GW001' }), /ya fue tomado por otro repartidor/);

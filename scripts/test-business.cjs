@@ -56,11 +56,15 @@ async function main() {
   ]) {
     assert.equal(contracts.businessFormSchema.safeParse({ ...values, ...changed }).success, false);
   }
-  const form = { price: '15990', stock: '12', is_listed: true };
+  const form = { price: '15990', priceWithoutExchange: '49990', stock: '12', is_listed: true };
   assert.equal(contracts.businessProductFormSchema.safeParse(form).success, true);
   assert.equal(
-    contracts.businessProductFormSchema.safeParse({ price: '', stock: '0', is_listed: false })
-      .success,
+    contracts.businessProductFormSchema.safeParse({
+      price: '',
+      priceWithoutExchange: '',
+      stock: '0',
+      is_listed: false,
+    }).success,
     true,
   );
   for (const changed of [
@@ -121,13 +125,15 @@ async function main() {
     weight_kg: 11,
     variant: 'standard',
     unit_price_clp: null,
+    price_without_exchange_clp: null,
     stock: 0,
     is_listed: false,
     revision: 0,
   };
   await data.saveBusinessProduct(businessId, product, form);
-  const saved = calls.find((call) => call[0] === 'set_business_product')[1];
+  const saved = calls.find((call) => call[0] === 'set_business_offer')[1];
   assert.equal(saved.p_unit_price_clp, 15990);
+  assert.equal(saved.p_price_without_exchange_clp, 49990);
   assert.equal(saved.p_stock, 12);
   assert.equal(saved.p_revision, 0);
   const timestamp = '2026-10-18T21:00:00.123456+00:00';
