@@ -200,10 +200,10 @@ con identidades ficticias; un deadlock, timeout o SQLSTATE inesperado falla.
 El último caso simula pérdida de la respuesta en el cliente después de COMMIT;
 no simula una interrupción TCP ni un fallo dentro del commit. Ver ADR 0023.
 
-El workflow **Concurrencia SQL en Gasway Test** será manual y solo main. Reutiliza
+El workflow **Concurrencia SQL en Gasway Test** es manual y solo main. Reutiliza
 `gasway-test`, la variable y el secret de DT-02; no requiere otro token. Comparte
-`gasway-test-database` para no cruzarse con el workflow secuencial. Su ejecución real
-en Actions queda pendiente de publicar e integrar DT-03.
+`gasway-test-database` para no cruzarse con el workflow secuencial. Ya está integrado
+y su ejecución real en Actions se verificó según la evidencia de cierre registrada abajo.
 
 ### Recuperar una ejecución interrumpida
 
@@ -238,7 +238,27 @@ correctos. Cobertura crítica: 99,54 % líneas/statements, 100 % funciones y 90,
 ramas. La suite nueva verifica el coordinador, fallo al no observar contención,
 liberación ante error del contendiente, guards y assertions de eventos.
 
-Esto acredita la ejecución local contra cloud; el workflow de DT-03 todavía debe
-publicarse/integrarse y ejecutarse con el PAT del environment de Actions.
+Esta evidencia corresponde a la ejecución local contra cloud. La validación posterior
+con el PAT del environment de Actions se registra a continuación.
 La comprobación final dejó cero runs, usuarios, pedidos, negocios y contendientes
 activos de prueba; el marcador siguió presente y el enlace CLI de la app se conservó.
+
+### Cierre de DT-03 en GitHub Actions (2026-10-22)
+
+Se verificaron el estado y los logs de la ejecución
+[39807681871](https://github.com/nachodev-ui/GW_DST/actions/runs/39807681871),
+job [119925184551](https://github.com/nachodev-ui/GW_DST/actions/runs/39807681871/job/119925184551),
+del workflow **Concurrencia SQL en Gasway Test**. Terminó con `success`, mediante
+`workflow_dispatch` sobre `main`, commit `5d69dc8d659ed45fc2ae507a9368e5ebabb55fc1`
+(merge del PR #9), el 2026-10-22.
+
+El log confirmó `Concurrency transport: HTTPS; target xnrueexpwzvxotgwmamj`,
+**9 PASS, 9 CLEAN y 8 BLOCKED**. Pasaron los nueve casos enumerados arriba,
+incluido el reintento tras commit; las ocho carreras acreditaron PID distintos y
+espera real entre sesiones. Cada caso terminó con la limpieza de sus fixtures.
+Esto verifica el workflow integrado con las credenciales de `gasway-test`, además
+de la ejecución local previa, y permite dar por **cerrado DT-03**.
+
+Se mantienen los límites del ADR 0023: son escenarios de contención controlada,
+no una prueba de carga exhaustiva; la respuesta perdida se simula descartando el
+resultado confirmado en el cliente, sin cortar TCP ni interrumpir el commit.

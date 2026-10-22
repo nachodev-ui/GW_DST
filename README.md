@@ -16,7 +16,7 @@ pero todavía requiere validación y trabajo antes de un piloto real.
 | Cliente       | Dirección y comuna CUT, marca/formato/variante, cantidad, canje explícito, selección de distribuidora, revisión, compra, historial, detalle, cancelación y eventos.         | Resolver automáticamente pedidos sin asignación y ampliar regresiones de concurrencia.               |
 | Distribuidora | Alta y revisión administrativa SQL; catálogo con precio CLP, stock/publicación, horarios/ETA/contacto opcionales; equipo, invitaciones individuales/CSV y cobertura propia. | Panel admin web, suspensión operativa y verificación de evidencia vigente para negocios reales.      |
 | Repartidor    | Invitación aceptada y postulación, aprobación administrativa, Ofertas/Cobertura/Cuenta, disponibilidad, aceptación/rechazo y avance a en camino/entregado.                  | Push y tracking; la cobertura se hereda del negocio y el conductor solo edita disponibilidad.        |
-| Backend       | Migraciones Postgres/PostGIS, RLS, RPC, asignación atómica, reserva/liberación de stock e idempotencia de compra.                                                           | Tipos generados integrados, pruebas de concurrencia real y revisión del entorno concreto del piloto. |
+| Backend       | Migraciones Postgres/PostGIS, RLS, RPC, asignación atómica, reserva/liberación de stock e idempotencia de compra; concurrencia validada en Gasway Test.                     | Tipos generados integrados y revisión del entorno concreto del piloto.                               |
 
 El cliente recibe cambios de sus pedidos por Realtime y polling de respaldo en
 primer plano. El repartidor consulta ofertas cada 5 s con pantalla enfocada y app
@@ -49,6 +49,10 @@ DT-02 añade `npm test`, cobertura de siete módulos críticos y CI Linux/Window
 tipos, lint y formato. Hay 14 suites Node y una PowerShell; siete SQL vigentes y
 nueve históricos clasificados. El proyecto separado **Gasway Test** recibe las
 migraciones y regresiones con rollback. Configuración y límites: [pruebas](docs/testing.md).
+
+DT-03 quedó validado en [GitHub Actions](https://github.com/nachodev-ui/GW_DST/actions/runs/39807681871):
+nueve escenarios por HTTPS en Gasway Test, con ocho bloqueos reales observados y
+limpieza de los fixtures de cada caso. Evidencia y límites en [pruebas](docs/testing.md).
 
 ## Stack
 
@@ -181,8 +185,9 @@ Las suites SQL se ejecutan completas como postgres en el entorno de prueba
 correspondiente y revierten sus fixtures; las secuencias pueden avanzar. Consultar
 [clasificación SQL](supabase/tests/README.md): `distributor_owned_coverage.sql` y
 `distributor_discovery.sql` cubren los contratos actuales de cobertura/compra.
-No ejecutar todas las suites antiguas contra el esquema más reciente. Las carreras
-reales requieren conexiones independientes.
+No ejecutar todas las suites antiguas contra el esquema más reciente.
+`db:test:concurrency` comprueba carreras con sesiones independientes: confirma sus
+fixtures para compartirlos entre sesiones y los elimina al terminar, según ADR 0023.
 
 Para consultar dependencias, sin instalarlas ni cambiarlas:
 
@@ -273,10 +278,10 @@ GLP vencido.
 
 ### 2026-10-22
 
-- DT-03 iniciado: runner de nueve escenarios de concurrencia y respuestas perdidas,
-  con barrera observable en PostgreSQL, assertions de eventos/stock/reservas y
-  fixtures exclusivos; 9/9 pasaron en Gasway Test. Workflow manual y procedimiento
-  en docs/testing.md, ADR 0023; pendiente su integración y ejecución en Actions.
+- DT-03 cerrado: [Actions #39807681871](https://github.com/nachodev-ui/GW_DST/actions/runs/39807681871)
+  confirmó nueve escenarios por HTTPS en Gasway Test, con 9 PASS, 9 CLEAN y
+  8 bloqueos reales observados. Assertions de ganador, eventos, stock y reservas;
+  workflow manual integrado y evidencia registrada en docs/testing.md, ADR 0023.
 - DT-02 validado: el usuario confirmó el workflow SQL de GitHub Actions exitoso,
   con 7/7 suites por HTTPS en Gasway Test y credenciales del environment configuradas.
 - Corregida conexión SQL de CI en runners sin IPv6: con SUPABASE_ACCESS_TOKEN,
