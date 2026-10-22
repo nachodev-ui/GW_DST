@@ -114,7 +114,8 @@ el CLI y leer project-ref/pooler-url/linked-project.json. Simula siete respuesta
 correctas y un fallo SQL; este último detiene la suite y produce salida no cero.
 También comprueba permisos HTTP rechazados, timeout, JSON inválido, destino y
 ocultación del token. Son simulaciones de transporte, no una nueva validación remota
-con el PAT de GitHub. La ejecución real se confirma tras integrar la corrección.
+con el PAT de GitHub. La ejecución real fue confirmada posteriormente por el usuario,
+según la evidencia registrada abajo.
 
 Validación de la corrección: 13 suites Node y una PowerShell pasan; typecheck y
 formato correctos, con cobertura crítica sin cambios. El endpoint HTTPS respondió
@@ -142,11 +143,20 @@ el environment **gasway-test**, restringido a main y con aprobación del mantene
 No copiar automáticamente el token local ni dar secretos a PRs. El token solo está
 en los pasos de consulta cloud, después de instalar dependencias. El workflow no
 crea proyectos ni migra/despliega automáticamente; falta de configuración falla.
-El usuario ya configuró el environment/secret y ejecutó Actions; el primer intento
-SQL registró el fallo IPv6 descrito arriba. La corrección debe publicarse e integrarse
-en main antes de elegir **Run workflow** de nuevo. **Re-run jobs** sobre la ejecución
-fallida reutiliza el commit anterior y conserva el fallo.
+El usuario ya configuró el environment/secret, integró la corrección y confirmó
+el workflow exitoso. Para futuras correcciones, iniciar **Run workflow** después
+de integrar el cambio: **Re-run jobs** reutiliza el commit de la ejecución original.
 
 Fuentes: [C8](https://github.com/bcoe/c8), [Node test runner](https://nodejs.org/docs/latest-v24.x/api/test.html),
 [Supabase Free](https://supabase.com/pricing), [clasificación SQL](../supabase/tests/README.md).
 Transporte: [Management API Run SQL query](https://supabase.com/docs/reference/api/v1-run-a-query).
+
+## Evidencia de cierre de DT-02
+
+El 2026-10-22 el usuario compartió en este chat el log exitoso de GitHub Actions:
+`SQL transport: Supabase Management API over HTTPS`, seguido de PASS para las siete
+suites current: catálogo Abastible, onboarding de negocio, invitaciones, discovery,
+cobertura del negocio, progreso y workspace del conductor. Esto confirma la ejecución
+real con el secret del environment y resuelve el fallo IPv6 del primer intento.
+La evidencia aportada no incluye URL/ID de la ejecución; no se inventa una referencia.
+DT-02 queda completado; las carreras entre conexiones siguen en DT-03.
