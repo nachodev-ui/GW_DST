@@ -37,3 +37,15 @@ El workflow cloud es manual, desde main, con environment `gasway-test` y credenc
 privadas de ese entorno; nunca recibe secretos en PRs. Las migraciones del entorno
 se preparan por separado, con destino explícito. No se publica automáticamente ni
 se modifica la conexión del móvil.
+
+## Corrección del transporte CI — 2026-10-22
+
+Un checkout limpio de Actions no tiene la caché de enlace/pooler que tenía la
+validación local y falló por IPv6 antes de ejecutar SQL. Con PAT explícito, el runner
+usa Management API por HTTPS y envía cada batch con begin/rollback en una petición.
+CI falla si falta PAT; no recurre al CLI. El desarrollo local sin PAT conserva CLI.
+
+El endpoint SQL es beta/experimental; se aísla en un adaptador pequeño con timeout,
+sin reintentos automáticos, con errores propagados y token oculto en diagnósticos.
+No se agregan claves API, contraseñas ni permisos al PAT del proyecto de pruebas.
+La regresión simula un runner sin CLI/caché y comprueba éxito y errores del batch.
