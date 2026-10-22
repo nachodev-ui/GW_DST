@@ -1,9 +1,9 @@
 -- Run as postgres after all migrations; fixtures always roll back.
-begin;
 do $$
 declare
   candidate record;
 begin
+  begin
   if (select count(*) from public.products where brand = 'Abastible' and weight_kg = 15
       and variant in ('standard', 'vma', 'vm')) <> 3 then
     raise exception 'FAIL: missing distinct Abastible 15 kg products';
@@ -33,6 +33,8 @@ begin
     raise exception 'FAIL: unauthenticated driver summaries exposed';
   end if;
   raise notice 'PASS: Abastible variants, constraints and catalogue permissions';
+  raise exception using errcode='ZX011',message='rollback catalogue fixtures';
+  exception when sqlstate 'ZX011' then null;
+  end;
 end;
 $$;
-rollback;

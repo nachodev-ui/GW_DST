@@ -1,19 +1,7 @@
 // Local domain/form assertions: no network, database or native runtime.
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const path = require('node:path');
-const vm = require('node:vm');
-const ts = require('typescript');
 
-function load(source) {
-  const filename = path.join(__dirname, '..', source);
-  const code = ts.transpileModule(fs.readFileSync(filename, 'utf8'), {
-    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
-  }).outputText;
-  const module = { exports: {} };
-  vm.runInNewContext(code, { module, exports: module.exports, require, Intl }, { filename });
-  return module.exports;
-}
+const { load } = require('./testing/load.cjs');
 const { createOrderFormSchema } = load('apps/mobile/src/features/orders/customer/order-form.ts');
 const { canCancel, formatClp, productSchema, productLabel, clpSchema } = load(
   'apps/mobile/src/shared/orders/contracts.ts',

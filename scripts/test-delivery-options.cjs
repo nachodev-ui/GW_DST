@@ -1,26 +1,6 @@
 // Pure contracts and business rules. No native runtime, rendering or network.
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const path = require('node:path');
-const vm = require('node:vm');
-const ts = require('typescript');
-function load(file) {
-  const filename = path.resolve(__dirname, '..', file);
-  const module = { exports: {} };
-  const localRequire = (specifier) =>
-    specifier === './contracts'
-      ? load('apps/mobile/src/shared/orders/contracts.ts')
-      : require(specifier);
-  const code = ts.transpileModule(fs.readFileSync(filename, 'utf8'), {
-    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
-  }).outputText;
-  vm.runInNewContext(
-    code,
-    { module, exports: module.exports, require: localRequire, Intl, Date, encodeURIComponent },
-    { filename },
-  );
-  return module.exports;
-}
+const { load } = require('./testing/load.cjs');
 const {
   serviceStatus,
   serviceSettingsSchema,

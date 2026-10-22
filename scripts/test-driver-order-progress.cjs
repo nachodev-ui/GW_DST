@@ -1,27 +1,7 @@
 // Offline behavior checks. No Supabase, native runtime, app rendering or timers.
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const vm = require('node:vm');
-const ts = require('typescript');
 
-function load(filename, overrides = {}, globals = {}) {
-  const module = { exports: {} };
-  const code = ts.transpileModule(fs.readFileSync(filename, 'utf8'), {
-    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
-  }).outputText;
-  vm.runInNewContext(
-    code,
-    {
-      module,
-      exports: module.exports,
-      Intl,
-      ...globals,
-      require: (name) => overrides[name] ?? require(name),
-    },
-    { filename },
-  );
-  return module.exports;
-}
+const { load } = require('./testing/load.cjs');
 
 const userId = '10000000-0000-4000-8000-000000000001';
 const orderId = '10000000-0000-4000-8000-000000000002';

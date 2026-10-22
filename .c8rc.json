@@ -1,0 +1,19 @@
+{
+  "all": true,
+  "extension": [".ts", ".tsx"],
+  "include": [
+    "apps/mobile/src/shared/validation/rut.ts",
+    "apps/mobile/src/shared/orders/contracts.ts",
+    "apps/mobile/src/shared/orders/delivery-options.ts",
+    "apps/mobile/src/shared/supabase/secure-storage.ts",
+    "apps/mobile/src/features/orders/customer/order-form.ts",
+    "apps/mobile/src/features/business/coverage-contracts.ts",
+    "apps/mobile/src/features/business/team-import.ts"
+  ],
+  "reporter": ["text", "lcov", "json-summary"],
+  "check-coverage": true,
+  "lines": 85,
+  "statements": 85,
+  "functions": 85,
+  "branches": 75
+}

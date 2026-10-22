@@ -1,27 +1,6 @@
 // Form state/consent checks with mocked hooks; no rendering or network.
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const vm = require('node:vm');
-const ts = require('typescript');
-function load(filename, mocks = {}) {
-  const module = { exports: {} };
-  vm.runInNewContext(
-    ts.transpileModule(fs.readFileSync(filename, 'utf8'), {
-      compilerOptions: {
-        module: ts.ModuleKind.CommonJS,
-        target: ts.ScriptTarget.ES2022,
-        jsx: ts.JsxEmit.ReactJSX,
-      },
-    }).outputText,
-    {
-      module,
-      exports: module.exports,
-      require: (name) => (name in mocks ? mocks[name] : require(name)),
-    },
-    { filename },
-  );
-  return module.exports;
-}
+const { load } = require('./testing/load.cjs');
 async function main() {
   const rut = load('apps/mobile/src/shared/validation/rut.ts');
   for (const value of ['12345678-5', '6000000-K', '10000004-0'])

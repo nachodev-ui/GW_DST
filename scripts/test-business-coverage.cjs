@@ -1,24 +1,6 @@
 // Presentation rules and response contracts; no native runtime or network.
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const vm = require('node:vm');
-const ts = require('typescript');
-function load(filename) {
-  const module = { exports: {} };
-  const code = ts.transpileModule(fs.readFileSync(filename, 'utf8'), {
-    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
-  }).outputText;
-  const localRequire = (specifier) =>
-    specifier === '@/shared/orders/contracts'
-      ? load('apps/mobile/src/shared/orders/contracts.ts')
-      : require(specifier);
-  vm.runInNewContext(
-    code,
-    { module, exports: module.exports, require: localRequire },
-    { filename },
-  );
-  return module.exports;
-}
+const { load } = require('./testing/load.cjs');
 const { businessCoverageSchema, groupCoverage, communeCoverageState } = load(
   'apps/mobile/src/features/business/coverage-contracts.ts',
 );

@@ -1,0 +1,22 @@
+{
+  "current": [
+    "abastible_cylinder_variants.sql",
+    "business_onboarding.sql",
+    "business_driver_invitations.sql",
+    "distributor_discovery.sql",
+    "distributor_owned_coverage.sql",
+    "driver_order_progress.sql",
+    "driver_workspace.sql"
+  ],
+  "historical": {
+    "initial_schema.sql": "Fixture de aceptación anterior al catálogo/precio por vendedor; cubierto por discovery/coverage/progress.",
+    "auth_roles.sql": "request_driver_access retirado; onboarding vigente en business_driver_invitations/driver_workspace.",
+    "customer_orders.sql": "create_order con precio global retirado del móvil; sustituido por distributor_discovery.",
+    "driver_offers.sql": "driver_communes y set_driver_settings retirados en ADR 0021; sustituido por distributor_owned_coverage.",
+    "distributors_driver_review.sql": "Incorporación abierta anterior a invitaciones; sustituida por business_driver_invitations.",
+    "driver_reapplication.sql": "Repostulación abierta anterior a ADR 0015; se requiere nueva invitación.",
+    "driver_application_details.sql": "submit_driver_application retirado del móvil; se usa submit_invited_driver_application.",
+    "distributor_affiliation_and_dispatch.sql": "Cobertura por conductor y compra global retiradas; sustituido por discovery/coverage.",
+    "legacy_driver_regularization.sql": "Reparación administrativa de una cuenta histórica; requiere compositor y revisión manual, excluida de regresiones."
+  }
+}

@@ -75,6 +75,7 @@ Referencias: [actualización administrativa](https://supabase.com/docs/reference
 [ingreso con contraseña](https://supabase.com/docs/reference/javascript/auth-signinwithpassword),
 [cierre de sesión](https://supabase.com/docs/reference/javascript/auth-signout) y
 [registro de una cuenta existente](https://supabase.com/docs/reference/javascript/auth-signup).
+
 # Recuperación del estado de sesión
 
 El reintento de inicialización activa el estado de carga y limpia el error desde
