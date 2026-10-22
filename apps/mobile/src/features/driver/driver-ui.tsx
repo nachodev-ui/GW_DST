@@ -47,7 +47,7 @@ export function DriverAvailability({
   onChange: (available: boolean) => void;
 }) {
   const canActivate =
-    !!settings && !!workspace?.can_receive_offers && settings.commune_codes.length > 0 && !hasOrder;
+    !!settings && !!workspace?.can_receive_offers && settings.communes.length > 0 && !hasOrder;
   const blocked = !!workspace && !workspace.can_receive_offers;
   return (
     <Card>
@@ -70,11 +70,11 @@ export function DriverAvailability({
           : blocked
             ? 'No puedes recibir nuevos pedidos hasta regularizar tu habilitación o la del negocio.'
             : settings?.is_available
-              ? 'Puedes recibir ofertas de tu negocio en tus comunas guardadas.'
+              ? 'Puedes recibir ofertas en las comunas de tu distribuidora.'
               : 'Activa tu disponibilidad cuando estés listo para repartir.'}
       </Text>
-      {settings?.commune_codes.length === 0 ? (
-        <Text variant="note">Guarda al menos una comuna en Cobertura antes de activarte.</Text>
+      {settings?.communes.length === 0 ? (
+        <Text variant="note">Tu distribuidora debe definir las comunas de reparto.</Text>
       ) : null}
       <Button
         label={

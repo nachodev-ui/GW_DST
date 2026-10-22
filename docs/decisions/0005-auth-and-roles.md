@@ -40,8 +40,8 @@ autoriza desde user_metadata. Se limpia caché en eventos Auth.
 
 ## Interfaz y alcance
 
-Se conservan los tokens propios: verde #125C4C, amarillo #F5B942, fondo #F7F9F8,
-texto #142923 y superficie #FFFFFF. Tipografía de sistema, encabezado alineado a
+Los tokens visuales históricos quedan reemplazados por el sistema vigente de
+docs/design.md. Se mantiene el encabezado alineado a
 la izquierda, acento vertical y formularios sin tarjetas decorativas. Etiquetas
 visibles, áreas táctiles de 52, errores por campo, autofill y pegado habilitados.
 La búsqueda general de diseño devolvió una landing de operaciones poco pertinente;

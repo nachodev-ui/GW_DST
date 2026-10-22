@@ -18,8 +18,11 @@ con search_path vacío y EXECUTE mínimo. Nuevas tablas mantienen RLS sin escrit
 directa desde la app. El demo se carga con SQL explícito, fuera de las migraciones.
 
 El catálogo del negocio usa CAS sobre revision y bloquea negocio/membresía/marca;
-las ediciones registran actor y snapshot privado. No se reutiliza para precios de
-pedidos hasta implementar elección del vendedor y reserva de stock en el servidor.
+las ediciones registran actor y snapshot privado. ADR 0018 conecta la elección del
+vendedor y sus precios a reservas transaccionales, devolución al cancelar y una clave
+idempotente de compra. Las nuevas RPC conservan wrappers INVOKER e implementaciones
+privadas autorizadas. Contacto/horario/ETA comerciales se configuran expresamente;
+no se publican datos privados de postulación. WhatsApp sirve para consultas generales.
 Las solicitudes anteriores reutilizan la confirmación versionada de ADR 0013 sin
 truncar microsegundos. La incorporación nueva sigue ADR 0015: invitación del negocio,
 aceptación personal y revisión administrativa, sin alterar el catálogo.
@@ -81,8 +84,8 @@ requisito adicional para nuevos repartos. Terminar entregas asignadas conserva l
 regla anterior aunque el negocio pierda verificación. Ver ADR 0016.
 
 Ofertas/contexto/configuración/entrega se releen solo con foco y primer plano; los
-borradores de comunas permanecen locales hasta guardar. Cambiar disponibilidad usa
-las comunas guardadas, sin incorporar el borrador. La expiración local oculta ofertas
+conductores heredan las comunas de su distribuidora. El responsable edita la cobertura
+por RPC con revisión; el conductor solo cambia disponibilidad. La expiración local oculta ofertas
 viejas; el servidor mantiene la decisión atómica y la expiración autoritativa.
 Un error al consultar el pedido activo bloquea nuevas aceptaciones. Realtime de
 compras se monta en el layout customer con su foco, también al comprar un conductor.
@@ -100,21 +103,26 @@ activado en todas las tablas públicas, incluido el catálogo de comunas, y en l
 restringen al cliente a lecturas autorizadas, edición de campos seguros de su perfil
 y publicación de su propia ubicación cuando el repartidor está verificado.
 
-| Datos                | Lectura móvil                                    | Escritura móvil                                                        |
-| -------------------- | ------------------------------------------------ | ---------------------------------------------------------------------- |
-| profiles             | Propio                                           | display_name, rut, commune_code propios                                |
-| drivers              | Propio                                           | RPC de solicitud pendiente y disponibilidad                            |
-| driver_communes      | Propia                                           | RPC set_driver_settings                                                |
-| products             | Catálogo activo autenticado                      | Ninguna                                                                |
-| orders               | Cliente o repartidor asignado                    | RPC create_order/cancel_order/accept_driver_offer/advance_driver_order |
-| communes             | Catálogo CUT autenticado                         | Ninguna                                                                |
-| order_events         | Participantes del pedido                         | Ninguna                                                                |
-| driver_locations     | Propia / cliente con pedido activo de ese driver | Driver verificado, propia                                              |
-| private.order_offers | Ninguna                                          | Ninguna                                                                |
+| Datos                | Lectura móvil                                    | Escritura móvil                                                                    |
+| -------------------- | ------------------------------------------------ | ---------------------------------------------------------------------------------- |
+| profiles             | Propio                                           | display_name, rut, commune_code propios                                            |
+| drivers              | Propio                                           | RPC de solicitud pendiente y disponibilidad                                        |
+| distributor_communes | Miembros del negocio y sus conductores           | RPC set_business_coverage                                                          |
+| products             | Catálogo activo autenticado                      | Ninguna                                                                            |
+| orders               | Cliente o repartidor asignado                    | RPC create_distributor_order/cancel_order/accept_driver_offer/advance_driver_order |
+| communes             | Catálogo CUT autenticado                         | Ninguna                                                                            |
+| order_events         | Participantes del pedido                         | Ninguna                                                                            |
+| driver_locations     | Propia / cliente con pedido activo de ese driver | Driver verificado, propia                                                          |
+| private.order_offers | Ninguna                                          | Ninguna                                                                            |
 
 No se habilitan escrituras generales para completar features todavía ausentes.
 Precios, aprobación, ofertas y demás transiciones requieren operaciones confiables;
-create_order y cancel_order ya encapsulan la escritura cliente en Postgres (ADR 0006).
+create_distributor_order y cancel_order encapsulan la escritura cliente en Postgres
+(ADRs 0006 y 0018). `create_order` es histórico y no permite ejecución móvil.
+La consulta comercial separa stock, cobertura CUT y disponibilidad de conductor;
+la app no usa el precio global histórico ni concede reparto a partir del stock (ADR 0019).
+ADR 0021 traslada cobertura a la distribuidora y elimina la tabla y escritura por
+conductor. Las comunas antiguas se conservan en un archivo privado administrativo.
 Los futuros endpoints con privilegios requieren JWT verificado y zod. service_role permanece
 solo en servidor. Leer RLS no sustituye autorización de acciones privilegiadas.
 

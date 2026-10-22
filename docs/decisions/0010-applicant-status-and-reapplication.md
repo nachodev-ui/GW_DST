@@ -18,8 +18,8 @@ Se actualiza al volver al primer plano, cada 30 segundos en primer plano y manua
 Auth limpia ambas cachés al cambiar de identidad. Un conductor habilitado entra a
 su zona y ve confirmación de acceso aprobado.
 
-La composición conserva Figtree y los tokens actuales: primary #C62D42, surface
-#FFFFFF, background #FAF9F6, text #24242B y textMuted #62616A. Un solo bloque de
+La composición usa las fuentes y tokens centrales vigentes; el rediseño de producto
+del 20 de octubre reemplaza la paleta anterior (ver docs/design.md). Un solo bloque de
 postulación usa un borde de marca, jerarquía textual y motivo seleccionable; el
 estado no depende del color. La búsqueda inicial de ui-ux-pro-max devolvió una
 landing operativa; no se trasladó su estructura ni su paleta a la pantalla nativa.

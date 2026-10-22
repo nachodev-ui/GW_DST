@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { brands, clpSchema, productSchema } from '@/shared/orders/contracts';
+import { brands, clpSchema, communeSchema, productSchema } from '@/shared/orders/contracts';
 
 const summary = {
   order_id: z.uuid(),
@@ -8,6 +8,10 @@ const summary = {
   variant: productSchema.shape.variant,
   quantity: z.number().int().min(1).max(99),
   exchange_empty: z.boolean(),
+  returned_brand: z
+    .enum([...brands, 'unknown'])
+    .nullable()
+    .default(null),
   commune_code: z.string().regex(/^\d{5}$/),
   commune_name: z.string().min(1),
   total_clp: clpSchema,
@@ -24,7 +28,7 @@ export const assignedOrderSchema = z.object({
 });
 export const settingsSchema = z.object({
   is_available: z.boolean(),
-  commune_codes: z.array(z.string().regex(/^\d{5}$/)),
+  communes: z.array(communeSchema),
 });
 export type DriverSettings = z.infer<typeof settingsSchema>;
 export type DriverOffer = z.infer<typeof offerSchema>;
@@ -46,7 +50,7 @@ export const driverWorkspaceSchema = z
     can_manage_business: z.boolean(),
     can_receive_offers: z.boolean(),
     blocking_reason: z
-      .enum(['not_approved', 'no_business', 'business_disabled', 'no_brands'])
+      .enum(['not_approved', 'no_business', 'business_disabled', 'no_brands', 'no_coverage'])
       .nullable(),
   })
   .strict()
@@ -63,6 +67,7 @@ export const driverBlockingMessages: Record<
     'Tu negocio no está habilitado para nuevos repartos. Contacta a su responsable.',
   no_brands:
     'Tu negocio aún no tiene marcas configuradas. Su responsable debe revisarlo con administración.',
+  no_coverage: 'Tu distribuidora aún no definió comunas de reparto. Contacta a su responsable.',
 };
 export function isDriverOfferCurrent(offer: DriverOffer, now: number) {
   return Date.parse(offer.expires_at) > now;
@@ -89,7 +94,7 @@ export function driverError(error: unknown) {
     case '42501':
       return 'Tu acceso no permite esta acción. Revisa tu sesión y aprobación.';
     case '22023':
-      return 'Selecciona al menos una comuna válida para estar disponible.';
+      return 'No pudimos guardar la disponibilidad. Actualiza e intenta otra vez.';
     default:
       return 'No pudimos confirmar la operación. Actualiza y revisa tu pedido asignado antes de volver a aceptar.';
   }

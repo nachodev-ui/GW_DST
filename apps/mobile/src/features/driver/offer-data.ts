@@ -5,13 +5,11 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { z } from 'zod';
 import { useAuth } from '@/features/auth/auth-provider';
 import { getSupabase } from '@/shared/supabase/client';
-import { communeSchema } from '@/shared/orders/contracts';
 import {
   assignedOrderSchema,
   driverWorkspaceSchema,
   offerSchema,
   settingsSchema,
-  type DriverSettings,
 } from '@/features/driver/offer-contracts';
 
 const pollMs = 5_000;
@@ -70,27 +68,14 @@ export function useDriverSettings() {
       return settingsSchema.parse(data);
     },
   });
-  const communes = useQuery({
-    queryKey: ['driver', session?.user.id, 'communes'],
-    enabled,
-    staleTime: Infinity,
-    queryFn: async () => {
-      const { data, error } = await getSupabase()
-        .from('communes')
-        .select('code,name')
-        .order('name');
-      if (error) throw error;
-      return z.array(communeSchema).parse(data);
-    },
-  });
-  return { settings, communes };
+  return { settings };
 }
 
 export function useDriverOffers() {
   const { session, zone } = useAuth();
   const foreground = useForegroundScreen();
   const enabled = !!session && zone === 'driver' && foreground;
-  const { settings, communes } = useDriverSettings();
+  const { settings } = useDriverSettings();
   const offers = useQuery({
     queryKey: ['driver', session?.user.id, 'offers'],
     enabled,
@@ -103,7 +88,7 @@ export function useDriverOffers() {
       return z.array(offerSchema).parse(data);
     },
   });
-  return { settings, communes, offers };
+  return { settings, offers };
 }
 
 export function useAssignedOrder(id: string | null = null) {
@@ -135,11 +120,10 @@ export function useDriverActions() {
   const refresh = () => client.invalidateQueries({ queryKey: ['driver', session?.user.id] });
   const settings = useMutation({
     retry: false,
-    mutationFn: async (values: DriverSettings) => {
-      const checked = settingsSchema.parse(values);
-      const { data, error } = await getSupabase().rpc('set_driver_settings', {
+    mutationFn: async (values: { is_available: boolean }) => {
+      const checked = z.object({ is_available: z.boolean() }).strict().parse(values);
+      const { data, error } = await getSupabase().rpc('set_driver_availability', {
         p_is_available: checked.is_available,
-        p_commune_codes: checked.commune_codes,
       });
       if (error) throw error;
       return settingsSchema.parse(data);

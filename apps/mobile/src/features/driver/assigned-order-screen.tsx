@@ -73,6 +73,15 @@ export function AssignedOrderScreen() {
                     ? 'Cliente entrega envase vacío'
                     : 'Cliente necesita envase'}
                 </Text>
+                {order.exchange_empty && order.returned_brand ? (
+                  <Text>
+                    Envase devuelto:{' '}
+                    {order.returned_brand === 'unknown'
+                      ? 'marca por confirmar'
+                      : order.returned_brand}
+                    . Revisar tipo, válvula y condición.
+                  </Text>
+                ) : null}
               </Card>
               <Section title="Dirección de entrega">
                 <Text selectable>{order.delivery_address}</Text>

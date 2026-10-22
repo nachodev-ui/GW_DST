@@ -6,7 +6,7 @@ import { communeSchema, orderSchema, productSchema } from '@/shared/orders/contr
 import type { OrderForm } from '@/features/orders/customer/order-form';
 
 const orderColumns =
-  'id,customer_id,product_id,quantity,exchange_empty,status,total_clp,currency,payment_method,delivery_address,commune_code,notes,created_at';
+  'id,customer_id,product_id,distributor_id,returned_brand,quantity,exchange_empty,status,total_clp,currency,payment_method,delivery_address,commune_code,notes,created_at';
 export function useCatalogue() {
   const { session } = useAuth();
   return useQuery({
@@ -16,7 +16,7 @@ export function useCatalogue() {
       const [products, communes] = await Promise.all([
         getSupabase()
           .from('products')
-          .select('id,brand,weight_kg,variant,unit_price_clp')
+          .select('id,brand,weight_kg,variant')
           .eq('is_active', true)
           .order('weight_kg')
           .order('variant'),
@@ -98,12 +98,27 @@ export function useOrderActions() {
   const queryClient = useQueryClient();
   const { session } = useAuth();
   const refresh = () =>
-    queryClient.invalidateQueries({ queryKey: ['customer-orders', session?.user.id] });
+    Promise.all(
+      ['customer-orders', 'delivery-options', 'business-products'].map((key) =>
+        queryClient.invalidateQueries({ queryKey: [key, session?.user.id] }),
+      ),
+    );
   const create = useMutation({
     retry: false,
-    mutationFn: async (values: OrderForm) => {
+    mutationFn: async (
+      values: OrderForm & {
+        distributorId: string;
+        expectedUnitPrice: number;
+        requestId: string;
+        returnedBrand: string | null;
+      },
+    ) => {
       const { data, error } = await getSupabase()
-        .rpc('create_order', {
+        .rpc('create_distributor_order', {
+          p_distributor_id: values.distributorId,
+          p_expected_unit_price: values.expectedUnitPrice,
+          p_request_id: values.requestId,
+          p_returned_brand: values.returnedBrand,
           p_product_id: values.productId,
           p_quantity: Number(values.quantity),
           p_exchange_empty: values.exchangeEmpty,
@@ -138,6 +153,8 @@ export function useOrderActions() {
 }
 export function orderError(error: unknown) {
   const code = z.object({ code: z.string() }).safeParse(error);
+  if (code.success && code.data.code === '40001')
+    return 'El precio cambió. Cierra la revisión, actualiza las distribuidoras y revisa el nuevo total antes de confirmar.';
   if (code.success && code.data.code === '55000')
     return 'El producto o el pedido ya no está disponible para esta acción. Actualiza e intenta otra vez.';
   if (code.success && code.data.code === '22023')

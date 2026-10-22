@@ -77,10 +77,12 @@ export async function saveBusinessProduct(
 ) {
   const input = businessProductFormSchema.parse(values);
   const current = businessProductSchema.parse(product);
-  const { error } = await getSupabase().rpc('set_business_product', {
+  const { error } = await getSupabase().rpc('set_business_offer', {
     p_distributor_id: z.uuid().parse(businessId),
     p_product_id: current.product_id,
     p_unit_price_clp: input.price === '' ? null : Number(input.price),
+    p_price_without_exchange_clp:
+      input.priceWithoutExchange === '' ? null : Number(input.priceWithoutExchange),
     p_stock: Number(input.stock),
     p_is_listed: input.is_listed,
     p_revision: current.revision,

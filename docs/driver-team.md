@@ -6,8 +6,8 @@ una invitación ni se habilita reparto por tener una cuenta de negocio.
 
 ## Invitación individual
 
-1. Entra con el responsable o encargado del negocio y abre **Mi negocio → Gestionar equipo**.
-2. Pulsa **Invitar conductor**. Registra nombre y el correo que esa persona usará en Gasway.
+1. Entra con el responsable o encargado del negocio y abre **Mi negocio → Equipo**.
+2. Pulsa **Invitar conductor → Individual**. Registra nombre y el correo que esa persona usará en Gasway.
 3. Revisa la invitación y confirma **Crear invitaciones**. Una invitación vigente al
    mismo correo se conserva al repetir, sin duplicarla ni renovar su vencimiento.
 4. La persona verá la invitación dentro de la app. Puedes usar **Compartir instrucciones**
@@ -17,14 +17,21 @@ una invitación ni se habilita reparto por tener una cuenta de negocio.
 
 1. Exporta desde tu hoja de cálculo un **CSV UTF-8** con dos columnas: `nombre,correo`.
    También se admite punto y coma, frecuente al exportar con configuración chilena.
-2. Abre **Importar planilla CSV** y selecciona el archivo, o pega su contenido.
+2. Abre **Invitar conductor → Carga CSV** y selecciona el archivo, o pega su contenido.
    Límite: 100 personas y 100 KB. No se aceptan archivos XLSX directamente.
 3. Pulsa **Revisar planilla**. Corrige nombres/correos inválidos, columnas sobrantes
    y duplicados. Ninguna invitación se crea durante la vista previa.
-4. Revisa las páginas de filas y las personas ya invitadas/incorporadas. Confirma
+4. Revisa las filas y las personas ya invitadas/incorporadas. Confirma
    **Crear invitaciones** una sola vez para el lote completo.
-5. Consulta el equipo por nombre/correo y con páginas de 20. Puedes cancelar una
+5. Consulta Conductores o Invitaciones por nombre/correo, con carga incremental
+   de 20 registros al desplazarte. El resultado del CSV permanece en el modal,
+   con invitaciones creadas, existentes y fallidas. Puedes cancelar una
    invitación pendiente; vencidas y canceladas requieren crear una nueva.
+
+Invitaciones ofrece filtros Pendientes, Aceptadas, Vencidas y Canceladas. El rechazo
+corresponde a la revisión de habilitación, no a la invitación. No hay estados vista o
+recibida. Los contadores con `+` indican registros cargados y aumentan al cargar más.
+Ver [presentación del panel](business-admin-ux.md).
 
 [equipo-demo.csv](examples/equipo-demo.csv) contiene datos ficticios para probar la
 vista previa. Para completar la aceptación usa el correo de una cuenta de prueba
@@ -72,6 +79,12 @@ queda en la auditoría como evidencia heredada, sin inventar una aprobación hum
 Nuevas incorporaciones siguen requiriendo invitación del negocio y revisión de Gasway.
 
 ## Instalación y pruebas
+
+**Mi negocio → Cobertura** permite al responsable elegir las comunas del negocio,
+incluso sin conductores. También se abre desde Equipo y Catálogo. Todos los conductores
+afiliados heredan esa cobertura; en Reparto → Cobertura solo la consultan y cambian
+su disponibilidad. La aprobación de conducción sigue siendo administrativa.
+Ver [panel del negocio](business-admin-ux.md) y ADR 0021.
 
 La lectura de archivos añade expo-document-picker y expo-file-system. Si usas un
 development build instalado antes de este cambio, recompílalo para incorporar los

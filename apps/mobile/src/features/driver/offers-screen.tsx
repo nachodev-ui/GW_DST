@@ -59,6 +59,12 @@ const OfferCard = memo(function OfferCard({
       <Text>
         {offer.exchange_empty ? 'Cliente entrega envase vacío' : 'Cliente necesita envase'}
       </Text>
+      {offer.exchange_empty && offer.returned_brand ? (
+        <Text>
+          Envase devuelto:{' '}
+          {offer.returned_brand === 'unknown' ? 'marca por confirmar' : offer.returned_brand}
+        </Text>
+      ) : null}
       <Text variant="title">{formatClp(offer.total_clp)}</Text>
       <Text variant="note">Cobro en efectivo contra entrega</Text>
       <Text variant="note">
@@ -204,7 +210,6 @@ export function OffersScreen() {
                 clear();
                 actions.settings.mutate({
                   is_available: available,
-                  commune_codes: settings.data.commune_codes,
                 });
               }}
             />
@@ -239,7 +244,7 @@ export function OffersScreen() {
                     ? 'Regulariza tu habilitación y tu negocio para recibir pedidos.'
                     : !settings.data?.is_available
                       ? 'Estás fuera de disponibilidad. Puedes activarte cuando estés listo.'
-                      : 'No tienes ofertas vigentes en tus comunas guardadas.'
+                      : 'No hay ofertas vigentes en las comunas de tu distribuidora.'
               }
             />
           )

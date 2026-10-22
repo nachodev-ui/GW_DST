@@ -82,7 +82,7 @@ const ui = load('apps/mobile/src/features/driver/driver-ui.tsx', {
 });
 let available;
 const props = {
-  settings: { is_available: false, commune_codes: [] },
+  settings: { is_available: false, communes: [] },
   workspace,
   hasOrder: false,
   busy: false,
@@ -92,7 +92,7 @@ const props = {
   },
 };
 assert.equal(button(ui.DriverAvailability(props), 'Activar disponibilidad').props.disabled, true);
-props.settings.commune_codes = ['13101'];
+props.settings.communes = [{ code: '13101', name: 'Santiago' }];
 button(ui.DriverAvailability(props), 'Activar disponibilidad').props.onPress();
 assert.equal(available, true);
 assert.equal(
@@ -124,7 +124,7 @@ const accepted = [],
   messages = [];
 const action = { isPending: false, error: null, reset() {}, mutate() {} };
 const settings = {
-  data: { is_available: true, commune_codes: ['13101'] },
+  data: { is_available: true, communes: [{ code: '13101', name: 'Santiago' }] },
   isPending: false,
   isError: false,
   refetch: () => refetch('settings'),
@@ -207,10 +207,11 @@ const availability = nodes(list().props.ListHeaderComponent).find(
   (node) => node.type === ui.DriverAvailability,
 );
 availability.props.onChange(false);
-assert.deepEqual(
-  Array.from(saved[0].commune_codes),
-  ['13101'],
-  'availability only writes saved coverage',
+assert.equal(saved[0].is_available, false);
+assert.equal(
+  Object.keys(saved[0]).join(','),
+  'is_available',
+  'drivers can change availability only',
 );
 assigned = { order_id: id };
 assert.equal(list().props.data.length, 0);
@@ -294,36 +295,8 @@ delivery = { ...delivery, status: 'on_the_way' };
 deliveryError = true;
 assert.equal(button(AssignedOrderScreen(), 'Marcar como entregado'), undefined);
 
-// Refetch errors keep the coverage editor mounted and disable writes instead of losing drafts.
-const { CoverageScreen } = load('apps/mobile/src/features/driver/coverage-screen.tsx', {
-  react: {},
-  'react-native': { View: 'View' },
-  'expo-router': {},
-  '@/features/driver/offer-data': {
-    useDriverSettings: () => ({
-      settings: { ...settings, isError: true, error: { code: 'offline' } },
-      communes: { data: [{ code: '13101', name: 'Santiago' }], isError: false },
-    }),
-    useDriverWorkspace: () => ({ data: workspace, isError: false }),
-    useAssignedOrder: () => ({ data: null, isError: false }),
-    useDriverActions: () => ({ settings: action }),
-  },
-  '@/features/driver/offer-contracts': contracts,
-  '@/features/driver/driver-ui': ui,
-  '@/shared/ui/components': { ...components, Input: 'Input' },
-  '@/shared/ui/pulse-pressable': { PulsePressable: 'Pressable' },
-  '@/shared/ui/icon': { Icon: 'Icon' },
-  '@/shared/ui/skeleton': { Skeleton: 'Skeleton' },
-  '@/shared/ui/screen': { Screen: 'Screen' },
-  '@/shared/ui/text': { Text: 'Text' },
-});
-const editor = nodes(CoverageScreen()).find(
-  (node) => typeof node.type === 'function' && node.type.name === 'CoverageFields',
-);
-assert.ok(editor, 'existing editor remains mounted after a transient query error');
-assert.equal(editor.props.disabled, true);
 console.log(
-  'PASS workspace boundaries, saved coverage, expired offers, active-order blocking, confirmed delivery and separate role capabilities',
+  'PASS: inherited coverage, availability-only writes, expired offers, active-order blocking and separate role capabilities',
 );
 
 async function checkManualRefresh() {
@@ -383,14 +356,10 @@ for (const os of ['web', 'ios', 'android']) {
     '@/theme': { theme },
   };
   const { Icon } = load('apps/mobile/src/shared/ui/icon.tsx', mocks);
-  const { CylinderIllustration } = load(
-    'apps/mobile/src/shared/ui/cylinder-illustration.tsx',
-    mocks,
-  );
-  for (const svg of [Icon({ name: 'clock' }), CylinderIllustration({})]) {
+  for (const svg of [Icon({ name: 'clock' })]) {
     assert.equal(svg.props['aria-hidden'], true, 'decorative SVGs stay hidden from screen readers');
     assert.equal(Object.hasOwn(svg.props, 'accessible'), os !== 'web');
     if (os !== 'web') assert.equal(svg.props.accessible, false);
   }
 }
-console.log('PASS decorative SVG accessibility props for web, iOS and Android');
+console.log('PASS decorative icon accessibility props for web, iOS and Android');

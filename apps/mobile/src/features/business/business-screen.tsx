@@ -1,275 +1,309 @@
-import { useState } from 'react';
+import { useState, type PropsWithChildren } from 'react';
 import { StyleSheet, View } from 'react-native';
-import { router } from 'expo-router';
-import { Controller, useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { router, useLocalSearchParams } from 'expo-router';
+import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/features/auth/auth-provider';
-import { productLabel, formatClp } from '@/shared/orders/contracts';
-import { Button, Card, Feedback, Input, OptionCard } from '@/shared/ui/components';
+import { useMyBusinesses, fetchBusinessProducts } from './business-data';
+import { type Business } from './business-contracts';
+import { useTeamPages } from './use-team-pages';
+import { useBusinessCoverage } from './coverage-data';
+import { communeCoverageState, groupCoverage } from './coverage-contracts';
+import { Button, Card, Feedback, OptionCard, StatusBadge } from '@/shared/ui/components';
+import { Icon, type IconName } from '@/shared/ui/icon';
 import { Text } from '@/shared/ui/text';
 import { Screen } from '@/shared/ui/screen';
 import { theme } from '@/theme';
-import {
-  businessError,
-  businessProductFormSchema,
-  type Business,
-  type BusinessProduct,
-  type BusinessProductForm,
-} from '@/features/business/business-contracts';
-import {
-  fetchBusinessProducts,
-  saveBusinessProduct,
-  useMyBusinesses,
-} from '@/features/business/business-data';
+import { WorkspaceHero, WorkspaceHeading, WorkspaceMetric, workspaceStyles } from './workspace-ui';
 
 export function BusinessScreen() {
   const businesses = useMyBusinesses();
-  const [selected, setSelected] = useState<string | null>(null);
-  const business = businesses.data?.find((b) => b.id === selected) ?? businesses.data?.[0];
-  if (!business) return null; // The workspace layout handles loading, errors and removed membership.
+  const { businessId } = useLocalSearchParams<{ businessId?: string }>();
+  const [selected, setSelected] = useState<string | null>(businessId ?? null);
+  const business = businesses.data?.find((item) => item.id === selected) ?? businesses.data?.[0];
+  if (!business) return null; // The layout handles access and loading.
   return (
-    <Screen title="Mi negocio" onBack={() => router.replace('/')}>
+    <Screen compactHeader title="Mi negocio" onBack={() => router.replace('/')}>
       {businesses.data && businesses.data.length > 1 ? (
         <View
-          style={styles.section}
+          style={styles.stack}
           accessibilityRole="radiogroup"
           accessibilityLabel="Negocio que gestionas"
         >
-          {businesses.data.map((b) => (
+          {businesses.data.map((item) => (
             <OptionCard
-              key={b.id}
-              label={b.name}
-              selected={business.id === b.id}
-              onPress={() => setSelected(b.id)}
+              key={item.id}
+              label={item.name}
+              selected={business.id === item.id}
+              onPress={() => setSelected(item.id)}
             />
           ))}
         </View>
       ) : null}
-      <BusinessWorkspace key={business.id} business={business} />
+      <BusinessSummary key={business.id} business={business} />
     </Screen>
   );
 }
 
-function BusinessWorkspace({ business }: { business: Business }) {
+function BusinessSummary({ business }: { business: Business }) {
   const { session } = useAuth();
-  const queryClient = useQueryClient();
-  const [editing, setEditing] = useState<BusinessProduct | null>(null);
+  const team = useTeamPages(business.id);
+  const coverage = useBusinessCoverage(business.id);
+  const coverageData = coverage.data;
+  const communes = coverageData ? groupCoverage(coverageData) : [];
+  const coveredCount = communes.length;
+  const availableCount = coverageData
+    ? communes.filter((commune) => communeCoverageState(coverageData, commune).available > 0).length
+    : 0;
   const products = useQuery({
     queryKey: ['business-products', session?.user.id, business.id],
     queryFn: () => fetchBusinessProducts(business.id),
     refetchInterval: 30_000,
   });
-  const refresh = () =>
-    Promise.all([queryClient.invalidateQueries({ queryKey: ['businesses'] }), products.refetch()]);
+  const people = team.data?.pages.flatMap((page) => page.items) ?? [];
+  const driverCount = new Set(
+    people
+      .filter(
+        (person) =>
+          person.driver_id &&
+          person.is_current &&
+          (person.invitation_status === 'accepted' || person.invitation_status === 'legacy'),
+      )
+      .map((person) => person.driver_id),
+  ).size;
+  const pendingCount = people.filter(
+    (person) => person.invitation_status === 'pending' && person.is_current,
+  ).length;
+  const count = (value: number) => `${value}${team.hasNextPage ? '+' : ''}`;
+  const open = (
+    pathname: '/business/details' | '/business/team' | '/business/catalog' | '/business/coverage',
+  ) => router.push({ pathname, params: { businessId: business.id } });
   return (
     <>
-      <View style={styles.identity}>
-        <Text variant="title" accessibilityRole="header">
-          {business.name}
-        </Text>
-        <Text>
+      <WorkspaceHero
+        eyebrow="ESPACIO DE NEGOCIO"
+        title={business.name}
+        description="Equipo, cobertura y catálogo."
+      >
+        <StatusBadge
+          label={business.is_verified ? 'Negocio habilitado' : 'Negocio no habilitado'}
+          icon={business.is_verified ? 'check' : 'clock'}
+          tone={business.is_verified ? 'success' : 'warning'}
+        />
+        <Text variant="note" style={workspaceStyles.heroDescription}>
           {business.member_role === 'owner' ? 'Responsable del negocio' : 'Encargado del negocio'}
+          {' · '}
+          {business.brands.join(' / ') || 'Sin marcas configuradas'}
         </Text>
-        <Text variant="note">Marcas configuradas: {business.brands.join(', ') || 'Ninguna'}</Text>
-        {business.is_demo ? (
-          <Feedback text="Negocio de prueba. Datos y revisión ficticios; no acredita antecedentes ni habilita un piloto real." />
-        ) : null}
-        {!business.is_verified ? (
-          <Feedback
-            text="El negocio no está habilitado. Contacta a administración para revisar su estado."
-            error
-          />
-        ) : null}
-      </View>
-      <View style={styles.section}>
-        <Text variant="subtitle" accessibilityRole="header">
-          Equipo
-        </Text>
-        <Text>
-          Incorpora conductores mediante invitaciones individuales o una planilla CSV. Cada persona
-          acepta su vínculo y administración revisa su habilitación.
-        </Text>
-        <Button
-          label="Gestionar equipo"
-          variant="secondary"
-          onPress={() =>
-            router.push({ pathname: '/business/team', params: { businessId: business.id } })
+      </WorkspaceHero>
+      <WorkspaceHeading title="Tu negocio de un vistazo" />
+      <View style={workspaceStyles.metrics}>
+        <WorkspaceMetric
+          value={team.isPending || team.isError ? '—' : count(driverCount)}
+          label={driverCount === 1 ? 'Conductor vinculado' : 'Conductores vinculados'}
+          icon="truck"
+          onPress={() => open('/business/team')}
+        />
+        <WorkspaceMetric
+          value={
+            products.isPending || products.isError
+              ? '—'
+              : String(products.data.filter((p) => p.is_listed).length)
           }
+          label="Productos en catálogo"
+          icon="orders"
+          onPress={() => open('/business/catalog')}
         />
       </View>
-      <View style={styles.section}>
-        <Text variant="subtitle" accessibilityRole="header">
-          Catálogo del negocio
+      {team.isError ? (
+        <Feedback text="No pudimos cargar el equipo. Abre Equipo para reintentar." error />
+      ) : null}
+      {products.isError ? (
+        <Feedback text="No pudimos cargar el catálogo. Abre Catálogo para reintentar." error />
+      ) : null}
+      {team.hasNextPage ? (
+        <Text variant="note" style={workspaceStyles.muted}>
+          El + indica que quedan registros del equipo por cargar.
         </Text>
-        <Text>
-          Prepara precios en pesos y existencias por producto. La compra todavía usa el catálogo de
-          prueba anterior; estos valores se conectarán al elegir vendedor y reservar stock.
-        </Text>
-        {products.isPending ? (
-          <Feedback text="Cargando productos…" />
-        ) : products.isError ? (
-          <Feedback text="No pudimos cargar el catálogo. Actualiza para reintentar." error />
-        ) : products.data.length === 0 ? (
-          <Text>
-            No hay productos activos para las marcas configuradas. Solicita su configuración a
-            administración.
+      ) : null}
+      <WorkspaceHeading title="Gestiona tu negocio" />
+      <View style={styles.navigation}>
+        <SummaryCard
+          title="Datos del negocio"
+          icon="home"
+          onPress={() => open('/business/details')}
+        >
+          <Text variant="note" style={workspaceStyles.muted}>
+            Información, marcas y tu acceso
           </Text>
-        ) : (
-          products.data.map((p) => (
-            <Card key={p.product_id}>
-              <Text variant="label">
-                {p.brand} {productLabel(p)}
-              </Text>
-              <Text>
-                {p.unit_price_clp === null ? 'Precio pendiente' : formatClp(p.unit_price_clp)} ·{' '}
-                {p.stock} cilindros
-              </Text>
-              <Text variant="note">
-                {p.is_listed
-                  ? 'Incluido en el catálogo del negocio'
-                  : 'Fuera del catálogo del negocio'}
-              </Text>
-              <Button
-                label={`Editar ${p.brand} ${productLabel(p)}`}
-                variant="secondary"
-                disabled={!business.is_verified || editing !== null}
-                onPress={() => setEditing(p)}
+        </SummaryCard>
+        <SummaryCard title="Equipo" icon="user" onPress={() => open('/business/team')}>
+          {team.isPending ? (
+            <Feedback text="Cargando equipo…" />
+          ) : team.isError ? (
+            <Feedback text="No pudimos cargar el resumen. Abre Equipo para reintentar." error />
+          ) : (
+            <>
+              <StatusBadge
+                label={
+                  pendingCount === 0
+                    ? team.hasNextPage
+                      ? 'Sin pendientes en los registros cargados'
+                      : 'Sin invitaciones pendientes'
+                    : `${count(pendingCount)} ${pendingCount === 1 ? 'invitación pendiente' : 'invitaciones pendientes'}`
+                }
+                icon={pendingCount === 0 ? 'check' : 'mail'}
+                tone={pendingCount === 0 ? 'neutral' : 'warning'}
               />
-            </Card>
-          ))
-        )}
-        {editing ? (
-          <ProductEditor
-            key={`${editing.product_id}:${editing.revision}`}
-            business={business}
-            initial={editing}
-            close={() => setEditing(null)}
-          />
-        ) : null}
+            </>
+          )}
+        </SummaryCard>
+        <SummaryCard title="Cobertura" icon="pin" onPress={() => open('/business/coverage')}>
+          <Text variant="note" style={workspaceStyles.muted}>
+            {coverage.data && !coverage.isError
+              ? `${coveredCount} ${coveredCount === 1 ? 'comuna' : 'comunas'} · ${availableCount} con reparto ahora`
+              : coverage.isError
+                ? 'No pudimos actualizar. Toca para reintentar.'
+                : 'Cargando comunas…'}
+          </Text>
+        </SummaryCard>
+        <SummaryCard title="Catálogo" icon="orders" onPress={() => open('/business/catalog')}>
+          <Text variant="note" style={workspaceStyles.muted}>
+            Edita precios y cilindros disponibles
+          </Text>
+        </SummaryCard>
       </View>
-      <Button
-        label="Actualizar datos"
-        variant="secondary"
-        disabled={products.isFetching}
-        onPress={() => void refresh()}
-      />
+      {business.is_demo ? (
+        <View style={workspaceStyles.note}>
+          <Icon name="clock" color={theme.colors.textMuted} />
+          <View style={workspaceStyles.grow}>
+            <Text variant="label">Estás en un negocio de prueba</Text>
+            <Text variant="note" style={workspaceStyles.muted}>
+              Datos y revisión ficticios. No habilita un piloto real.
+            </Text>
+          </View>
+        </View>
+      ) : null}
     </>
   );
 }
 
-function ProductEditor({
-  business,
-  initial,
-  close,
-}: {
-  business: Business;
-  initial: BusinessProduct;
-  close: () => void;
-}) {
-  const queryClient = useQueryClient();
-  const {
-    control,
-    handleSubmit,
-    formState: { errors },
-  } = useForm<BusinessProductForm>({
-    resolver: zodResolver(businessProductFormSchema),
-    mode: 'onBlur',
-    defaultValues: {
-      price: initial.unit_price_clp?.toString() ?? '',
-      stock: initial.stock.toString(),
-      is_listed: initial.is_listed,
-    },
-  });
-  const save = useMutation({
-    mutationFn: (values: BusinessProductForm) => saveBusinessProduct(business.id, initial, values),
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ['business-products'] });
-      close();
-    },
-  });
+function SummaryCard({
+  title,
+  icon,
+  onPress,
+  children,
+}: PropsWithChildren<{
+  title: string;
+  icon: IconName;
+  onPress: () => void;
+}>) {
   return (
-    <Card>
-      <Text variant="subtitle">
-        Editar {initial.brand} {productLabel(initial)}
-      </Text>
-      <Controller
-        control={control}
-        name="price"
-        render={({ field }) => (
-          <Input
-            ref={field.ref}
-            label="Precio por cilindro (CLP)"
-            value={field.value}
-            onChangeText={field.onChange}
-            onBlur={field.onBlur}
-            keyboardType="number-pad"
-            maxLength={10}
-            error={errors.price?.message}
-            editable={!save.isPending}
-            help="Pesos enteros, sin puntos ni decimales. Vacío deja el precio pendiente."
-          />
-        )}
-      />
-      <Controller
-        control={control}
-        name="stock"
-        render={({ field }) => (
-          <Input
-            ref={field.ref}
-            label="Cilindros disponibles"
-            value={field.value}
-            onChangeText={field.onChange}
-            onBlur={field.onBlur}
-            keyboardType="number-pad"
-            maxLength={7}
-            error={errors.stock?.message}
-            editable={!save.isPending}
-          />
-        )}
-      />
-      <Controller
-        control={control}
-        name="is_listed"
-        render={({ field }) => (
-          <View style={styles.identity}>
-            <Text>
-              {field.value ? 'Se incluirá en el catálogo.' : 'Quedará fuera del catálogo.'}
-            </Text>
-            <Button
-              label={field.value ? 'Quitar del catálogo' : 'Incluir en el catálogo'}
-              variant="secondary"
-              disabled={save.isPending}
-              onPress={() => field.onChange(!field.value)}
-            />
-          </View>
-        )}
-      />
-      {save.isError ? <Feedback text={businessError(save.error)} error /> : null}
-      <Button
-        label={save.isPending ? 'Guardando…' : 'Guardar producto'}
-        disabled={save.isPending || !business.is_verified}
-        onPress={() => void handleSubmit((values) => save.mutate(values))()}
-      />
-      <Button
-        label={save.isError ? 'Cerrar y cargar datos actuales' : 'Cancelar edición'}
-        variant="secondary"
-        disabled={save.isPending}
-        onPress={() => {
-          void queryClient.invalidateQueries({ queryKey: ['business-products'] });
-          close();
-        }}
-      />
+    <Card style={styles.navigationRow} onPress={onPress}>
+      <View style={styles.icon}>
+        <Icon name={icon} />
+      </View>
+      <View style={[styles.grow, styles.stack]}>
+        <Text variant="label">{title}</Text>
+        {children}
+      </View>
+      <Icon name="arrowRight" color={theme.colors.textMuted} />
     </Card>
   );
 }
 
+export function BusinessDetailsScreen() {
+  const { businessId } = useLocalSearchParams<{ businessId?: string }>();
+  const businesses = useMyBusinesses();
+  const business = businesses.data?.find((item) => item.id === businessId);
+  return (
+    <Screen
+      compactHeader
+      title="Datos del negocio"
+      onBack={() => router.replace({ pathname: '/business/manage', params: { businessId } })}
+    >
+      {business ? (
+        <>
+          <WorkspaceHero
+            eyebrow="IDENTIDAD DEL NEGOCIO"
+            title={business.name}
+            description="La información que identifica a tu negocio en Gasway."
+          >
+            <StatusBadge
+              label={business.is_verified ? 'Negocio habilitado' : 'Negocio no habilitado'}
+              tone={business.is_verified ? 'success' : 'warning'}
+            />
+          </WorkspaceHero>
+          <WorkspaceHeading title="Información general" />
+          <Card style={styles.card}>
+            <Text variant="note">Nombre del negocio</Text>
+            <Text variant="subtitle">{business.name}</Text>
+            <Text variant="note">Responsable</Text>
+            <Text>Nombre no disponible en esta vista</Text>
+            <Text variant="note">Tu acceso</Text>
+            <Text>
+              {business.member_role === 'owner'
+                ? 'Responsable del negocio'
+                : 'Encargado del negocio'}
+            </Text>
+          </Card>
+          <Card style={styles.card}>
+            <Text variant="subtitle">Marcas configuradas</Text>
+            <View style={styles.brands}>
+              {business.brands.map((brand) => (
+                <StatusBadge key={brand} label={brand} icon="check" />
+              ))}
+            </View>
+            {!business.brands.length ? <Text variant="note">Sin marcas configuradas.</Text> : null}
+          </Card>
+          {!business.is_verified ? (
+            <Feedback
+              text="El negocio no está habilitado. Contacta a administración para revisar su estado."
+              error
+            />
+          ) : null}
+          {business.is_demo ? (
+            <Feedback text="Negocio de prueba. Datos y revisión ficticios; no acredita antecedentes ni habilita un piloto real." />
+          ) : null}
+          <Button
+            label="Actualizar datos"
+            variant="secondary"
+            disabled={businesses.isFetching}
+            onPress={() => void businesses.refetch()}
+          />
+        </>
+      ) : (
+        <Feedback text="No tienes acceso a este negocio. Vuelve a Mi negocio." error />
+      )}
+    </Screen>
+  );
+}
+
 const styles = StyleSheet.create({
-  identity: { gap: theme.spacing.sm, paddingVertical: theme.spacing.md },
-  section: {
-    gap: theme.spacing.md,
-    borderTopWidth: theme.borders.thin,
-    borderTopColor: theme.colors.divider,
-    paddingTop: theme.spacing.lg,
+  stack: { gap: theme.spacing.compact },
+  card: { backgroundColor: theme.colors.surface, gap: theme.spacing.md },
+  grow: { flex: 1 },
+  navigation: {
+    backgroundColor: theme.colors.surface,
+    borderRadius: theme.radii.card,
+    borderWidth: theme.borders.thin,
+    borderColor: theme.colors.surfaceBorder,
+    overflow: 'hidden',
   },
+  navigationRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.md,
+    borderRadius: theme.spacing.none,
+    borderWidth: theme.spacing.none,
+    borderBottomWidth: theme.borders.thin,
+    borderBottomColor: theme.colors.divider,
+    padding: theme.spacing.md,
+    ...theme.elevation.flat,
+  },
+  icon: {
+    backgroundColor: theme.colors.primaryLight,
+    padding: theme.spacing.compact,
+    borderRadius: theme.radii.control,
+  },
+  brands: { flexDirection: 'row', flexWrap: 'wrap', gap: theme.spacing.sm },
 });

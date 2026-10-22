@@ -36,5 +36,3 @@
 
 ## User Directives
 
-1. **[2026-10-18] Design skill requirements follow the current user instructions.**
-   Do instead: check the supplied AGENTS.md before UI work; when it explicitly requires the design skills, consult their existing skills-disabled paths without restoring moved files.

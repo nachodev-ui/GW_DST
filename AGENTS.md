@@ -32,7 +32,7 @@ admin web later. No production features or final screens yet.
 - Each relevant change MUST update README.md (including Changelog) and docs/ when applicable.
 - Record consequential architectural choices in short ADRs.
 - Never commit or push directly to main. Work on a feature branch (feat/..., fix/..., chore/...) and leave it ready for a pull request; do not push or open PRs unless explicitly asked.
-- In UI and visual design tasks, the design skills (ui-ux-pro-max, frontend-design) take priority over ponytail's minimalism: commit to a distinctive visual direction, and run ui-ux-pro-max's search once at the start of the task to choose style, palette usage and layout patterns. Ponytail still applies to logic, data and refactors.
+- En tareas de UI, sigue docs/design.md y apunta a una dirección visual cuidada y con personalidad: jerarquía clara, tarjetas con presencia, bottom sheets o modales para edición y confirmaciones, estados de carga, vacío y error trabajados. Los tokens de src/theme siguen siendo obligatorios.
 
 ## Role separation (single app now, split-ready)
 
@@ -67,7 +67,7 @@ admin web later. No production features or final screens yet.
 ## Token and verification budget
 
 - Read only necessary files and relevant skill references, not whole repositories.
-- Make small, focused changes. Do not repeat checks already completed.
-- For the initial scaffold: at most one dependency install and one final typecheck.
+- Make small, focused changes to logic, data and refactors; this does not limit visual design quality. Do not repeat checks already completed.
+- For the initial scaffold: at most one dependency install. Run one final typecheck when code changes; documentation-only changes require no validation commands.
 - Never run visual checks, render the app, take screenshots or open emulators unless explicitly asked.
 - If a shell command fails to start, retry once; if it still fails, stop and report the exact error.

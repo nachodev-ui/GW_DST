@@ -32,6 +32,7 @@ export function Button({
 }: ButtonProps) {
   return (
     <PulsePressable
+      haptic={variant === 'primary'}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel ?? label}
       accessibilityState={{ disabled }}
@@ -68,6 +69,8 @@ export function Input({
   label,
   help,
   error,
+  prefix,
+  hideLabel = false,
   style,
   ref,
   ...props
@@ -75,27 +78,37 @@ export function Input({
   label: string;
   help?: string;
   error?: string | undefined;
+  prefix?: string;
+  hideLabel?: boolean;
   ref?: Ref<TextInput>;
 }) {
   const ready = useContext(FontReadyContext);
   return (
     <View style={ui.stack}>
-      <Text variant="label">{label}</Text>
-      <TextInput
-        {...props}
-        ref={ref}
-        accessibilityLabel={props.accessibilityLabel ?? label}
-        accessibilityHint={error ?? help}
-        allowFontScaling
-        maxFontSizeMultiplier={0}
-        placeholderTextColor={theme.colors.textMuted}
-        style={[
-          ui.input,
-          { fontFamily: ready ? theme.typography.fonts.regular : theme.typography.family },
-          error ? ui.inputError : null,
-          style,
-        ]}
-      />
+      {!hideLabel ? <Text variant="label">{label}</Text> : null}
+      <View style={prefix ? [ui.inputFrame, error && ui.inputError] : undefined}>
+        {prefix ? (
+          <Text variant="title" accessible={false} style={ui.inputPrefix}>
+            {prefix}
+          </Text>
+        ) : null}
+        <TextInput
+          {...props}
+          ref={ref}
+          accessibilityLabel={props.accessibilityLabel ?? label}
+          accessibilityHint={error ?? props.accessibilityHint ?? help}
+          allowFontScaling
+          maxFontSizeMultiplier={0}
+          placeholderTextColor={theme.colors.textMuted}
+          style={[
+            ui.input,
+            prefix ? ui.prefixedInput : null,
+            { fontFamily: ready ? theme.typography.fonts.regular : theme.typography.family },
+            error ? ui.inputError : null,
+            style,
+          ]}
+        />
+      </View>
       {help ? (
         <Text variant="note" style={ui.muted}>
           {help}
@@ -110,17 +123,26 @@ export function Input({
   );
 }
 
-export function Card({ style, onPress, ...props }: ViewProps & { onPress?: () => void }) {
+export function Card({
+  style,
+  onPress,
+  variant = 'standard',
+  ...props
+}: ViewProps & {
+  onPress?: () => void;
+  variant?: 'standard' | 'highlighted' | 'interactive';
+}) {
+  const cardStyle = [
+    ui.card,
+    (onPress || variant === 'interactive') && ui.interactiveCard,
+    variant === 'highlighted' && ui.highlightedCard,
+    style,
+  ];
   if (onPress)
     return (
-      <PulsePressable
-        {...props}
-        accessibilityRole="button"
-        onPress={onPress}
-        style={[ui.card, style]}
-      />
+      <PulsePressable {...props} accessibilityRole="button" onPress={onPress} style={cardStyle} />
     );
-  return <View {...props} style={[ui.card, style]} />;
+  return <View {...props} style={cardStyle} />;
 }
 
 export function OptionCard({
@@ -140,9 +162,11 @@ export function OptionCard({
 }) {
   return (
     <PulsePressable
+      haptic
       accessibilityRole="radio"
       accessibilityLabel={[label, detail].filter(Boolean).join(', ')}
       accessibilityState={{ checked: selected, disabled }}
+      aria-checked={selected}
       disabled={disabled}
       onPress={onPress}
       style={[ui.option, selected && ui.selected]}
@@ -237,7 +261,15 @@ export function SegmentedChoice({
   );
 }
 
-export function ScreenHeader({ title, onBack }: { title: string; onBack: () => void }) {
+export function ScreenHeader({
+  title,
+  onBack,
+  compact = false,
+}: {
+  title: string;
+  onBack: () => void;
+  compact?: boolean;
+}) {
   return (
     <View style={ui.header}>
       <PulsePressable
@@ -248,7 +280,7 @@ export function ScreenHeader({ title, onBack }: { title: string; onBack: () => v
       >
         <Icon name="arrowLeft" />
       </PulsePressable>
-      <Text accessibilityRole="header" variant="display" style={ui.flex}>
+      <Text accessibilityRole="header" variant={compact ? 'subtitle' : 'display'} style={ui.flex}>
         {title}
       </Text>
     </View>
@@ -261,25 +293,34 @@ export function StatusBadge({
   tone = 'primary',
 }: {
   label: string;
-  icon: IconName;
-  tone?: 'primary' | 'accent' | 'success' | 'error';
+  icon?: IconName;
+  tone?: 'neutral' | 'primary' | 'accent' | 'success' | 'error' | 'warning' | 'progress';
 }) {
+  const color = tone === 'neutral' ? theme.colors.textMuted : theme.colors[tone];
+  const statusIcon = icon ?? (tone === 'success' ? 'check' : tone === 'error' ? 'close' : 'clock');
   return (
     <View
+      accessible
+      accessibilityLabel={label}
       style={[
         ui.badge,
         {
           backgroundColor:
-            tone === 'accent'
-              ? theme.colors.accentLight
-              : tone === 'success' || tone === 'error'
-                ? theme.colors.surface
-                : theme.colors.primaryLight,
+            tone === 'neutral'
+              ? theme.colors.warm
+              : tone === 'accent'
+                ? theme.colors.accentLight
+                : tone === 'success' ||
+                    tone === 'error' ||
+                    tone === 'warning' ||
+                    tone === 'progress'
+                  ? theme.colors[`${tone}Light`]
+                  : theme.colors.primaryLight,
         },
       ]}
     >
-      <Icon name={icon} color={theme.colors[tone]} />
-      <Text variant="label" compact style={{ color: theme.colors[tone], flexShrink: 1 }}>
+      <Icon name={statusIcon} color={color} />
+      <Text variant="label" compact style={{ color, flexShrink: 1 }}>
         {label}
       </Text>
     </View>
@@ -298,12 +339,32 @@ export function Feedback({ text, error = false }: { text: string; error?: boolea
   );
 }
 
-export function Section({ title, children }: PropsWithChildren<{ title: string }>) {
+export function IconChip({ icon }: { icon: IconName }) {
+  return (
+    <View
+      accessible={false}
+      accessibilityElementsHidden
+      importantForAccessibility="no-hide-descendants"
+      style={ui.iconChip}
+    >
+      <Icon name={icon} />
+    </View>
+  );
+}
+
+export function Section({
+  title,
+  icon,
+  children,
+}: PropsWithChildren<{ title: string; icon?: IconName }>) {
   return (
     <View style={ui.section}>
-      <Text variant="subtitle" accessibilityRole="header">
-        {title}
-      </Text>
+      <View style={ui.header}>
+        {icon ? <IconChip icon={icon} /> : null}
+        <Text variant="subtitle" accessibilityRole="header" style={ui.flex}>
+          {title}
+        </Text>
+      </View>
       {children}
     </View>
   );
@@ -363,11 +424,11 @@ export const ui = StyleSheet.create({
     width: '100%',
     minHeight: theme.layout.buttonHeight,
     padding: theme.spacing.md,
-    borderRadius: theme.radii.pill,
+    borderRadius: theme.radii.control,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  primary: { backgroundColor: theme.colors.primary },
+  primary: { ...theme.elevation.low, backgroundColor: theme.colors.primary },
   secondary: {
     backgroundColor: theme.colors.warm,
   },
@@ -383,22 +444,59 @@ export const ui = StyleSheet.create({
     fontSize: theme.typography.sizes.body,
   },
   inputError: { borderColor: theme.colors.error },
+  inputFrame: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    minHeight: theme.layout.inputHeight,
+    borderWidth: theme.borders.thin,
+    borderColor: theme.colors.border,
+    borderRadius: theme.radii.control,
+    backgroundColor: theme.colors.surface,
+  },
+  inputPrefix: { paddingLeft: theme.spacing.md, color: theme.colors.textMuted },
+  prefixedInput: { flex: 1, minWidth: theme.spacing.none, borderWidth: theme.spacing.none },
   card: {
+    ...theme.elevation.low,
     padding: theme.spacing.lg,
     gap: theme.spacing.compact,
     borderRadius: theme.radii.card,
-    backgroundColor: theme.colors.warm,
+    backgroundColor: theme.colors.surface,
+    borderWidth: theme.borders.thin,
+    borderColor: theme.colors.surfaceBorder,
+  },
+  highlightedCard: {
+    ...theme.elevation.medium,
+    backgroundColor: theme.colors.surfaceHighlighted,
+    borderColor: theme.colors.primary,
+  },
+  interactiveCard: {
+    ...theme.elevation.medium,
+    minHeight: theme.layout.touchTarget,
+  },
+  iconChip: {
+    width: theme.layout.touchTarget,
+    height: theme.layout.touchTarget,
+    borderRadius: theme.radii.control,
+    backgroundColor: theme.colors.surfaceHighlighted,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   option: {
+    ...theme.elevation.low,
     flexGrow: 1,
     minHeight: theme.layout.inputHeight,
     padding: theme.spacing.compact,
     justifyContent: 'center',
     gap: theme.spacing.xs,
     borderRadius: theme.radii.card,
-    backgroundColor: theme.colors.warm,
+    backgroundColor: theme.colors.surface,
+    borderWidth: theme.borders.thin,
+    borderColor: theme.colors.surfaceBorder,
   },
-  selected: { backgroundColor: theme.colors.primaryLight },
+  selected: {
+    backgroundColor: theme.colors.surfaceHighlighted,
+    borderColor: theme.colors.primary,
+  },
   equalRow: { flexDirection: 'row', gap: theme.spacing.sm, alignItems: 'stretch' },
   stepper: {
     flexDirection: 'row',

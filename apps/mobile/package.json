@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@expo-google-fonts/figtree": "^0.4.1",
+    "@expo-google-fonts/outfit": "^0.4.3",
     "@expo/metro-runtime": "~57.0.17",
     "@hookform/resolvers": "5.9.2",
     "@supabase/supabase-js": "2.118.0",
@@ -23,6 +24,8 @@
     "expo-document-picker": "~57.0.3",
     "expo-file-system": "~57.0.7",
     "expo-font": "~57.0.4",
+    "expo-haptics": "~57.0.3",
+    "expo-linear-gradient": "~57.0.2",
     "expo-linking": "~57.0.13",
     "expo-location": "~57.0.21",
     "expo-notifications": "~57.0.23",

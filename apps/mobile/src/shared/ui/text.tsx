@@ -22,6 +22,7 @@ export function Text({
   const ready = useContext(FontReadyContext);
   const size = theme.typography.sizes[variant];
   const weight = weights[variant];
+  const heading = variant === 'display' || variant === 'title' || variant === 'subtitle';
   return (
     <NativeText
       {...props}
@@ -31,8 +32,15 @@ export function Text({
         {
           color: theme.colors.text,
           fontSize: size,
-          lineHeight: size * 1.4,
-          fontFamily: ready ? theme.typography.fonts[weight] : theme.typography.family,
+          lineHeight: size * (heading ? 1.16 : 1.5),
+          letterSpacing: heading ? theme.typography.tracking.heading : 0,
+          fontFamily: ready
+            ? heading
+              ? variant === 'display'
+                ? theme.typography.fonts.display
+                : theme.typography.fonts.heading
+              : theme.typography.fonts[weight]
+            : theme.typography.family,
           fontWeight: ready
             ? 'normal'
             : weight === 'bold'

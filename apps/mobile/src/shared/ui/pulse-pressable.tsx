@@ -1,4 +1,11 @@
-import { Pressable, type PressableProps, type StyleProp, type ViewStyle } from 'react-native';
+import * as Haptics from 'expo-haptics';
+import {
+  Platform,
+  Pressable,
+  type PressableProps,
+  type StyleProp,
+  type ViewStyle,
+} from 'react-native';
 import Animated, {
   useAnimatedStyle,
   useReducedMotion,
@@ -11,22 +18,30 @@ const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 export function PulsePressable({
   style,
+  haptic = false,
+  onPress,
   disabled,
   onPressIn,
   onPressOut,
   ...props
-}: Omit<PressableProps, 'style'> & { style?: StyleProp<ViewStyle> }) {
+}: Omit<PressableProps, 'style'> & { style?: StyleProp<ViewStyle>; haptic?: boolean }) {
   const scale = useSharedValue(1);
   const opacity = useSharedValue(1);
   const reduceMotion = useReducedMotion();
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ scale: scale.get() }],
-    opacity: opacity.get(),
+    opacity: disabled ? theme.opacity.disabled : opacity.get(),
   }));
   return (
     <AnimatedPressable
       {...props}
       disabled={disabled}
+      aria-disabled={!!disabled}
+      onPress={(event) => {
+        if (haptic && !reduceMotion && Platform.OS !== 'web')
+          void Haptics.selectionAsync().catch(() => undefined);
+        onPress?.(event);
+      }}
       style={[style, animatedStyle, disabled && { opacity: theme.opacity.disabled }]}
       onPressIn={(event) => {
         opacity.set(theme.opacity.pressed);

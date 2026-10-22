@@ -1,4 +1,5 @@
-import { StyleSheet, View } from 'react-native';
+import { useState } from 'react';
+import { ScrollView, StyleSheet, View } from 'react-native';
 import { router } from 'expo-router';
 import { useMutation } from '@tanstack/react-query';
 import { getSupabase } from '@/shared/supabase/client';
@@ -14,6 +15,10 @@ import { getDisplayName } from '@/shared/ui/display-name';
 import { ListRow } from '@/shared/ui/list-row';
 import { Icon } from '@/shared/ui/icon';
 import { theme } from '@/theme';
+import { LinearGradient } from 'expo-linear-gradient';
+import { BottomSheet } from '@/shared/ui/bottom-sheet';
+import { Card, ui } from '@/shared/ui/components';
+import { Enter } from '@/shared/ui/enter';
 
 export function SignOutButton({ discreet = false }: { discreet?: boolean }) {
   const mutation = useMutation({
@@ -52,60 +57,121 @@ export function SignOutButton({ discreet = false }: { discreet?: boolean }) {
 
 export function ZoneScreen() {
   const { session, zone } = useAuth();
+  const [applicationOpen, setApplicationOpen] = useState(false);
+  const name = getDisplayName(session?.user.user_metadata, session?.user.email);
   return (
-    <Screen title="Mi cuenta" onBack={() => router.replace('/customer')} tabbed>
-      <View style={accountStyles.identity}>
-        <Avatar name={getDisplayName(session?.user.user_metadata, session?.user.email)} large />
-        <Text variant="display" accessibilityRole="header">
-          {getDisplayName(session?.user.user_metadata, session?.user.email)}
-        </Text>
-        <Text selectable style={accountStyles.email}>
-          {session?.user.email}
-        </Text>
-      </View>
-      <View>
-        <ListRow
-          title="Mis pedidos"
-          subtitle="Revisa tus pedidos y cómo van"
-          leading={<Icon name="orders" />}
-          onPress={() => router.replace('/customer/orders')}
-        />
-        <ListRow
-          title="Pedir gas"
-          subtitle="Elige tu próximo cilindro"
-          leading={<Icon name="home" />}
-          onPress={() => router.push('/orders/new')}
-        />
-      </View>
-      <ListRow
-        title="Mi negocio"
-        subtitle="Registra tu distribuidora o gestiona sus productos y repartidores"
-        leading={<Icon name="home" />}
-        onPress={() => router.push('/business')}
-      />
-      {zone === 'driver' ? (
-        <ListRow
-          title="Volver a reparto"
-          subtitle="Tu habilitación de conductor sigue activa"
-          leading={<Icon name="truck" />}
-          onPress={() => router.replace('/driver')}
-        />
-      ) : (
-        <DriverApplicationCard />
-      )}
-      <View style={accountStyles.signOut}>
-        <SignOutButton discreet />
-      </View>
-      <Text variant="note" style={accountStyles.email}>
+    <Screen title="Tu cuenta" compactHeader onBack={() => router.replace('/customer')} tabbed>
+      <Enter>
+        <LinearGradient
+          colors={[theme.colors.heroStart, theme.colors.heroEnd]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={accountStyles.identity}
+        >
+          <Text variant="note" style={accountStyles.eyebrow}>
+            TU ESPACIO EN GASWAY
+          </Text>
+          <View style={accountStyles.person}>
+            <Avatar name={name} />
+            <View style={ui.flex}>
+              <Text variant="title" accessibilityRole="header" style={accountStyles.name}>
+                {name}
+              </Text>
+              {session?.user.email ? (
+                <Text selectable variant="note" style={accountStyles.email}>
+                  {session.user.email}
+                </Text>
+              ) : null}
+            </View>
+          </View>
+        </LinearGradient>
+      </Enter>
+      <Enter index={1}>
+        <View style={ui.stack}>
+          <Text variant="subtitle" accessibilityRole="header">
+            Todo para tu hogar
+          </Text>
+          <Card>
+            <ListRow
+              title="Mis pedidos"
+              subtitle="Historial y pedidos en curso"
+              leading={<Icon name="orders" />}
+              onPress={() => router.replace('/customer/orders')}
+            />
+            <ListRow
+              title="Pedir gas"
+              subtitle="Tu próximo cilindro, paso a paso"
+              leading={<Icon name="home" />}
+              onPress={() => router.push('/orders/new')}
+            />
+          </Card>
+        </View>
+      </Enter>
+      <Enter index={2}>
+        <View style={ui.stack}>
+          <Text variant="subtitle" accessibilityRole="header">
+            Más con Gasway
+          </Text>
+          <Card>
+            <ListRow
+              title="Mi negocio"
+              subtitle="Productos, equipo y datos de tu distribuidora"
+              leading={<Icon name="home" />}
+              onPress={() => router.push('/business')}
+            />
+            {zone === 'driver' ? (
+              <ListRow
+                title="Volver a reparto"
+                subtitle="Tu espacio de conductor habilitado"
+                leading={<Icon name="truck" />}
+                onPress={() => router.replace('/driver')}
+              />
+            ) : (
+              <ListRow
+                title="Repartir con Gasway"
+                subtitle="Tu invitación y estado de habilitación"
+                leading={<Icon name="truck" />}
+                onPress={() => setApplicationOpen(true)}
+              />
+            )}
+          </Card>
+        </View>
+      </Enter>
+      <Enter index={3}>
+        <View style={accountStyles.signOut}>
+          <SignOutButton discreet />
+        </View>
+      </Enter>
+      <Text variant="note" style={ui.muted}>
         Lipigas, Gasco y Abastible son marcas de sus respectivos dueños. Gasway es independiente y
         no está afiliada a ellas.
       </Text>
+      <BottomSheet
+        visible={applicationOpen}
+        title="Tu acceso a reparto"
+        onClose={() => setApplicationOpen(false)}
+      >
+        <ScrollView contentContainerStyle={ui.stack}>
+          {applicationOpen ? <DriverApplicationCard /> : null}
+        </ScrollView>
+      </BottomSheet>
     </Screen>
   );
 }
-
 const accountStyles = StyleSheet.create({
-  identity: { alignItems: 'flex-start', gap: theme.spacing.md, paddingVertical: theme.spacing.lg },
-  email: { color: theme.colors.textMuted },
-  signOut: { marginTop: theme.spacing.xxl },
+  identity: {
+    ...theme.elevation.medium,
+    borderRadius: theme.radii.hero,
+    padding: theme.spacing.lg,
+    gap: theme.spacing.lg,
+  },
+  person: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: theme.spacing.md },
+  name: { color: theme.colors.onPrimary },
+  email: { color: theme.colors.heroMuted, marginTop: theme.spacing.sm },
+  eyebrow: { color: theme.colors.heroMuted, letterSpacing: theme.typography.tracking.eyebrow },
+  signOut: {
+    paddingHorizontal: theme.spacing.md,
+    backgroundColor: theme.colors.surface,
+    borderRadius: theme.radii.card,
+  },
 });
