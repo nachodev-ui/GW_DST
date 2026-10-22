@@ -42,6 +42,11 @@
 
 ## Shell & Command Reliability
 
+1. **[2026-10-22] Test cloud connections without local link-cache assumptions**
+   Do instead: use db:test:cloud over HTTPS when a scoped PAT is set; a clean Actions
+   runner lacks pooler metadata and CLI Postgres setup can fail without IPv6.
+   Re-run jobs keeps the old commit; start a new run after merging a transport fix.
+
 1. **[2026-10-22] Explicit cloud targets still require the linked selector in CLI 2.121**
    Do instead: use `--linked --project-ref <ref>` for db query and migration up.
    Gasway Test is xnrueexpwzvxotgwmamj; preserve the app project's CLI link and run

@@ -46,7 +46,7 @@ configurado usa URLSearchParams; su exposición debe verificarse antes del pilot
 validación en [seguridad de dependencias](docs/dependency-security.md).
 
 DT-02 añade `npm test`, cobertura de siete módulos críticos y CI Linux/Windows con
-tipos, lint y formato. Hay 12 suites Node y una PowerShell; siete SQL vigentes y
+tipos, lint y formato. Hay 13 suites Node y una PowerShell; siete SQL vigentes y
 nueve históricos clasificados. El proyecto separado **Gasway Test** recibe las
 migraciones y regresiones con rollback. Configuración y límites: [pruebas](docs/testing.md).
 
@@ -170,7 +170,7 @@ para confirmar correo; después iniciar sesión con contraseña. Ver
 | `npm run db:test`                                           | Runner de Supabase local; los SQL actuales no son una suite pgTAP compatible sin adaptación.        |
 | `npm run db:start` / `npm run db:stop` / `npm run db:reset` | Herramientas locales con Docker; reset destruye datos locales. No iniciar/resetear en este entorno. |
 
-Hay 12 suites CommonJS de pruebas y una PowerShell, para Auth, pedidos, ofertas,
+Hay 13 suites CommonJS de pruebas y una PowerShell, para Auth, pedidos, ofertas,
 progreso, postulación, negocio, equipo, disponibilidad y cobertura. Usan assertions,
 transpilación y mocks; no equivalen a pruebas reales de dispositivo. CI y cobertura
 de lógica crítica se incorporan en DT-02; Actions requiere publicar la rama, y el
@@ -272,6 +272,9 @@ GLP vencido.
 
 ### 2026-10-22
 
+- Corregida conexión SQL de CI en runners sin IPv6: con SUPABASE_ACCESS_TOKEN,
+  db:test:cloud usa Management API por HTTPS sin depender de supabase link/caché
+  local. Se mantienen destino aislado, rollback, timeout y fallos de assertions.
 - DT-02: runner offline, loader común con mapas de origen, C8 con umbrales y CI
   Linux/Windows de tipos/lint/formato/cobertura. SQL clasificado (7 vigentes, 9
   históricos), progreso/workspace adaptados a ADR 0021 y proyecto Free Gasway Test

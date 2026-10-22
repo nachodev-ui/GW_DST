@@ -34,6 +34,7 @@ jobs:
         run: |
           test -n "$SUPABASE_ACCESS_TOKEN"
           test "$GASWAY_TEST_PROJECT_REF" = "xnrueexpwzvxotgwmamj"
-      - run: npm run db:test:cloud
+      - name: Run SQL tests over HTTPS
+        run: npm run db:test:cloud
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_TEST_ACCESS_TOKEN }}

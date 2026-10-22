@@ -13,7 +13,7 @@ npm run test:coverage
 
 El runner descubre `scripts/test-*.cjs`, excepto su propio archivo, y ejecuta cada
 suite en un proceso de `node --test`. Después ejecuta la regresión administrativa
-PowerShell con HTTP/credenciales simulados. Son **12 suites Node y una PowerShell**,
+PowerShell con HTTP/credenciales simulados. Son **13 suites Node y una PowerShell**,
 no un conteo de assertions. Falta de pwsh, timeout o salida no cero falla el comando.
 
 El loader común ejecuta fuentes TypeScript/TSX con mapas de origen y mocks explícitos
@@ -89,12 +89,42 @@ y cambiar la configuración versionada. CLI 2.121.0 exige `--linked --project-re
 para seleccionar cloud explícitamente; ese selector no vuelve a vincular el checkout.
 Las consultas se ejecutan en serie para no invalidar el login temporal del CLI.
 
-`db:test:cloud` valida el destino antes de invocar el CLI, rechaza la ref de la app
+`db:test:cloud` valida el destino antes de conectar, rechaza la ref de la app
 **gleltbrvpfvfgggcatpt**, verifica el marcador en cada transacción y ejecuta solo
 los **siete SQL current** de `supabase/tests/suites.json`, con timeout y rollback
 externo además del rollback interno de fixtures. Las secuencias pueden avanzar.
 SQL nuevo sin clasificación, archivo faltante o clasificación duplicada falla también
 en la regresión offline del tooling. Las nueve suites históricas están excluidas.
+
+Con `SUPABASE_ACCESS_TOKEN` se ejecuta cada batch completo mediante HTTPS en
+`POST https://api.supabase.com/v1/projects/<ref>/database/query`, con `read_only: false`.
+No resuelve el CLI ni lee su caché de conexión. CI exige ese token y no hace fallback
+a una conexión directa. En desarrollo local sin esa variable se conserva la sesión
+del CLI ya preparada. La inicialización `db:test:prepare` sigue usando el CLI.
+
+## Fallo IPv6 en un runner limpio
+
+La primera ejecución SQL de Actions falló antes del SQL: el CLI intentó conectar
+a Postgres mediante IPv6 y el runner no tenía el pooler configurado. La verificación
+local anterior tenía caché y no reprodujo un checkout limpio. La corrección usa
+HTTPS en CI con el mismo secret, sin supabase link, contraseña de base ni add-on IPv4.
+
+La regresión offline ejecuta el runner completo en un proceso que prohíbe resolver
+el CLI y leer project-ref/pooler-url/linked-project.json. Simula siete respuestas
+correctas y un fallo SQL; este último detiene la suite y produce salida no cero.
+También comprueba permisos HTTP rechazados, timeout, JSON inválido, destino y
+ocultación del token. Son simulaciones de transporte, no una nueva validación remota
+con el PAT de GitHub. La ejecución real se confirma tras integrar la corrección.
+
+Validación de la corrección: 13 suites Node y una PowerShell pasan; typecheck y
+formato correctos, con cobertura crítica sin cambios. El endpoint HTTPS respondió
+401 a una petición de prueba sin credenciales forzada a IPv4, confirmando acceso
+de red. Una consulta local a Gasway Test confirmó el marcador y cero usuarios/pedidos.
+El PAT almacenado en GitHub no se leyó ni se copió al equipo.
+
+El endpoint de consultas está documentado como beta/experimental. La dependencia
+queda aislada en scripts/testing/cloud-query.cjs; ante fallo no se reintenta SQL
+ni se amplían permisos. Se mantiene el batch transaccional completo por petición.
 
 `npm run db:test` sigue reservado al runner local/pgTAP de Supabase: estas suites
 son assertions DO de Postgres, no pgTAP. No usar Docker, db:start o db:reset aquí.
@@ -112,8 +142,11 @@ el environment **gasway-test**, restringido a main y con aprobación del mantene
 No copiar automáticamente el token local ni dar secretos a PRs. El token solo está
 en los pasos de consulta cloud, después de instalar dependencias. El workflow no
 crea proyectos ni migra/despliega automáticamente; falta de configuración falla.
-Los secretos/environment de GitHub y la ejecución real de Actions quedan pendientes
-de publicar/integrar la rama. No se hizo push ni se abrió PR.
+El usuario ya configuró el environment/secret y ejecutó Actions; el primer intento
+SQL registró el fallo IPv6 descrito arriba. La corrección debe publicarse e integrarse
+en main antes de elegir **Run workflow** de nuevo. **Re-run jobs** sobre la ejecución
+fallida reutiliza el commit anterior y conserva el fallo.
 
 Fuentes: [C8](https://github.com/bcoe/c8), [Node test runner](https://nodejs.org/docs/latest-v24.x/api/test.html),
 [Supabase Free](https://supabase.com/pricing), [clasificación SQL](../supabase/tests/README.md).
+Transporte: [Management API Run SQL query](https://supabase.com/docs/reference/api/v1-run-a-query).
