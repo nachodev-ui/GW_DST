@@ -13,7 +13,7 @@ npm run test:coverage
 
 El runner descubre `scripts/test-*.cjs`, excepto su propio archivo, y ejecuta cada
 suite en un proceso de `node --test`. Después ejecuta la regresión administrativa
-PowerShell con HTTP/credenciales simulados. Son **13 suites Node y una PowerShell**,
+PowerShell con HTTP/credenciales simulados. Son **14 suites Node y una PowerShell**,
 no un conteo de assertions. Falta de pwsh, timeout o salida no cero falla el comando.
 
 El loader común ejecuta fuentes TypeScript/TSX con mapas de origen y mocks explícitos
@@ -129,7 +129,8 @@ ni se amplían permisos. Se mantiene el batch transaccional completo por petici�
 
 `npm run db:test` sigue reservado al runner local/pgTAP de Supabase: estas suites
 son assertions DO de Postgres, no pgTAP. No usar Docker, db:start o db:reset aquí.
-Las pruebas son secuenciales; las carreras con conexiones independientes son DT-03.
+Las siete suites anteriores son secuenciales; las carreras de DT-03 usan el runner
+separado descrito a continuación.
 
 ## Habilitar SQL en GitHub
 
@@ -160,3 +161,84 @@ cobertura del negocio, progreso y workspace del conductor. Esto confirma la ejec
 real con el secret del environment y resuelve el fallo IPv6 del primer intento.
 La evidencia aportada no incluye URL/ID de la ejecución; no se inventa una referencia.
 DT-02 queda completado; las carreras entre conexiones siguen en DT-03.
+
+## DT-03: sesiones concurrentes y respuestas perdidas
+
+```powershell
+$env:GASWAY_TEST_PROJECT_REF = "xnrueexpwzvxotgwmamj"
+npm run db:test:concurrency -- --list
+npm run db:test:concurrency
+# O solo un escenario:
+npm run db:test:concurrency -- --case=last-stock
+```
+
+El runner mantiene los guards de proyecto/marcador. Con PAT usa HTTPS; en CI exige
+`SUPABASE_ACCESS_TOKEN`. No cargar variables de producción desde archivos .env.
+Localmente sin PAT usa el CLI autenticado y separa cinco segundos el arranque del
+contendiente y su observador para reducir la colisión al rotar el rol temporal del
+CLI. Ese margen no acredita la carrera: los PID y el bloqueo siguen siendo
+obligatorios; si la conexión tarda demasiado, falla y debe revisarse el transporte.
+Los fixtures ficticios se confirman para que otras sesiones puedan verlos y se
+eliminan al finalizar; esta suite **no usa rollback global**. No ejecutar en otro
+entorno ni simultáneamente con tareas manuales de mantenimiento de Gasway Test.
+
+| Caso                      | Resultado exigido                                                                                         |
+| ------------------------- | --------------------------------------------------------------------------------------------------------- |
+| two-drivers-one-order     | Solo el primer conductor recibe el pedido; un evento de aceptación.                                       |
+| two-orders-one-driver     | El conductor solo acepta el primero; el segundo sigue ofrecido.                                           |
+| last-stock                | Una compra gana, otra falla; stock cero y una reserva.                                                    |
+| cancel-before-accept      | La cancelación gana y repone una vez; no hay aceptación.                                                  |
+| accept-before-cancel      | Ambas operaciones son válidas en ese orden; termina cancelado y repone una vez.                           |
+| cancel-before-progress    | El progreso falla tras la cancelación y la reserva se libera.                                             |
+| progress-before-cancel    | El progreso gana; cancelar en camino falla y conserva la reserva.                                         |
+| same-request-concurrently | Las compras simultáneas devuelven el mismo UUID, sin duplicar eventos ni reserva.                         |
+| retry-after-commit        | Tras descartar la respuesta de una compra confirmada, el retry conserva pedido, eventos, stock y reserva. |
+
+En las ocho carreras se exige evidencia de dos PID distintos y bloqueo real del
+segundo por el primero, antes de liberar la barrera. Cada RPC usa `authenticated`
+con identidades ficticias; un deadlock, timeout o SQLSTATE inesperado falla.
+El último caso simula pérdida de la respuesta en el cliente después de COMMIT;
+no simula una interrupción TCP ni un fallo dentro del commit. Ver ADR 0023.
+
+El workflow **Concurrencia SQL en Gasway Test** será manual y solo main. Reutiliza
+`gasway-test`, la variable y el secret de DT-02; no requiere otro token. Comparte
+`gasway-test-database` para no cruzarse con el workflow secuencial. Su ejecución real
+en Actions queda pendiente de publicar e integrar DT-03.
+
+### Recuperar una ejecución interrumpida
+
+El registro único en `private.concurrency_test_run` bloquea ejecuciones solapadas.
+El runner limpia solamente sus UUID y conserva los fixtures si detecta un
+contendiente activo. Si el proceso muere, revisar en SQL Editor de **Gasway Test**:
+
+```sql
+select run_id, created_at, data from private.concurrency_test_run;
+select pid, application_name, state, wait_event_type, wait_event
+from pg_stat_activity where application_name like 'dt03-%';
+```
+
+Esperar a que terminen sus transacciones; los comandos tienen timeout. No borrar el
+registro para desbloquear otro run mientras existan contendientes activos. Después,
+usar `npm run db:test:concurrency -- --cleanup-run=<UUID-del-run>` con el mismo destino
+y credenciales: vuelve a comprobar marcador y sesiones activas antes de limpiar.
+No hay limpieza automática por fecha ni borrado de fixtures de otro run.
+
+### Evidencia local de DT-03 (2026-10-22)
+
+Los nueve escenarios pasaron contra **Gasway Test** con el CLI autenticado local.
+En las ocho carreras se registraron `READY`, `BLOCKED`, `PASS` y `CLEAN`; por
+ejemplo, el segundo conductor (PID 26943) esperó al primero (PID 26341), y la
+segunda compra por último stock (PID 27034) esperó a la primera (PID 27027).
+Se comprobaron los SQLSTATE esperados, actores/transiciones, asignación, stock y
+reservas. El reintento tras commit conservó también los UUID/fechas de eventos y
+la revisión del stock. No se creó otro token ni se usó la base de la app.
+
+Validación offline: **14 suites Node + una PowerShell**, typecheck y formato
+correctos. Cobertura crítica: 99,54 % líneas/statements, 100 % funciones y 90,60 %
+ramas. La suite nueva verifica el coordinador, fallo al no observar contención,
+liberación ante error del contendiente, guards y assertions de eventos.
+
+Esto acredita la ejecución local contra cloud; el workflow de DT-03 todavía debe
+publicarse/integrarse y ejecutarse con el PAT del environment de Actions.
+La comprobación final dejó cero runs, usuarios, pedidos, negocios y contendientes
+activos de prueba; el marcador siguió presente y el enlace CLI de la app se conservó.

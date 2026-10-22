@@ -25,6 +25,7 @@
     "db:lint": "supabase db lint --local",
     "db:test": "supabase test db",
     "db:test:cloud": "node scripts/run-sql-tests.cjs",
+    "db:test:concurrency": "node scripts/run-concurrency-tests.cjs",
     "db:test:prepare": "node scripts/prepare-test-cloud.cjs",
     "db:test:list": "node scripts/run-sql-tests.cjs --list",
     "db:types": "node scripts/generate-db-types.mjs"

@@ -59,8 +59,10 @@
 
 1. **[2026-10-21] Cloud CLI SQL sessions share a temporary login role**
    Do instead: run Supabase cloud SQL/advisor commands sequentially; concurrent role
-   initialization can invalidate another connection's temporary password. Use the linked
-   CLI session when the connector belongs to a different account; never expose credentials.
+   initialization can invalidate another connection's temporary password. For authorized
+   concurrency tests prefer scoped PAT/HTTPS; local runners need startup grace before
+   another CLI initializes, then must prove distinct PID and pg_blocking_pids. Use the
+   linked CLI when the connector belongs to a different account; never expose credentials.
 
 1. **[2026-10-21] Preserve SQL dollar delimiters in JavaScript replacements**
    Do instead: use a replacement callback when inserting SQL with `String.replace`;
