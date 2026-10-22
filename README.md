@@ -173,8 +173,8 @@ para confirmar correo; después iniciar sesión con contraseña. Ver
 Hay 13 suites CommonJS de pruebas y una PowerShell, para Auth, pedidos, ofertas,
 progreso, postulación, negocio, equipo, disponibilidad y cobertura. Usan assertions,
 transpilación y mocks; no equivalen a pruebas reales de dispositivo. CI y cobertura
-de lógica crítica se incorporan en DT-02; Actions requiere publicar la rama, y el
-workflow SQL manual requiere configurar su environment y credenciales privadas.
+de lógica crítica se incorporan en DT-02. Actions offline y SQL ya fueron ejecutados;
+el usuario confirmó las siete suites SQL correctas por HTTPS en Gasway Test.
 
 Las suites SQL se ejecutan completas como postgres en el entorno de prueba
 correspondiente y revierten sus fixtures; las secuencias pueden avanzar. Consultar
@@ -272,6 +272,8 @@ GLP vencido.
 
 ### 2026-10-22
 
+- DT-02 validado: el usuario confirmó el workflow SQL de GitHub Actions exitoso,
+  con 7/7 suites por HTTPS en Gasway Test y credenciales del environment configuradas.
 - Corregida conexión SQL de CI en runners sin IPv6: con SUPABASE_ACCESS_TOKEN,
   db:test:cloud usa Management API por HTTPS sin depender de supabase link/caché
   local. Se mantienen destino aislado, rollback, timeout y fallos de assertions.
