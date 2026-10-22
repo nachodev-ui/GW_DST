@@ -46,7 +46,7 @@ configurado usa URLSearchParams; su exposición debe verificarse antes del pilot
 validación en [seguridad de dependencias](docs/dependency-security.md).
 
 DT-02 añade `npm test`, cobertura de siete módulos críticos y CI Linux/Windows con
-tipos, lint y formato. Hay 13 suites Node y una PowerShell; siete SQL vigentes y
+tipos, lint y formato. Hay 14 suites Node y una PowerShell; siete SQL vigentes y
 nueve históricos clasificados. El proyecto separado **Gasway Test** recibe las
 migraciones y regresiones con rollback. Configuración y límites: [pruebas](docs/testing.md).
 
@@ -162,6 +162,7 @@ para confirmar correo; después iniciar sesión con contraseña. Ver
 | `npm run db:test:list`                                      | Allowlist SQL vigente; comprueba clasificación de todos los SQL.                                    |
 | `npm run db:test:prepare`                                   | Migraciones y catálogo solo en Gasway Test; exige ref explícita.                                    |
 | `npm run db:test:cloud`                                     | Siete SQL en Gasway Test, con timeout, destino protegido y rollback.                                |
+| `npm run db:test:concurrency`                               | Nueve escenarios con transacciones independientes en Gasway Test; fixtures con commit y limpieza.   |
 | `npm run format` / `npm run format:check`                   | Escribir/revisar formato.                                                                           |
 | `node scripts/test-<nombre>.cjs`                            | Assertions específicas; `npm test` ejecuta el conjunto offline.                                     |
 | `pwsh -File scripts/test-reset-auth-password.ps1`           | Regresión offline del script administrativo, requiere PowerShell 7.                                 |
@@ -170,7 +171,7 @@ para confirmar correo; después iniciar sesión con contraseña. Ver
 | `npm run db:test`                                           | Runner de Supabase local; los SQL actuales no son una suite pgTAP compatible sin adaptación.        |
 | `npm run db:start` / `npm run db:stop` / `npm run db:reset` | Herramientas locales con Docker; reset destruye datos locales. No iniciar/resetear en este entorno. |
 
-Hay 13 suites CommonJS de pruebas y una PowerShell, para Auth, pedidos, ofertas,
+Hay 14 suites CommonJS de pruebas y una PowerShell, para Auth, pedidos, ofertas,
 progreso, postulación, negocio, equipo, disponibilidad y cobertura. Usan assertions,
 transpilación y mocks; no equivalen a pruebas reales de dispositivo. CI y cobertura
 de lógica crítica se incorporan en DT-02. Actions offline y SQL ya fueron ejecutados;
@@ -272,6 +273,10 @@ GLP vencido.
 
 ### 2026-10-22
 
+- DT-03 iniciado: runner de nueve escenarios de concurrencia y respuestas perdidas,
+  con barrera observable en PostgreSQL, assertions de eventos/stock/reservas y
+  fixtures exclusivos; 9/9 pasaron en Gasway Test. Workflow manual y procedimiento
+  en docs/testing.md, ADR 0023; pendiente su integración y ejecución en Actions.
 - DT-02 validado: el usuario confirmó el workflow SQL de GitHub Actions exitoso,
   con 7/7 suites por HTTPS en Gasway Test y credenciales del environment configuradas.
 - Corregida conexión SQL de CI en runners sin IPv6: con SUPABASE_ACCESS_TOKEN,
