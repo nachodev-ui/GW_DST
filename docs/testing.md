@@ -13,7 +13,7 @@ npm run test:coverage
 
 El runner descubre `scripts/test-*.cjs`, excepto su propio archivo, y ejecuta cada
 suite en un proceso de `node --test`. Después ejecuta la regresión administrativa
-PowerShell con HTTP/credenciales simulados. Son **14 suites Node y una PowerShell**,
+PowerShell con HTTP/credenciales simulados. Son **17 suites Node y una PowerShell**,
 no un conteo de assertions. Falta de pwsh, timeout o salida no cero falla el comando.
 
 El loader común ejecuta fuentes TypeScript/TSX con mapas de origen y mocks explícitos
@@ -33,7 +33,9 @@ ejecutados. Los umbrales agregados son **85 % líneas/statements/funciones y 75 
 ramas**; incumplirlos falla CI. No son umbrales por archivo ni cobertura de toda la
 app, SQL, PowerShell o dispositivos reales.
 
-Medición final: **99,54 % líneas/statements, 100 % funciones y 90,60 % ramas**.
+Medición de DT-02: **99,54 % líneas/statements, 100 % funciones y 90,60 % ramas**.
+La integración del 2026-10-23 midió **98,41 % líneas/statements, 92,59 % funciones
+y 87,56 % ramas** sobre los mismos siete módulos; conserva todos los umbrales.
 Los reportes `coverage/lcov.info` y `coverage/coverage-summary.json` son generados,
 ignorados por Git. Ampliar la lista exige pruebas útiles, no exclusiones para bajar
 el umbral. Las suites de hooks/componentes usan mocks, sin montar pantallas.
@@ -41,6 +43,16 @@ El loader registra los mapas mediante compilación de módulos de Node; se desca
 las mediciones preliminares del loader VM porque no registraba mapas para V8.
 
 ## CI
+
+DT-07 añade `scripts/test-confirmation.cjs`: frontera de URL nativa, códigos
+duplicados/malformados, PKCE, errores de confirmación y operaciones criptográficas
+para Hermes. No renderiza la app. Los scripts de redirecciones y correo reales
+se invocan aparte: [confirmación nativa](auth-confirmation.md).
+
+`scripts/test-account-cleanup.cjs` comprueba offline la herramienta administrativa
+de limpieza manual: confirmación explícita, destino fijo, rechazo de dependencias,
+rol e identidad distintos, seguridad del delimitador SQL y revocación antes de
+borrar/verificar. Sus fronteras SQL/Auth son simuladas y no ejecuta el borrado real.
 
 `.github/workflows/ci.yml` corre en PR/push sobre Linux y Windows: instalación desde
 lockfile, typecheck, lint, formato y cobertura. Acciones oficiales fijadas por commit,
@@ -91,7 +103,7 @@ Las consultas se ejecutan en serie para no invalidar el login temporal del CLI.
 
 `db:test:cloud` valida el destino antes de conectar, rechaza la ref de la app
 **gleltbrvpfvfgggcatpt**, verifica el marcador en cada transacción y ejecuta solo
-los **siete SQL current** de `supabase/tests/suites.json`, con timeout y rollback
+los **ocho SQL current** de `supabase/tests/suites.json`, con timeout y rollback
 externo además del rollback interno de fixtures. Las secuencias pueden avanzar.
 SQL nuevo sin clasificación, archivo faltante o clasificación duplicada falla también
 en la regresión offline del tooling. Las nueve suites históricas están excluidas.
@@ -129,8 +141,16 @@ ni se amplían permisos. Se mantiene el batch transaccional completo por petici�
 
 `npm run db:test` sigue reservado al runner local/pgTAP de Supabase: estas suites
 son assertions DO de Postgres, no pgTAP. No usar Docker, db:start o db:reset aquí.
-Las siete suites anteriores son secuenciales; las carreras de DT-03 usan el runner
+Las suites anteriores son secuenciales; las carreras de DT-03 usan el runner
 separado descrito a continuación.
+
+DT-07 incorpora `pilot_security.sql` como octava suite y `npm run db:test:auth`
+para comprobar Auth/Data API con cuentas temporales fuera del runner SQL. La prueba
+Auth requiere CLI local administrativa, rechaza CI y solo admite Gasway Test; crea
+y elimina dos cuentas sin enviar correo. El workflow separado `secret-scan.yml`
+escanea historial con Gitleaks, sin credenciales cloud. Evidencia y pendientes en
+[seguridad del piloto](pilot-security.md). La evidencia histórica 7/7 de DT-02
+corresponde a su versión original; la octava suite pasó localmente, todavía no en Actions.
 
 ## Habilitar SQL en GitHub
 

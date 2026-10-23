@@ -6,7 +6,8 @@
     "distributor_discovery.sql",
     "distributor_owned_coverage.sql",
     "driver_order_progress.sql",
-    "driver_workspace.sql"
+    "driver_workspace.sql",
+    "pilot_security.sql"
   ],
   "historical": {
     "initial_schema.sql": "Fixture de aceptación anterior al catálogo/precio por vendedor; cubierto por discovery/coverage/progress.",

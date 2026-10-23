@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { theme } from '@/theme/legacy';
+import { GaswayLogo } from './gasway-logo';
 
 export function Page({
   title,
@@ -24,8 +25,7 @@ export function Page({
       >
         <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.page}>
           <View style={styles.brand}>
-            <Text style={styles.brandText}>gasway</Text>
-            <View style={styles.brandMark} />
+            <GaswayLogo />
           </View>
           <View style={styles.intro}>
             <Text accessibilityRole="header" style={styles.title}>
@@ -95,18 +95,6 @@ export const styles = StyleSheet.create({
     alignItems: 'center',
     gap: theme.spacing.sm,
     paddingTop: theme.spacing.lg,
-  },
-  brandText: {
-    color: theme.colors.primary,
-    fontFamily: theme.typography.family,
-    fontSize: theme.typography.sizes.title,
-    fontWeight: theme.typography.weights.bold,
-  },
-  brandMark: {
-    width: theme.spacing.md,
-    height: theme.spacing.md,
-    backgroundColor: theme.colors.accent,
-    borderRadius: theme.radii.sm,
   },
   intro: {
     gap: theme.spacing.md,

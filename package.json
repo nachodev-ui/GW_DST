@@ -9,7 +9,8 @@
     "node": "^22.13.0 || ^24.3.0 || ^26.0.0 || >=27.0.0"
   },
   "scripts": {
-    "start": "npm run start --workspace @gasway/mobile",
+    "brand:sync": "node scripts/sync-brand-assets.mjs",
+    "start": "npm run start --workspace @gasway/mobile --",
     "web": "npm run web --workspace @gasway/mobile",
     "android": "npm run android --workspace @gasway/mobile",
     "ios": "npm run ios --workspace @gasway/mobile",
@@ -25,6 +26,8 @@
     "db:lint": "supabase db lint --local",
     "db:test": "supabase test db",
     "db:test:cloud": "node scripts/run-sql-tests.cjs",
+    "db:test:auth": "node scripts/security/check-test-auth.cjs",
+    "db:test:redirects": "node scripts/security/check-test-redirects.cjs",
     "db:test:concurrency": "node scripts/run-concurrency-tests.cjs",
     "db:test:prepare": "node scripts/prepare-test-cloud.cjs",
     "db:test:list": "node scripts/run-sql-tests.cjs --list",

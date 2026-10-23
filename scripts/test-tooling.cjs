@@ -13,7 +13,7 @@ for (const ref of [
 ]) {
   assert.throws(() => targetProject(ref), /dedicated Gasway Test/);
 }
-assert.equal(currentSuites().length, 7);
+assert.equal(currentSuites().length, 8);
 assert.deepEqual(currentSuites('driver_workspace.sql'), ['driver_workspace.sql']);
 for (const file of ['driver_offers.sql', '../seed.sql', 'absent.sql', '']) {
   assert.throws(() => currentSuites(file), /Only current/);

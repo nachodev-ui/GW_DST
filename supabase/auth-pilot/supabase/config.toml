@@ -1,0 +1,7 @@
+# Cloud overlay: only these two Auth properties may be changed.
+# Preview with config diff --workdir supabase/auth-pilot --project-ref <ref>.
+project_id = "gasway-auth-pilot"
+
+[auth]
+site_url = "gasway://auth/confirm"
+additional_redirect_urls = ["gasway://auth/confirm"]

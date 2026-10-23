@@ -10,13 +10,13 @@ de conducción. El panel administrativo web queda para una etapa posterior.
 Hay flujos implementados sobre Supabase; el proyecto ya supera el scaffold inicial,
 pero todavía requiere validación y trabajo antes de un piloto real.
 
-| Área          | Disponible en el código                                                                                                                                                     | Pendiente                                                                                            |
-| ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
-| Acceso        | Registro/ingreso por correo y contraseña, sesión segura nativa, guards y consulta de permisos de servidor.                                                                  | Recuperación de contraseña dentro de la app y validación completa de enlaces/sesión en dispositivos. |
-| Cliente       | Dirección y comuna CUT, marca/formato/variante, cantidad, canje explícito, selección de distribuidora, revisión, compra, historial, detalle, cancelación y eventos.         | Resolver automáticamente pedidos sin asignación y ampliar regresiones de concurrencia.               |
-| Distribuidora | Alta y revisión administrativa SQL; catálogo con precio CLP, stock/publicación, horarios/ETA/contacto opcionales; equipo, invitaciones individuales/CSV y cobertura propia. | Panel admin web, suspensión operativa y verificación de evidencia vigente para negocios reales.      |
-| Repartidor    | Invitación aceptada y postulación, aprobación administrativa, Ofertas/Cobertura/Cuenta, disponibilidad, aceptación/rechazo y avance a en camino/entregado.                  | Push y tracking; la cobertura se hereda del negocio y el conductor solo edita disponibilidad.        |
-| Backend       | Migraciones Postgres/PostGIS, RLS, RPC, asignación atómica, reserva/liberación de stock e idempotencia de compra; concurrencia validada en Gasway Test.                     | Tipos generados integrados y revisión del entorno concreto del piloto.                               |
+| Área          | Disponible en el código                                                                                                                                                     | Pendiente                                                                                       |
+| ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| Acceso        | Registro en dos pasos (correo/contraseña → teléfono), aviso de confirmación, ingreso, sesión segura nativa, guards y permisos de servidor.                                  | Recuperación de contraseña dentro de la app y prueba manual del nuevo registro con teléfono.    |
+| Cliente       | Dirección y comuna CUT, marca/formato/variante, cantidad, canje explícito, selección de distribuidora, revisión, compra, historial, detalle, cancelación y eventos.         | Resolver automáticamente pedidos sin asignación y ampliar regresiones de concurrencia.          |
+| Distribuidora | Alta y revisión administrativa SQL; catálogo con precio CLP, stock/publicación, horarios/ETA/contacto opcionales; equipo, invitaciones individuales/CSV y cobertura propia. | Panel admin web, suspensión operativa y verificación de evidencia vigente para negocios reales. |
+| Repartidor    | Invitación aceptada y postulación, aprobación administrativa, Ofertas/Cobertura/Cuenta, disponibilidad, aceptación/rechazo y avance a en camino/entregado.                  | Push y tracking; la cobertura se hereda del negocio y el conductor solo edita disponibilidad.   |
+| Backend       | Migraciones Postgres/PostGIS, RLS, RPC, asignación atómica, reserva/liberación de stock e idempotencia de compra; concurrencia validada en Gasway Test.                     | Tipos generados integrados y revisión del entorno concreto del piloto.                          |
 
 El cliente recibe cambios de sus pedidos por Realtime y polling de respaldo en
 primer plano. El repartidor consulta ofertas cada 5 s con pantalla enfocada y app
@@ -46,13 +46,39 @@ configurado usa URLSearchParams; su exposición debe verificarse antes del pilot
 validación en [seguridad de dependencias](docs/dependency-security.md).
 
 DT-02 añade `npm test`, cobertura de siete módulos críticos y CI Linux/Windows con
-tipos, lint y formato. Hay 14 suites Node y una PowerShell; siete SQL vigentes y
+tipos, lint y formato. Hay 17 suites Node y una PowerShell; ocho SQL vigentes y
 nueve históricos clasificados. El proyecto separado **Gasway Test** recibe las
 migraciones y regresiones con rollback. Configuración y límites: [pruebas](docs/testing.md).
 
 DT-03 quedó validado en [GitHub Actions](https://github.com/nachodev-ui/GW_DST/actions/runs/39807681871):
 nueve escenarios por HTTPS en Gasway Test, con ocho bloqueos reales observados y
 limpieza de los fixtures de cada caso. Evidencia y límites en [pruebas](docs/testing.md).
+
+DT-07 está en curso: revisión cloud de ambos proyectos, octava suite SQL de
+seguridad, smoke Auth/Data API con cuentas temporales y detección de secretos en CI.
+Las pruebas dirigidas pasaron; las sondas de ambos runtimes ya devuelven el destino
+nativo y la discrepancia histórica con localhost dejó de reproducirse. En Android
+se validaron confirmación real, aviso de enlace consumido e ingreso tras corregir
+la navegación. La condición 1 quedó aprobada y cerrada el 2026-10-22: el operador
+confirmó éxito de la prueba final con la app cerrada en el APK autónomo sin Metro.
+Evidencia en [confirmación de correo](docs/auth-confirmation.md).
+El detector de secretos ya pasó en
+[Actions](https://github.com/nachodev-ui/GW_DST/actions/runs/40038443767);
+GitGuardian aprobó también el commit consolidado del PR #11.
+Siguen pendientes política de contraseñas/abuso, restricciones de claves y backup/restauración. No habilita un
+piloto. Evidencia y condiciones de cierre: [seguridad operativa](docs/pilot-security.md).
+
+La condición 1 de DT-07 valida confirmación nativa mediante
+`gasway://auth/confirm`, allowlist sin comodines y PKCE con Expo Crypto/SecureStore.
+No requiere dominio. `expo-crypto` es un módulo nativo nuevo: **recompilar el
+development build** antes de probarlo en el teléfono. Configuración, pruebas y
+estado de verificación en [confirmación de correo](docs/auth-confirmation.md).
+
+La integración del **2026-10-23** reúne DT-07, identidad vectorial, espera con solo
+logo, acceso renovado y registro con teléfono chileno. La migración de teléfono
+figura aplicada en Test y app en su evidencia; su prueba manual sigue pendiente.
+El cierre anterior de la condición 1 no certifica automáticamente este registro
+nuevo. Inventario, alcance y pendientes en [integración de entregas](docs/integration-2026-10-23.md).
 
 ## Stack
 
@@ -67,6 +93,7 @@ limpieza de los fixtures de cada caso. Evidencia y límites en [pruebas](docs/te
 - SecureStore para sesión/dirección recordada nativas; ubicación en primer plano
   a demanda. Mapas Google y notificaciones configurados para desarrollo futuro.
 - Theme propio, tokens centrales, Outfit/Figtree, primitivas, animación y haptics.
+  Logo vectorial y recursos nativos: [identidad Gasway](docs/brand-package.md).
   Ver [sistema visual](docs/design.md), [recursos de cilindros](docs/cylinder-assets.md)
   y [aviso de marcas](apps/mobile/assets/brands/NOTICE.md).
 
@@ -77,7 +104,12 @@ superior no demuestra por sí sola incompatibilidad o vulnerabilidad.
 ## Instalación
 
 Requisitos: **Node 24** según `.nvmrc`, npm y acceso al proyecto Supabase correcto.
-Para Android se necesita SDK/JDK; compilar iOS localmente requiere macOS/Xcode.
+Para Android se necesita Android SDK y **JDK 17**, recomendado para React Native
+0.86 usado por Expo SDK 57. El SDK puede prepararse con herramientas de línea de
+comandos, sin instalar Android Studio. Compilar iOS localmente requiere macOS/Xcode.
+Definir `ANDROID_HOME` hacia el SDK y añadir `platform-tools` al PATH. Si Gradle
+no recibe aún esas variables, `apps/mobile/android/local.properties` puede indicar
+`sdk.dir` con la ruta local del SDK; ese archivo está ignorado por Git.
 La app usa un **development build**. Los módulos nativos añadidos, como selector de
 documentos/archivos, requieren recompilar el build instalado.
 
@@ -116,12 +148,21 @@ npm run android
 # Después de instalar el build, iniciar Metro
 npm start
 
+# Reiniciar Metro limpiando su caché
+npm start -- --clear
+
 # Alternativa web de desarrollo
 npm run web
 ```
 
 En macOS, `npm run ios` compila/instala el development build iOS.
 Estos son pasos para el desarrollador; no se ejecutaron durante la revisión.
+
+Ejecutar los comandos anteriores desde la raíz `Gasway`: `npm start` delega a
+`apps/mobile`, donde están la configuración Expo y `main: expo-router/entry`.
+`npx expo start` sin directorio desde la raíz inicia el workspace equivocado y
+produce el error `Unable to resolve "../../App"`. Detener ese Metro con Ctrl+C y
+usar `npm start -- --clear`. Ver [diagnóstico de arranque](docs/expo-startup.md).
 
 1. Registrarse, confirmar el correo si Auth lo exige e iniciar sesión.
 2. Como cliente, indicar dirección/comuna, producto y canje; elegir distribuidora
@@ -147,8 +188,9 @@ plano. Para mapas futuros se debe usar `PROVIDER_GOOGLE`; las claves
 por app/SDK y requieren recompilar si cambian.
 
 La web sirve para desarrollo: sesión en memoria, sin persistir tras recargar.
-Autorizar `http://localhost:8081` (o el puerto usado) en los Redirect URLs de Auth
-para confirmar correo; después iniciar sesión con contraseña. Ver
+Para probar confirmación en web de desarrollo, autorizar su URL exacta solo en un
+entorno destinado a desarrollo. La allowlist del piloto móvil no incluye localhost.
+El registro nativo usa `gasway://auth/confirm`. Ver
 [redirecciones de Supabase](https://supabase.com/docs/guides/auth/redirect-urls) y
 [diagnóstico de ingreso](docs/auth-troubleshooting.md).
 
@@ -165,7 +207,8 @@ para confirmar correo; después iniciar sesión con contraseña. Ver
 | `npm run test:coverage`                                     | Offline con C8; umbrales sobre siete módulos críticos, LCOV y resumen.                              |
 | `npm run db:test:list`                                      | Allowlist SQL vigente; comprueba clasificación de todos los SQL.                                    |
 | `npm run db:test:prepare`                                   | Migraciones y catálogo solo en Gasway Test; exige ref explícita.                                    |
-| `npm run db:test:cloud`                                     | Siete SQL en Gasway Test, con timeout, destino protegido y rollback.                                |
+| `npm run db:test:cloud`                                     | Ocho SQL en Gasway Test, con timeout, destino protegido y rollback.                                 |
+| `npm run db:test:auth`                                      | Smoke Auth/Data API real, solo Test y CLI local; crea y elimina dos cuentas temporales, sin correo. |
 | `npm run db:test:concurrency`                               | Nueve escenarios con transacciones independientes en Gasway Test; fixtures con commit y limpieza.   |
 | `npm run format` / `npm run format:check`                   | Escribir/revisar formato.                                                                           |
 | `node scripts/test-<nombre>.cjs`                            | Assertions específicas; `npm test` ejecuta el conjunto offline.                                     |
@@ -175,7 +218,7 @@ para confirmar correo; después iniciar sesión con contraseña. Ver
 | `npm run db:test`                                           | Runner de Supabase local; los SQL actuales no son una suite pgTAP compatible sin adaptación.        |
 | `npm run db:start` / `npm run db:stop` / `npm run db:reset` | Herramientas locales con Docker; reset destruye datos locales. No iniciar/resetear en este entorno. |
 
-Hay 14 suites CommonJS de pruebas y una PowerShell, para Auth, pedidos, ofertas,
+Hay 16 suites CommonJS de pruebas y una PowerShell, para Auth, confirmación, pedidos, ofertas,
 progreso, postulación, negocio, equipo, disponibilidad y cobertura. Usan assertions,
 transpilación y mocks; no equivalen a pruebas reales de dispositivo. CI y cobertura
 de lógica crítica se incorporan en DT-02. Actions offline y SQL ya fueron ejecutados;
@@ -276,8 +319,125 @@ GLP vencido.
 
 ## Changelog
 
+### 2026-10-23
+
+- Integradas las entregas de seguridad DT-07, marca, carga y registro en una rama
+  para PR hacia main; las ramas anteriores de DT-02/03 ya estaban integradas.
+  README, AGENTS, ROADMAP y condiciones de DT-07 alineados con la evidencia actual.
+  Metadatos temporales de la CLI excluidos del árbol versionado. Alcance y
+  validación en [integración de entregas](docs/integration-2026-10-23.md).
+- Compatibilidad de integración corregida: ocho suites SQL esperadas por el
+  transporte simulado, mocks del navegador actualizados y errores de lint de Auth
+  resueltos. La confirmación descarta el éxito anterior al recibir otro enlace;
+  typecheck, formato, lint y regresiones offline aprobados.
+- Detector de secretos DT-07 aprobado en Actions y GitGuardian aprobado en el
+  PR #11. Condición 6 parcialmente acreditada; quedan las regresiones SQL vigentes
+  y la revisión actualizada del entorno piloto.
+
+- Retirado el aviso redundante de efectivo de Inicio, revisión de compra y detalle
+  del pedido, junto con el componente `CashNote`.
+
+- Registro móvil corregido: bandera chilena y `+56 9` fijos, entrada de ocho
+  dígitos y pantalla más compacta. Errores de correo/solicitudes diferenciados,
+  pausa local visible y recuperación del paso conservando correo/teléfono en
+  memoria, con contraseña borrada al volver. Detalles y límites del servidor en
+  [registro con teléfono](docs/registration-phone.md).
+
+- Limpieza autorizada de dos cuentas descartables en Gasway Project mediante el
+  script CLI existente: Auth, perfiles y sesiones eliminados y ausencia verificada
+  en 56 tablas por cuenta. Desarrollo actual con Expo/Metro; el registro nuevo
+  se prueba recargando el checkout. Evidencia en
+  [confirmación de correo](docs/auth-confirmation.md#limpieza-para-repetir-el-registro-con-teléfono).
+
+- Registro A implementado: «Continuar» abre el teléfono sin crear cuentas;
+  «Crear cuenta» envía una sola solicitud simultánea con teléfono E.164 en
+  metadatos y conduce al aviso de confirmación. Borrador solo en memoria y
+  contraseña eliminada al salir. Migración de `profiles.phone` nullable,
+  validación del trigger y edición propia por RLS. Alcance y evidencia en
+  [registro con teléfono](docs/registration-phone.md). Migración aplicada en Test
+  y, con autorización explícita, en el proyecto de la app; typecheck, auth,
+  confirmación y suite SQL afectada aprobados. Prueba manual en teléfono pendiente.
+
+- Inicio de sesión y registro renovados: cabecera gráfica oliva/lima, títulos
+  expresivos, panel crema superpuesto, selector de acceso y CTA con flecha.
+  Eliminados los textos promocionales y el pie redundante; se conserva la ayuda
+  mínima de contraseña y los mensajes funcionales. Inspiración y alcance en
+  [diseño de acceso](docs/design.md#inicio-de-sesión-y-registro).
+
+- Arranque Expo: `npm start` reenvía opciones como `--clear` al workspace móvil.
+  Documentado el error de AppEntry al ejecutar Expo directamente desde la raíz
+  y su solución en [diagnóstico de arranque](docs/expo-startup.md).
+
+- Carga simplificada: solo el logo de la nueva identidad durante la espera normal.
+  Retirados el video de Higgsfield y expo-video; se conservan avisos de demora,
+  reintento y resultados de confirmación. Detalles en [pantallas de espera](docs/loading-screen.md).
+
+- Identidad integrada en acceso, cabeceras, Inicio y estados de carga mediante
+  GaswayLogo vectorial; paleta exacta centralizada, icono, capas adaptables Android,
+  splash nativo y favicon configurados. Añadido expo-splash-screen 57.0.10 y
+  `npm run brand:sync`; requiere recompilar el binario. Alcance y verificación en
+  [integración de marca](docs/brand-package.md).
+
+- Paquete independiente de identidad: wordmark y monograma reconstruidos como SVG,
+  PNG por variante, icono, capas adaptables Android, splash, favicon y ficha breve.
+  Fuente original no identificada; utilizable fuera de la app. Entrega y alcance en
+  [paquete de marca](docs/brand-package.md).
+
 ### 2026-10-22
 
+- DT-07, condición 1 aprobada: el operador confirmó la prueba final de confirmación
+  de correo con Android cerrado en el APK autónomo sin Metro. Evidencia acumulada
+  en docs/auth-confirmation.md; DT-07 sigue abierto por las demás condiciones.
+
+- Limpieza manual de cuentas de prueba: scripts/security/delete-pilot-account.cjs
+  fija Gasway Project, exige correo y --confirm, bloquea dependencias de aplicación
+  y verifica ausencia tras revocar sesiones/borrar Auth y perfil. Regresión offline
+  añadida; ejecutado con autorización para preparar el registro pendiente de DT-07.
+- DT-07: identificado el paso del enlace externo por el launcher nativo de Expo
+  en arranque cerrado. Preparada prueba con APK local release sin Metro; sin
+  compilar ni modificar configuración. Primer error intermitente sin diagnóstico
+  porque no se conservó su mensaje; condición 1 sigue abierta.
+- DT-07: retirada y repetición de limpieza de una cuenta de prueba de Android con autorización expresa;
+  revocadas sesiones/tokens/estado de confirmación y eliminado Auth con su perfil
+  en cascada. Ausencia verificada; correo disponible para repetir el registro.
+- El operador confirma ingreso correcto en Android tras corregir la navegación,
+  sin repetición del error Maximum update depth exceeded. Actualizado el estado
+  de condición 1: runtime nativo y pruebas parciales aprobados; callback con app
+  cerrada pendiente. Evidencia histórica conservada en docs/auth-confirmation.md.
+- Auth: navegador raíz estable durante carga/error de permisos; esos estados se
+  muestran en la ruta de entrada y los guards esperan acceso listo. Añadidas
+  regresiones de ingreso/salida y callback público; pendiente repetir en Android
+  el fallo reportado Maximum update depth exceeded tras pulsar Ingresar.
+- Enlace de confirmación consumido probado en Android tras cerrar sesión: muestra
+  estado vencido/utilizado. Ese estado ahora usa tarjeta, icono de reloj, color
+  de aviso y CTA para continuar con la cuenta; arranque cerrado aún pendiente.
+- Confirmación de correo probada por el operador en Android físico: correo recibido,
+  retorno a Gasway y mensaje de confirmación. La pantalla ahora distingue éxito
+  con título, check, tarjeta y CTA propios. Registro y pendientes de cierre en
+  docs/auth-confirmation.md; no acredita todavía todos los casos de teléfono.
+- Preparación Android local: documentada la ruta SDK mediante ANDROID_HOME/sdk.dir;
+  instalados y verificados Build Tools 36.0.0 y NDK 27.1.12297006 en el entorno
+  del operador, con Platform 36 existente. Sin Android Studio ni compilación.
+- Documentado JDK 17 como base para compilación Android local con Expo SDK 57;
+  preparación y comprobación del JDK en docs/auth-confirmation.md, sin compilar.
+- DT-07: script oficial de fallback correcto y sonda de solo lectura reutilizable
+  en scripts/security/probe-auth-redirects.cjs (12/12 PASS). Añadidas repeticiones
+  manuales y lista de prueba en teléfono a docs/auth-confirmation.md; inspección
+  de development build completada, sin compilar ni modificar clouds o cuentas.
+- DT-07, condición 1: Gasway Project reiniciado con autorización y estado Healthy.
+  Dashboard/CLI conservan la URL nativa exacta, pero el runtime Auth todavía usa
+  localhost. Diagnóstico reproducible para soporte en docs/auth-confirmation.md;
+  condición abierta, sin modificar cuentas de la app.
+- DT-07, condición 1: callback nativo de confirmación con PKCE, validación exacta
+  de URL y mensajes seguros para enlaces vencidos/reutilizados; Expo Crypto 57.0.4
+  suministra aleatoriedad segura y SHA-256 en Hermes. Overlay cloud limitado a
+  Site URL/allowlist; pruebas locales y scripts Test para redirecciones/correo.
+  Requiere recompilar development build; evidencia en docs/auth-confirmation.md.
+- DT-07 iniciado: inventario de grants/RLS/RPC y revisión Auth/advisors/backups en
+  ambos proyectos; nueva suite SQL y prueba Auth/Data API con dos cuentas temporales
+  eliminadas. CI Gitleaks 8.30.1 con SHA-256 fijo, historial completo y control
+  positivo; falso positivo de contraste acotado. Evidencia y pendientes en
+  docs/pilot-security.md. No modifica configuración ni datos de la app.
 - DT-03 cerrado: [Actions #39807681871](https://github.com/nachodev-ui/GW_DST/actions/runs/39807681871)
   confirmó nueve escenarios por HTTPS en Gasway Test, con 9 PASS, 9 CLEAN y
   8 bloqueos reales observados. Assertions de ganador, eventos, stock y reservas;

@@ -1,0 +1,20 @@
+{
+  "colors": {
+    "green": "#1E2417",
+    "cream": "#F3F2E8",
+    "lime": "#A8C26A",
+    "olive": "#4A5A2A",
+    "black": "#000000",
+    "white": "#FFFFFF"
+  },
+  "logo": { "wordmarkWidth": 160, "monogramWidth": 32 },
+  "splash": { "imageWidth": 240 },
+  "assets": {
+    "icon": "./assets/identity/icon.png",
+    "adaptiveForeground": "./assets/identity/adaptive-foreground.png",
+    "adaptiveMonochrome": "./assets/identity/adaptive-monochrome.png",
+    "splashLight": "./assets/identity/splash-light.png",
+    "splashDark": "./assets/identity/splash-dark.png",
+    "favicon": "./assets/identity/favicon.png"
+  }
+}

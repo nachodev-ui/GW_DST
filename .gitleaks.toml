@@ -1,0 +1,31 @@
+title = "Gasway secret detection"
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Reviewed false positive: sRGB contrast prose, not a credential"
+targetRules = ["generic-api-key"]
+condition = "AND"
+paths = ['''(?:^|[/\\])docs[/\\]design\.md$''']
+regexTarget = "match"
+regexes = ['''^tokens:\s*blanco/primary\s*$''']
+
+[[rules]]
+id = "supabase-secret-key"
+description = "Supabase server-only secret key"
+regex = '''\bsb_secret_[A-Za-z0-9_-]{20,}\b'''
+keywords = ["sb_secret_"]
+
+[[rules]]
+id = "supabase-access-token"
+description = "Supabase Management API personal access token"
+regex = '''\bsbp_[a-fA-F0-9]{40}\b'''
+keywords = ["sbp_"]
+
+[[rules]]
+id = "legacy-jwt"
+description = "Complete legacy JWT (review public anon tokens individually)"
+regex = '''\beyJ[A-Za-z0-9_-]+\.eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]{20,}\b'''
+keywords = ["eyJ"]
+# Inspect complete JWTs, including anon keys: public clients must use publishable keys.

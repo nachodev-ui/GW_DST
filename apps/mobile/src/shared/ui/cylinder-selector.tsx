@@ -48,11 +48,6 @@ export function CylinderSelector({
           />
         ))}
       </View>
-      <Text variant="note" style={styles.reference}>
-        {brand
-          ? `Fotos de cilindros ${brand}. Elige el formato que usas.`
-          : 'Ilustraciones de tamaño. La marca se elige después, según disponibilidad.'}
-      </Text>
     </View>
   );
 }

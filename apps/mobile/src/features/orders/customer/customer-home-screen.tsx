@@ -14,7 +14,7 @@ import {
   type weights,
 } from '@/shared/orders/contracts';
 import { Avatar } from '@/shared/ui/avatar';
-import { Button, CashNote, ui } from '@/shared/ui/components';
+import { Button, ui } from '@/shared/ui/components';
 import { CylinderBrandComposition } from '@/shared/ui/cylinder-illustration';
 import { CylinderSelector } from '@/shared/ui/cylinder-selector';
 import { Enter } from '@/shared/ui/enter';
@@ -23,6 +23,7 @@ import { Icon } from '@/shared/ui/icon';
 import { PulsePressable } from '@/shared/ui/pulse-pressable';
 import { Skeleton } from '@/shared/ui/skeleton';
 import { Text } from '@/shared/ui/text';
+import { GaswayLogo } from '@/shared/ui/gasway-logo';
 import { theme } from '@/theme';
 
 type Weight = (typeof weights)[number];
@@ -61,12 +62,10 @@ export function CustomerHomeScreen() {
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <Enter>
           <View style={styles.header}>
-            <View style={ui.stack}>
-              <Text variant="title" style={ui.primaryText}>
-                gasway<Text style={styles.brandDot}>.</Text>
-              </Text>
+            <View style={[ui.stack, ui.flex]}>
+              <GaswayLogo />
               <Text variant="note" style={ui.muted}>
-                {name ? `Hola, ${name}. Qué bueno verte.` : 'Qué bueno tenerte por aquí.'}
+                {`Hola, ${name}. Qué bueno verte.`}
               </Text>
             </View>
             <PulsePressable
@@ -106,12 +105,9 @@ export function CustomerHomeScreen() {
             end={{ x: 1, y: 1 }}
             style={styles.hero}
           >
-            <Text variant="note" style={styles.eyebrow}>
-              A GUSTO EN CASA
-            </Text>
             <View style={styles.heroBody}>
               <Text variant="display" accessibilityRole="header" style={styles.heroTitle}>
-                Calor{'\n'}para tu{'\n'}día.
+                Calor para tu día.
               </Text>
               <View pointerEvents="none" style={styles.heroArt}>
                 <View style={styles.halo} />
@@ -143,9 +139,6 @@ export function CustomerHomeScreen() {
               <Text variant="title" accessibilityRole="header">
                 Tu cilindro de siempre
               </Text>
-              <Text variant="note" style={ui.muted}>
-                01
-              </Text>
             </View>
             <Text variant="note" style={ui.muted}>
               Elige el tamaño. Después, tu marca.
@@ -154,7 +147,6 @@ export function CustomerHomeScreen() {
             {weight ? (
               <Button label={`Pedir cilindro de ${weight} kg`} onPress={() => startOrder(weight)} />
             ) : null}
-            <CashNote />
           </View>
         </Enter>
         {failed ? (
@@ -267,7 +259,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     gap: theme.spacing.sm,
   },
-  brandDot: { color: theme.colors.accent },
   avatar: { minWidth: theme.layout.touchTarget, minHeight: theme.layout.touchTarget },
   hero: {
     ...theme.elevation.medium,

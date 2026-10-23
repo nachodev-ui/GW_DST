@@ -2,6 +2,11 @@
 
 Fecha: 2026-10-17. Estado: aceptado; migración pendiente de aplicación.
 
+Actualización 2026-10-23: [ADR 0027](0027-registration-contact-phone.md) permite
+validar/copiar únicamente el teléfono de contacto desde metadatos al alta. El rol
+y la aprobación siguen siendo autoritativos del servidor. El resto de este ADR
+conserva el contexto y la evidencia histórica de su entrega original.
+
 ## Decisión
 
 El trigger privado crea profiles con customer explícito, ignorando metadata de Auth.
