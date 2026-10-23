@@ -62,6 +62,9 @@ se validaron confirmación real, aviso de enlace consumido e ingreso tras correg
 la navegación. La condición 1 quedó aprobada y cerrada el 2026-10-22: el operador
 confirmó éxito de la prueba final con la app cerrada en el APK autónomo sin Metro.
 Evidencia en [confirmación de correo](docs/auth-confirmation.md).
+El detector de secretos ya pasó en
+[Actions](https://github.com/nachodev-ui/GW_DST/actions/runs/40038443767);
+GitGuardian aprobó también el commit consolidado del PR #11.
 Siguen pendientes política de contraseñas/abuso, restricciones de claves y backup/restauración. No habilita un
 piloto. Evidencia y condiciones de cierre: [seguridad operativa](docs/pilot-security.md).
 
@@ -327,6 +330,9 @@ GLP vencido.
   transporte simulado, mocks del navegador actualizados y errores de lint de Auth
   resueltos. La confirmación descarta el éxito anterior al recibir otro enlace;
   typecheck, formato, lint y regresiones offline aprobados.
+- Detector de secretos DT-07 aprobado en Actions y GitGuardian aprobado en el
+  PR #11. Condición 6 parcialmente acreditada; quedan las regresiones SQL vigentes
+  y la revisión actualizada del entorno piloto.
 
 - Retirado el aviso redundante de efectivo de Inicio, revisión de compra y detalle
   del pedido, junto con el componente `CashNote`.

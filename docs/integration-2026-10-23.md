@@ -76,3 +76,12 @@ requeridas, sin reducir entropía ni ejecutar los scripts de cuentas/correo.
 El commit consolidado excluye aquel historial intermedio del PR. El resultado de
 Actions y la URL del PR se conservan en GitHub, separados de la evidencia cloud
 histórica.
+
+## Evidencia de GitHub
+
+[PR #11](https://github.com/nachodev-ui/GW_DST/pull/11), dirigido a main.
+El commit consolidado 2d995404c18f7b56e8204a44327c5f87d2b924b7 recibió aprobación
+de GitGuardian y del detector de secretos en
+[Actions 40038443767](https://github.com/nachodev-ui/GW_DST/actions/runs/40038443767).
+Las ejecuciones posteriores se consultan en los checks del PR. Esta evidencia no
+ejecuta ni sustituye la regresión SQL cloud de las ocho suites vigentes.

@@ -129,7 +129,10 @@ Configurar el check como requerido tras su primera ejecución en GitHub.
    Configuración Auth/redirects, claves y objetos Storage requieren recuperación
    separada; el backup de DB no contiene los archivos de Storage ni contraseñas de
    roles personalizados. No restaurar sobre la app como simulacro.
-6. Ejecutar el nuevo workflow en Actions y conservar enlace/evidencia. Al añadir
+6. **Parcial (2026-10-23):** detector de secretos aprobado en
+   [Actions 40038443767](https://github.com/nachodev-ui/GW_DST/actions/runs/40038443767),
+   commit 2d995404c18f7b56e8204a44327c5f87d2b924b7, [PR #11](https://github.com/nachodev-ui/GW_DST/pull/11).
+   GitGuardian también aprobó ese commit. Al añadir
    cambios de seguridad, ejecutar las regresiones relevantes en Test y repetir
    inventario/advisors del entorno que recibirá el piloto.
 
@@ -153,8 +156,10 @@ La pausa local de reintento y el mínimo de ocho caracteres del formulario no
 cierran la condición 2: falta endurecimiento servidor y decisión documentada de
 contraseñas/abuso. El operador mantuvo el proveedor de correo actual; no se
 configuró SMTP ni se aumentaron cuotas. Las condiciones 3–5 siguen pendientes y
-la 6 exige conservar evidencia del workflow de secretos y las regresiones en
-Actions. Publicar el PR no certifica por sí solo esos resultados.
+la 6 conserva arriba evidencia del workflow de secretos; siguen pendientes las
+regresiones SQL vigentes y el inventario/advisors actualizados del entorno del
+piloto. Las regresiones offline del PR se consultan en GitHub. Publicar o integrar
+el PR no cierra por sí solo esta condición.
 
 ## Validación de la entrega
 
@@ -164,7 +169,8 @@ Actions. Publicar el PR no certifica por sí solo esos resultados.
 - Smoke Auth/Data API correcto; dos cuentas eliminadas y sesiones locales cerradas.
 - Data API rechazó el esquema privado en Test y app con PGRST106.
 - Gitleaks: historial disponible y árbol de trabajo revisados; controles sintéticos
-  de secret, PAT y JWT rechazados, texto inocuo aceptado. Workflow pendiente de Actions.
+  de secret, PAT y JWT rechazados, texto inocuo aceptado. El workflow se aprobó
+  posteriormente en Actions el 2026-10-23; enlace en la condición 6.
 
 ## Fuentes vigentes
 
