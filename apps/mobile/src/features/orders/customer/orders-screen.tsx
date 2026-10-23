@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import { z } from 'zod';
 import { Text } from '@/shared/ui/text';
-import { Button, Card, CashNote, Feedback, ui } from '@/shared/ui/components';
+import { Button, Card, Feedback, ui } from '@/shared/ui/components';
 import { Screen, screenStyles } from '@/shared/ui/screen';
 import { BottomSheet } from '@/shared/ui/bottom-sheet';
 import { ProductImage } from '@/shared/ui/product-image';
@@ -57,9 +57,6 @@ export function OrdersScreen() {
           <View style={orderStyles.header}>
             <View style={ui.brandHeader}>
               <View style={ui.flex}>
-                <Text variant="note" style={ui.primaryText}>
-                  DE TU PUERTA A TU HISTORIAL
-                </Text>
                 <Text accessibilityRole="header" variant="display">
                   Tus pedidos
                 </Text>
@@ -74,7 +71,6 @@ export function OrdersScreen() {
                 <Icon name="refresh" />
               </PulsePressable>
             </View>
-            <Text style={ui.muted}>Cada pedido, con sus detalles a mano.</Text>
             <Button label="Hacer un nuevo pedido" onPress={() => router.push('/orders/new')} />
             <SegmentedTabs
               label="Filtrar pedidos"
@@ -266,7 +262,6 @@ function OrderDetail({ id }: { id: string }) {
                     : order.returned_brand}
                 </Text>
               ) : null}
-              <CashNote />
               {catalogue.isError ? (
                 <View style={ui.stack}>
                   <Feedback error text="No pudimos actualizar la descripción del producto." />

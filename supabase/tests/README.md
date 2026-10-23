@@ -1,6 +1,6 @@
 # Suites SQL vigentes después de ADR 0021
 
-La lista ejecutable y clasificación de los 16 archivos está en [suites.json](suites.json).
+La lista ejecutable y clasificación de los 17 archivos está en [suites.json](suites.json).
 Cada SQL debe figurar exactamente una vez como current o historical. El runner no
 ejecuta SQL por glob; solo acepta la ref de Gasway Test y exige un marcador privado.
 
@@ -10,9 +10,10 @@ $env:GASWAY_TEST_PROJECT_REF = 'xnrueexpwzvxotgwmamj'
 npm run db:test:cloud
 ```
 
-Las siete suites current son abastible_cylinder_variants, business_onboarding,
+Las ocho suites current son abastible_cylinder_variants, business_onboarding,
 business_driver_invitations, distributor_discovery, distributor_owned_coverage,
-driver_order_progress y driver_workspace. Las tres últimas de catálogo/progreso/
+driver_order_progress, driver_workspace y pilot_security. DT-07 añade la última
+para permisos efectivos, RLS, RPC y aislamiento de perfiles. Las suites de catálogo/progreso/
 workspace se adaptaron en DT-02 para rollback uniforme, compra comercial y cobertura
 heredada. Se ejecutan en serie, con timeout y rollback externo más subtransacciones
 internas. Los errores se propagan; las secuencias pueden avanzar.

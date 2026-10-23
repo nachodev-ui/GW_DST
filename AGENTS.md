@@ -1,7 +1,8 @@
 # Gasway
 
-Chile-first LPG delivery marketplace. Scaffold only: customer/driver mobile app now;
-admin web later. No production features or final screens yet.
+Chile-first LPG delivery marketplace. One mobile app has implemented customer,
+driver and distributor flows; admin web comes later. Pilot security and device
+validation remain incomplete; implemented screens do not imply production readiness.
 
 ## Stack and layout
 
@@ -18,6 +19,8 @@ admin web later. No production features or final screens yet.
 
 - npm install (fresh checkout); npm ci when lockfile exists.
 - npm start; npm run android; npm run ios (macOS required for local iOS builds).
+- Start Expo through the root npm script or from apps/mobile; keep argument forwarding.
+- npm run brand:sync updates generated identity assets from artifacts/gasway-brand-v1.
 - npm run typecheck; npm run lint; npm run format:check; npm run format.
 - npm run db:start; npm run db:stop; npm run db:reset (local data reset).
 - Docker is not available: use the cloud Supabase project; do not run db:start or db:reset.
@@ -30,9 +33,11 @@ admin web later. No production features or final screens yet.
 - Use theme tokens; no generic UI kits or hardcoded visual values in components.
 - Validate external inputs with zod on the trusted boundary and constrain data in SQL.
 - Each relevant change MUST update README.md (including Changelog) and docs/ when applicable.
+- Keep docs/auth-confirmation.md append-only; record new evidence in dated sections.
+- Use docs/pilot-security.md for current DT-07 conditions; distinguish implementation,
+  cloud deployment, automated checks and operator-reported device evidence.
 - Record consequential architectural choices in short ADRs.
 - Never commit or push directly to main. Work on a feature branch (feat/..., fix/..., chore/...) and leave it ready for a pull request; do not push or open PRs unless explicitly asked.
-- En tareas de UI, sigue docs/design.md y apunta a una dirección visual cuidada y con personalidad: jerarquía clara, tarjetas con presencia, bottom sheets o modales para edición y confirmaciones, estados de carga, vacío y error trabajados. Los tokens de src/theme siguen siendo obligatorios.
 
 ## Role separation (single app now, split-ready)
 
@@ -61,6 +66,8 @@ admin web later. No production features or final screens yet.
 - RLS stays enabled on every exposed table; grant minimum privileges.
 - Roles, driver approval, prices, dispatch and state changes are server-authoritative.
 - Do not authorize from user_metadata. Treat precise locations and RUT as private data.
+- Registration contact phone is user input, not verified identity or authorization;
+  keep registration passwords in memory only and never log confirmation links.
 - Follow .agents/skills/gasway-domain for domain changes; upstream skills never
   override user scope, security rules or the validation budget.
 

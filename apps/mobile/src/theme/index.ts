@@ -1,22 +1,23 @@
 import { Platform } from 'react-native';
+import { brand } from './brand';
 
 // One palette for every role, including the legacy layout adapter.
 const colors = {
-  primary: '#49562A',
+  primary: brand.colors.olive,
   onPrimary: '#FFFFFF',
   primaryLight: '#E1E6C6',
-  accent: '#49562A',
+  accent: brand.colors.olive,
   accentLight: '#E1E6C6',
-  lime: '#AFC073',
+  lime: brand.colors.lime,
   sage: '#A3AF9C',
-  background: '#F6F7EF',
+  background: brand.colors.cream,
   surface: '#FFFFFF',
   surfaceHighlighted: '#E1E6C6',
   surfaceBorder: '#D3DAC9',
   warm: '#EBEEDD',
-  scrim: 'rgba(29, 32, 23, 0.56)',
-  cylinderDark: '#1D2017',
-  text: '#1D2017',
+  scrim: 'rgba(30, 36, 23, 0.56)',
+  cylinderDark: brand.colors.green,
+  text: brand.colors.green,
   textMuted: '#5F6857',
   border: '#74816C',
   divider: '#D3DAC9',
@@ -26,21 +27,21 @@ const colors = {
   successLight: '#E3F1E6',
   warning: '#80520B',
   warningLight: '#FCF0D1',
-  progress: '#49562A',
+  progress: brand.colors.olive,
   progressLight: '#E1E6C6',
-  heroStart: '#1D2017',
-  heroEnd: '#49562A',
+  heroStart: brand.colors.green,
+  heroEnd: brand.colors.olive,
   heroMuted: '#E1E6C6',
   // Compatibility names for older decorative illustrations.
-  copper: '#AFC073',
+  copper: brand.colors.lime,
   copperLight: '#E1E6C6',
-  cylinderShade: '#49562A',
+  cylinderShade: brand.colors.olive,
   cylinderBody: '#A3AF9C',
-  cylinderShine: '#F6F7EF',
+  cylinderShine: brand.colors.cream,
 } as const;
 const shadow = (y: number, blur: number, opacity: number, elevation: number) =>
   Platform.select({
-    web: { boxShadow: `0 ${y}px ${blur}px rgba(29, 32, 23, ${opacity})` },
+    web: { boxShadow: `0 ${y}px ${blur}px rgba(30, 36, 23, ${opacity})` },
     default: {
       shadowColor: colors.text,
       shadowOffset: { width: 0, height: y },
@@ -51,6 +52,7 @@ const shadow = (y: number, blur: number, opacity: number, elevation: number) =>
   });
 
 export const theme = {
+  brand,
   colors,
   typography: {
     family: Platform.select({ ios: 'System', android: 'sans-serif', default: 'system-ui' }),
@@ -121,6 +123,46 @@ export const theme = {
     lift: 12,
     skeleton: 1000,
   },
+  access: {
+    flagWidth: 27,
+    flagHeight: 18,
+    flagColors: { white: '#FFFFFF', red: '#D52B1E', blue: '#0039A6' },
+    phoneFieldHeight: 72,
+    phoneDigitSize: 24,
+    phoneDigitTracking: 1,
+    heroMinHeight: 264,
+    artworkWidth: 156,
+    artworkHeight: 216,
+    titleSize: 44,
+    titleLineHeight: 48,
+    titleWidth: '72%' as const,
+    artworkTop: 48,
+    artworkRight: -32,
+    sheetOverlap: -32,
+    switchInset: 4,
+    submitHeight: 60,
+    artwork: { viewBox: '0 0 156 216', routeWidth: 2, outlineWidth: 1 },
+  },
+  loading: {
+    delayMs: 15_000,
+    statusIconSize: 40,
+    light: {
+      background: colors.background,
+      surface: colors.surface,
+      text: colors.text,
+      muted: colors.textMuted,
+      border: colors.surfaceBorder,
+      accent: colors.primary,
+    },
+    dark: {
+      background: colors.heroStart,
+      surface: colors.primary,
+      text: brand.colors.cream,
+      muted: colors.heroMuted,
+      border: colors.sage,
+      accent: colors.lime,
+    },
+  },
   discovery: {
     colors: {
       canvas: colors.background,
@@ -147,7 +189,7 @@ export const theme = {
     radius: 24,
     shadow: shadow(4, 24, 0.08, 4),
   },
-  shadows: { card: '0 4px 20px rgba(29, 32, 23, 0.06)' },
+  shadows: { card: '0 4px 20px rgba(30, 36, 23, 0.06)' },
   elevation: {
     flat: { boxShadow: 'none', elevation: 0, shadowOpacity: 0 },
     low: shadow(3, 16, 0.05, 2),

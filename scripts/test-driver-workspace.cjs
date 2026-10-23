@@ -206,7 +206,10 @@ function Stack() {}
 Stack.Protected = 'Protected';
 Stack.Screen = 'Screen';
 const navigator = load('apps/mobile/src/features/auth/auth-navigator.tsx', {
+  react: { useEffect() {} },
+  'expo-router': { usePathname: () => '/driver' },
   'expo-router/stack': { Stack },
+  '@/features/auth/registration': { useRegistration: { getState: () => ({ leave() {} }) } },
   '@/features/auth/auth-provider': {
     useAuth: () => ({ session: { user: { id } }, zone, loading: false, error: false }),
   },

@@ -3,6 +3,11 @@ node_modules/
 coverage/
 package-lock.json
 supabase/.temp/
+supabase/**/.temp/
 apps/mobile/android/
 apps/mobile/ios/
 .expo/
+# Exported standalone package: preserve checksums and ZIP parity.
+artifacts/gasway-brand-v1/
+# Append-only audit evidence; preserve previously recorded content.
+docs/auth-confirmation.md

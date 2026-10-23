@@ -13,6 +13,7 @@ import { theme } from '@/theme';
 import { FontReadyContext, Text } from './text';
 import { PulsePressable } from './pulse-pressable';
 import { Icon, type IconName } from './icon';
+import { GaswayLogo } from './gasway-logo';
 
 type ButtonProps = {
   label: string;
@@ -70,6 +71,7 @@ export function Input({
   help,
   error,
   prefix,
+  frameStyle,
   hideLabel = false,
   style,
   ref,
@@ -78,7 +80,8 @@ export function Input({
   label: string;
   help?: string;
   error?: string | undefined;
-  prefix?: string;
+  prefix?: ReactNode;
+  frameStyle?: StyleProp<ViewStyle>;
   hideLabel?: boolean;
   ref?: Ref<TextInput>;
 }) {
@@ -86,11 +89,15 @@ export function Input({
   return (
     <View style={ui.stack}>
       {!hideLabel ? <Text variant="label">{label}</Text> : null}
-      <View style={prefix ? [ui.inputFrame, error && ui.inputError] : undefined}>
+      <View style={prefix ? [ui.inputFrame, frameStyle, error && ui.inputError] : undefined}>
         {prefix ? (
-          <Text variant="title" accessible={false} style={ui.inputPrefix}>
-            {prefix}
-          </Text>
+          typeof prefix === 'string' ? (
+            <Text variant="title" accessible={false} style={ui.inputPrefix}>
+              {prefix}
+            </Text>
+          ) : (
+            <View accessible={false}>{prefix}</View>
+          )
         ) : null}
         <TextInput
           {...props}
@@ -370,26 +377,10 @@ export function Section({
   );
 }
 
-export function CashNote() {
-  return (
-    <View style={ui.header}>
-      <Icon name="cash" />
-      <Text variant="note" style={[ui.muted, ui.flex]}>
-        Pagas en efectivo al recibir
-      </Text>
-    </View>
-  );
-}
-
 export function BrandHeader({ accountAction }: { accountAction?: ReactNode }) {
   return (
     <View style={ui.brandHeader}>
-      <View style={ui.header}>
-        <Text variant="display" style={ui.primaryText}>
-          gasway
-        </Text>
-        <View style={ui.dot} />
-      </View>
+      <GaswayLogo />
       {accountAction}
     </View>
   );
@@ -532,12 +523,6 @@ export const ui = StyleSheet.create({
   section: {
     gap: theme.spacing.lg,
     paddingVertical: theme.spacing.md,
-  },
-  dot: {
-    width: theme.layout.dot,
-    height: theme.layout.dot,
-    borderRadius: theme.radii.pill,
-    backgroundColor: theme.colors.accent,
   },
   person: { width: theme.layout.icon, alignItems: 'center', gap: theme.spacing.xs },
   personHead: {

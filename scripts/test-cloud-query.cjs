@@ -89,7 +89,7 @@ async function main() {
     );
     if (child.error) throw child.error;
     assert.equal(child.status, failure ? 1 : 0, child.stderr);
-    assert.equal((child.stdout.match(/FIXTURE HTTPS request/g) ?? []).length, failure ? 1 : 7);
+    assert.equal((child.stdout.match(/FIXTURE HTTPS request/g) ?? []).length, failure ? 1 : 8);
     assert.ok(child.stdout.includes('Supabase Management API over HTTPS'));
     assert.equal((child.stdout + child.stderr).includes(token), false);
     if (failure) assert.ok(child.stderr.includes('FAIL injected SQL assertion'));

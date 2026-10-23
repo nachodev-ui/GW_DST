@@ -1,28 +1,30 @@
 # Gasway · Calor en casa
 
-Referencia visual vigente desde el 21 de octubre de 2026. Fuente de verdad:
+Referencia visual actualizada el 23 de octubre de 2026. Fuente de verdad:
 `apps/mobile/src/theme/index.ts`; `legacy.ts` adapta disposición y comparte los
-mismos colores. Identidad cálida y local: oliva profundo, lima suave, crema y salvia.
+mismos colores. `theme/brand.ts` recibe la paleta exacta del paquete de identidad
+mediante `npm run brand:sync`. Identidad cálida y local: oliva profundo, lima suave,
+crema y salvia de apoyo.
 Composiciones compactas, tipografía expresiva y una acción clara por momento.
 
 ## Paleta
 
 | Token                                        | Valor                       | Uso                                               |
 | -------------------------------------------- | --------------------------- | ------------------------------------------------- |
-| primary / progress                           | #49562A                     | Acciones, selección y pedido confirmado/en camino |
+| primary / progress                           | #4A5A2A                     | Acciones, selección y pedido confirmado/en camino |
 | onPrimary / surface                          | #FFFFFF                     | Texto inverso y superficies                       |
 | primaryLight / progressLight                 | #E1E6C6                     | Selección y progreso                              |
-| background                                   | #F6F7EF                     | Crema, lienzo general                             |
-| text                                         | #1D2017                     | Tinta oliva                                       |
+| background                                   | #F3F2E8                     | Crema, lienzo general                             |
+| text                                         | #1E2417                     | Tinta oliva                                       |
 | textMuted                                    | #5F6857                     | Lectura secundaria                                |
-| accent                                       | #49562A                     | Oliva oscuro para texto e iconos                  |
+| accent                                       | #4A5A2A                     | Oliva oscuro para texto e iconos                  |
 | accentLight                                  | #E1E6C6                     | Fondo claro de apoyo                              |
-| lime / copper                                | #AFC073                     | CTA del hero y decoración                         |
+| lime / copper                                | #A8C26A                     | CTA del hero y decoración                         |
 | sage                                         | #A3AF9C                     | Salvia de la referencia                           |
 | copperLight                                  | #E1E6C6                     | Apoyo decorativo heredado                         |
-| cylinderBody / cylinderShade / cylinderShine | #A3AF9C / #49562A / #F6F7EF | Ilustraciones decorativas heredadas               |
-| cylinderDark                                 | #1D2017                     | Aros y base decorativos                           |
-| heroStart / heroEnd                          | #1D2017 / #49562A           | Degradado del hero                                |
+| cylinderBody / cylinderShade / cylinderShine | #A3AF9C / #4A5A2A / #F3F2E8 | Ilustraciones decorativas heredadas               |
+| cylinderDark                                 | #1E2417                     | Aros y base decorativos                           |
+| heroStart / heroEnd                          | #1E2417 / #4A5A2A           | Degradado del hero                                |
 | heroMuted                                    | #E1E6C6                     | Texto secundario sobre el hero                    |
 | surfaceBorder / divider                      | #D3DAC9                     | Separadores discretos                             |
 | border                                       | #74816C                     | Límite visible de campos                          |
@@ -30,19 +32,20 @@ Composiciones compactas, tipografía expresiva y una acción clara por momento.
 | success / successLight                       | #216144 / #E3F1E6           | Entregado                                         |
 | warning / warningLight                       | #80520B / #FCF0D1           | Solicitado y búsqueda de repartidor               |
 | error / errorLight                           | #A32D32 / #FBE9E7           | Cancelación y errores                             |
-| scrim                                        | rgba(29, 32, 23, 0.56)      | Fondo de hojas modales                            |
+| scrim                                        | rgba(30, 36, 23, 0.56)      | Fondo de hojas modales                            |
 
-Contraste calculado con luminancia sRGB de los tokens: blanco/primary 7,93:1;
-text/background 15,32:1; textMuted/background 5,40:1; accent/accentLight 6,17:1;
+Contraste calculado con luminancia sRGB de los tokens: blanco/primary 7,53:1;
+text/background 14,15:1; textMuted/background 5,18:1; accent/accentLight 5,86:1;
 success 6,29:1, warning 5,92:1 y error 6,01:1 sobre sus fondos semánticos.
-Blanco sobre el extremo más claro del hero 7,93:1 y heroMuted 6,17:1.
-Texto oscuro sobre lima 8,35:1. Estos pares superan WCAG AA para texto normal.
+Blanco sobre el extremo más claro del hero 7,53:1 y heroMuted 5,86:1.
+Texto oscuro sobre lima 8,02:1. Estos pares superan WCAG AA para texto normal.
 Lima y salvia no se usan como texto sobre blanco. Los estados incluyen icono y texto,
 además del color.
 
-Paleta aprobada por el usuario el 21 de octubre. Los cinco colores se extrajeron
-directamente de las franjas de la imagen: #1D2017, #49562A, #AFC073, #E1E6C6 y #A3AF9C.
-El lienzo y tonos secundarios son derivados; los estados semánticos se conservan.
+La paleta de interfaz del 21 de octubre conservaba derivados salvia y crema verdoso.
+El paquete de marca del 23 de octubre fija #1E2417, #F3F2E8, #A8C26A y #4A5A2A,
+ahora aplicados a los tokens principales. Los tonos secundarios y estados semánticos
+se conservan.
 Oliva oscuro para lectura y acciones, crema para el lienzo y lima con texto oscuro
 en la acción del hero. La percepción de confianza requiere validación con clientes.
 Referencia del mínimo de 4,5:1 para texto normal:
@@ -52,6 +55,12 @@ lima/crema; no representan el color de fotografías de fabricantes.
 
 ## Tipografía, espacio y profundidad
 
+- GaswayLogo representa el wordmark y monograma como contornos vectoriales del
+  paquete maestro. La fuente original de la lámina IA no está identificada. El logo
+  no depende de Outfit/Figtree; punto y proporciones se escalan juntos. Ancho de
+  lienzo 160 para wordmark y 32 para monograma, con protección incluida. Su etiqueta
+  accesible es «Gasway». Origen, recursos nativos y sincronización en
+  [paquete de marca](brand-package.md).
 - Outfit 600 para títulos y 700 para display; Figtree 400–700 para lectura y controles.
   Fuentes locales cargadas con expo-font, con respaldo del sistema si fallan.
 - Escala: display 36; hero 42/45; título 28; subtítulo 21; cuerpo 16/24;
@@ -63,6 +72,51 @@ lima/crema; no representan el color de fotografías de fabricantes.
   Evitar envolver cada texto en otra caja; agrupar por propósito.
 - Áreas táctiles de al menos 48; botones 56. Safe areas incluidas en pantallas,
   pies y navegación. El pie del pedido permanece fuera del scroll y sobre el teclado.
+
+## Inicio de sesión y registro
+
+Composición renovada el 23 de octubre de 2026, tomando como punto de partida
+[la galería solicitada de ScreensDesign](https://screensdesign.com/store-screenshots/)
+y [la referencia de acceso de VSCO](https://screensdesign.com/apps/vsco-photo-video-editor/):
+cabecera visual con identidad fuerte y formulario en un panel superpuesto.
+La adaptación usa exclusivamente la paleta Gasway, sin copiar fotografías ni
+recursos de la referencia.
+
+- Cabecera verde profundo, wordmark vectorial en crema y títulos Outfit en dos
+  líneas. Una ilustración SVG de puerta, ruta y círculos en lima aporta carácter;
+  es decorativa y queda fuera del árbol de accesibilidad.
+- Panel crema con esquinas superiores redondeadas y selector «Iniciar sesión /
+  Registrarme». El estado seleccionado se comunica con superficie y semántica de
+  radio; cada opción mantiene un área táctil mínima de 48.
+- Campos blancos con etiquetas persistentes, foco oliva y errores en color
+  semántico. Ayuda del registro reducida a «Mínimo 8 caracteres», oculta cuando
+  el campo ya tiene un error para evitar mensajes duplicados.
+- Acción principal oliva en cápsula, flecha y estado de envío con indicador de
+  actividad. El selector y los campos se bloquean durante el envío.
+- Retirados «Tu próximo pedido empieza aquí…», la descripción promocional del
+  registro y las preguntas del pie. Se conservan validación, errores y aviso de
+  confirmación de correo.
+
+La composición puede crecer con el tamaño del texto, incluye safe areas y scroll
+con adaptación al teclado. Ancho de contenido limitado a 440; las superficies se
+extienden en web. Medidas específicas centralizadas en `theme.access`; colores,
+tipografía y controles reutilizan los tokens existentes. Implementación contenida
+en `features/auth/access-ui.tsx` y `access-screen.tsx`, sin dependencias nuevas.
+El registro ahora reutiliza esta composición en dos pasos: correo/contraseña con
+«Continuar», luego teléfono con «Crear cuenta». El aviso «Revisa tu correo» tiene
+su propia ruta. Solo el paso final crea la cuenta; contrato y validación en
+[registro con teléfono](registration-phone.md). El callback PKCE conserva su lógica.
+
+El paso de teléfono usa una composición clara y compacta: vuelta y logo en la
+cabecera, indicador «2 de 2», título y explicación breve. El campo reúne bandera
+chilena SVG, prefijo fijo `+56 9` y un espacio editable de ocho dígitos, con foco en
+el borde completo. El CTA comunica la pausa/reintento si Auth limita el envío;
+volver conserva correo/teléfono en memoria y pide otra vez la contraseña.
+
+La composición de acceso original pasó `npm run typecheck`. La validación de la
+ampliación con teléfono y su migración se registra en el documento enlazado.
+No se renderizó la app ni se realizaron capturas o pruebas en emulador; la revisión
+visual y del teclado en dispositivo queda pendiente.
 
 ## Primitivas
 
@@ -136,6 +190,9 @@ Se conserva useOrdersList/useCatalogue, sin consultas ni polling nuevos.
 
 Validación por paso; los datos permanecen al volver. Botones bloqueados durante
 creación, límites de cantidad/total conservados. Efectivo contra entrega solamente.
+
+El aviso redundante sobre pagar al recibir se retiró de Inicio, la revisión de
+compra y el detalle del pedido, junto con el componente `CashNote`.
 
 ## Seguimiento y Pedidos
 
@@ -240,3 +297,25 @@ Rutas respecto de la raíz del repositorio; se conservaron los cambios locales p
 - `.claude/napkin.md`: precedencia del presupuesto explícito y edición UTF-8 en Windows.
 
 Las rutas, hooks/consultas, contratos, SQL, RLS y assets de icono/splash no se editaron.
+
+## Confirmación de correo completada
+
+La espera normal de acceso/confirmación muestra solo el logo vectorial centrado
+de la nueva identidad; el estado real sigue disponible para lectores de pantalla.
+Tras 15 segundos aparecen aviso y reintento cuando el flujo lo permite. Los
+resultados y controles de confirmación se conservan. El video de Higgsfield y la
+ilustración de casa/cilindro se retiraron. Ver [pantallas de espera](loading-screen.md).
+
+El callback de Auth cambia el título a «¡Correo confirmado!» solo después del
+intercambio correcto. Una tarjeta de éxito reúne check grande, etiqueta textual
+«Verificación completada» y mensaje; el CTA dice «Continuar en Gasway». Icono,
+texto y color comunican el estado, con anuncio accesible y tokens existentes.
+Los estados de espera, enlace vencido/inválido y acceso no completado conservan
+sus mensajes; el éxito no se deduce de haber abierto el enlace.
+
+## Enlace de confirmación vencido o utilizado
+
+Este resultado presenta una tarjeta de aviso con reloj y colores warning/warningLight,
+texto de cuerpo neutro y CTA «Continuar con mi cuenta». El título «Revisa tu enlace»
+y la etiqueta «Enlace vencido o utilizado» distinguen el estado de una confirmación
+exitosa. No se comunica únicamente con texto rojo ni se presupone correo confirmado.

@@ -1,11 +1,18 @@
-import { useState } from 'react';
-import { Platform } from 'react-native';
+import { useCallback, useRef, useState } from 'react';
+import { router, useFocusEffect } from 'expo-router';
 import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { getSupabase } from '@/shared/supabase/client';
-import { Button, Input } from '@/shared/ui/components';
+import { Input } from '@/shared/ui/components';
 import { Text } from '@/shared/ui/text';
-import { AccessPage, AccessFeedback, styles } from '@/features/auth/access-ui';
+import {
+  AccessPage,
+  AccessNavigation,
+  AccessSubmit,
+  AccessFeedback,
+  styles,
+} from '@/features/auth/access-ui';
+import { useRegistration } from '@/features/auth/registration';
 import {
   authErrorMessage,
   credentialsSchema,
@@ -14,8 +21,10 @@ import {
 } from '@/features/auth/credentials';
 
 export function AccessScreen() {
-  const [register, setRegister] = useState(false);
-  const [notice, setNotice] = useState('');
+  const contact = useRegistration((state) => state.contact);
+  const registrationPending = useRegistration((state) => state.submitting);
+  const [register, setRegister] = useState(!!contact);
+  const submitting = useRef(false);
   const [focusedField, setFocusedField] = useState<keyof Credentials | null>(null);
   const {
     control,
@@ -26,57 +35,63 @@ export function AccessScreen() {
     formState: { errors, isSubmitting },
   } = useForm<Credentials>({
     resolver: zodResolver(register ? registrationSchema : credentialsSchema),
-    defaultValues: { email: '', password: '' },
+    defaultValues: { email: contact?.email ?? '', password: '' },
   });
-  const submit = handleSubmit(async (values) => {
-    setNotice('');
-    try {
-      const client = getSupabase();
-      const result = register
-        ? await client.auth.signUp({
-            ...values,
-            ...(Platform.OS === 'web'
-              ? { options: { emailRedirectTo: window.location.origin } }
-              : {}),
-          })
-        : await client.auth.signInWithPassword(values);
-      if (result.error) throw result.error;
-      reset();
-      if (register && !result.data.session) {
-        setRegister(false);
-        setNotice('Revisa tu correo para confirmar tu cuenta. Luego vuelve aquí e inicia sesión.');
+  useFocusEffect(
+    useCallback(() => {
+      const saved = useRegistration.getState().contact;
+      if (saved) {
+        setRegister(true);
+        reset({ email: saved.email, password: '' });
       }
-    } catch (error) {
-      setError('root', { message: authErrorMessage(error) });
-    }
-  });
+    }, [reset]),
+  );
+  const submit = () =>
+    handleSubmit(async (values) => {
+      if (submitting.current) return;
+      submitting.current = true;
+      try {
+        if (register) {
+          if (useRegistration.getState().begin(values)) {
+            reset();
+            router.push('/auth/phone');
+          }
+          return;
+        }
+        const result = await getSupabase().auth.signInWithPassword(values);
+        if (result.error) throw result.error;
+        reset();
+      } catch (error) {
+        setError('root', { message: authErrorMessage(error) });
+      } finally {
+        submitting.current = false;
+      }
+    })();
 
   return (
     <AccessPage
-      title={register ? 'Crea tu cuenta' : 'Inicia sesión'}
-      description={
-        register
-          ? 'Pide gas a distribuidores de tu zona. Si quieres repartir, podrás solicitarlo al ingresar.'
-          : 'Tu próximo pedido empieza aquí. Ingresa con tu correo y contraseña.'
-      }
-      footer={
-        <>
-          <Text variant="note" style={styles.footerText}>
-            {register ? '¿Ya eres parte de Gasway?' : '¿Primera vez en Gasway?'}
-          </Text>
-          <Button
-            variant="link"
-            label={register ? 'Iniciar sesión' : 'Crear una cuenta'}
-            disabled={isSubmitting}
-            onPress={() => {
-              setRegister(!register);
-              reset();
-              setNotice('');
-            }}
-          />
-        </>
+      title={register ? 'Crea tu\ncuenta.' : 'Inicia\nsesión.'}
+      navigation={
+        <AccessNavigation
+          register={register}
+          disabled={isSubmitting || registrationPending}
+          onChange={(nextRegister) => {
+            if (nextRegister === register) return;
+            setRegister(nextRegister);
+            reset({ email: useRegistration.getState().contact?.email ?? '', password: '' });
+            setFocusedField(null);
+          }}
+        />
       }
     >
+      {register && contact ? (
+        <Text variant="note" style={styles.muted}>
+          Retoma tu registro. Ingresa nuevamente tu contraseña para continuar.
+        </Text>
+      ) : null}
+      {registrationPending ? (
+        <AccessFeedback text="Tu solicitud de registro sigue en curso. Espera a que termine para continuar." />
+      ) : null}
       <Controller
         control={control}
         name="email"
@@ -84,6 +99,7 @@ export function AccessScreen() {
           <Input
             ref={ref}
             label="Correo electrónico"
+            placeholder="nombre@correo.cl"
             error={errors.email?.message}
             style={[styles.input, focusedField === 'email' && !errors.email && styles.inputFocused]}
             value={value}
@@ -98,7 +114,7 @@ export function AccessScreen() {
             autoCorrect={false}
             autoComplete="email"
             textContentType="emailAddress"
-            editable={!isSubmitting}
+            editable={!isSubmitting && !registrationPending}
             returnKeyType="next"
             onSubmitEditing={() => setFocus('password')}
             submitBehavior="submit"
@@ -113,11 +129,7 @@ export function AccessScreen() {
             ref={ref}
             label="Contraseña"
             error={errors.password?.message}
-            help={
-              register
-                ? 'Usa al menos 8 caracteres. Puedes pegar tu contraseña desde tu gestor.'
-                : ''
-            }
+            help={register && !errors.password ? 'Mínimo 8 caracteres.' : ''}
             style={[
               styles.input,
               focusedField === 'password' && !errors.password && styles.inputFocused,
@@ -134,18 +146,18 @@ export function AccessScreen() {
             autoCorrect={false}
             autoComplete={register ? 'new-password' : 'current-password'}
             textContentType={register ? 'newPassword' : 'password'}
-            editable={!isSubmitting}
+            editable={!isSubmitting && !registrationPending}
             onSubmitEditing={() => void submit()}
             returnKeyType="go"
           />
         )}
       />
       {errors.root?.message ? <AccessFeedback text={errors.root.message} error /> : null}
-      {notice ? <AccessFeedback text={notice} /> : null}
-      <Button
-        style={styles.button}
-        label={isSubmitting ? 'Un momento…' : register ? 'Crear mi cuenta' : 'Ingresar'}
-        disabled={isSubmitting}
+      <AccessSubmit
+        label={register ? 'Continuar' : 'Ingresar'}
+        loadingLabel={register ? 'Continuando…' : 'Ingresando…'}
+        loading={isSubmitting}
+        disabled={registrationPending}
         onPress={() => void submit()}
       />
     </AccessPage>

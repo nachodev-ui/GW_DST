@@ -69,7 +69,7 @@ export function ZoneScreen() {
           style={accountStyles.identity}
         >
           <Text variant="note" style={accountStyles.eyebrow}>
-            TU ESPACIO EN GASWAY
+            MI CUENTA
           </Text>
           <View style={accountStyles.person}>
             <Avatar name={name} />

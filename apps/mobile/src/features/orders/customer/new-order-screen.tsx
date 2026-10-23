@@ -7,7 +7,6 @@ import { useAuth } from '@/features/auth/auth-provider';
 import {
   Button,
   Card,
-  CashNote,
   Feedback,
   Input,
   OptionCard,
@@ -273,10 +272,6 @@ function OrderFields({ products, communes }: { products: Product[]; communes: Co
             disabled={locating}
             onPress={() => void locate()}
           />
-          <Text variant="note" style={ui.muted}>
-            Con tu permiso, el sistema del teléfono resuelve la ubicación. Confirma siempre el
-            número y la comuna. No guardamos tus coordenadas.
-          </Text>
           {addressFeedback ? <Feedback text={addressFeedback} /> : null}
           <Controller
             control={control}
@@ -477,8 +472,8 @@ function OrderFields({ products, communes }: { products: Product[]; communes: Co
       {step === 2 ? (
         <View style={ui.stack}>
           <Text style={ui.muted}>
-            Negocios con stock para tu producto y cantidad. Cada tarjeta indica si puede repartir en
-            tu comuna; tener stock no garantiza reparto. La dirección exacta se confirma al aceptar.
+            Cada tarjeta indica si puede repartir en tu comuna; La dirección exacta se confirma al
+            aceptar.
           </Text>
           {results.isPending ? (
             <Skeleton rows={4} />
@@ -560,7 +555,6 @@ function OrderFields({ products, communes }: { products: Product[]; communes: Co
               ? formatClp(selected.total_clp)
               : ''}
           </Text>
-          <CashNote />
           <Text variant="note" style={ui.muted}>
             Se reserva stock al confirmar. El negocio y su conductor deben aceptar la entrega; el
             horario y el tiempo informado son estimaciones.

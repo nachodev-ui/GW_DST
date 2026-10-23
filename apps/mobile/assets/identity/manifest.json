@@ -1,0 +1,36 @@
+{
+  "source": "artifacts/gasway-brand-v1",
+  "version": "1.0.0",
+  "files": [
+    {
+      "file": "icon.png",
+      "source": "png/icon/app-icon-lime-on-dark-1024.png",
+      "sha256": "f0863c1500a325ffe6a0cf3c3d8638580be9812469ab5789eee704884b39e0ac"
+    },
+    {
+      "file": "adaptive-foreground.png",
+      "source": "png/android/adaptive-foreground-lime-1024.png",
+      "sha256": "5c4aabb50046fb2f980c9a271e6c375f53a91e05cebd2a5d54709bb61754cdc7"
+    },
+    {
+      "file": "adaptive-monochrome.png",
+      "source": "png/android/adaptive-foreground-monochrome-1024.png",
+      "sha256": "63e093e3efae78e4e3aeb53eae11f5a1d0a8028212e48ba7a87792d5b1fdce93"
+    },
+    {
+      "file": "splash-light.png",
+      "source": "png/splash/splash-monogram-light-1024.png",
+      "sha256": "b8375217ee516fbdd73e1c59492906ee2bc7ce64e6a4f6e0bbfc4f375dc44d14"
+    },
+    {
+      "file": "splash-dark.png",
+      "source": "png/splash/splash-monogram-dark-1024.png",
+      "sha256": "b994a8cc96eab5422eb2826e031478306312f09d99ce86e872f94436a4ebe336"
+    },
+    {
+      "file": "favicon.png",
+      "source": "png/favicon/favicon-lime-on-dark-48.png",
+      "sha256": "cc91dd7814807b654abc63f721a61853eac01f1e63722e7396bb8b08acfa64d7"
+    }
+  ]
+}

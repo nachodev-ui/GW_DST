@@ -30,7 +30,7 @@ port = 54324
 [auth]
 enabled = true
 site_url = "http://localhost:8081"
-additional_redirect_urls = ["gasway://**"]
+additional_redirect_urls = ["gasway://auth/confirm"]
 jwt_expiry = 3600
 enable_signup = true
 enable_anonymous_sign_ins = false
