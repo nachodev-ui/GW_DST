@@ -20,3 +20,9 @@ supabase/.branches/
 *.p8
 *.p12
 *.mobileprovision
+*.dump
+*.backup
+*.sql.gz
+*.age
+*.agekey
+*.receipt.json

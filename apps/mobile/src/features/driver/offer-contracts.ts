@@ -50,7 +50,15 @@ export const driverWorkspaceSchema = z
     can_manage_business: z.boolean(),
     can_receive_offers: z.boolean(),
     blocking_reason: z
-      .enum(['not_approved', 'no_business', 'business_disabled', 'no_brands', 'no_coverage'])
+      .enum([
+        'not_approved',
+        'no_business',
+        'business_disabled',
+        'no_brands',
+        'no_coverage',
+        'driver_documents',
+        'vehicle_documents',
+      ])
       .nullable(),
   })
   .strict()
@@ -68,6 +76,10 @@ export const driverBlockingMessages: Record<
   no_brands:
     'Tu negocio aún no tiene marcas configuradas. Su responsable debe revisarlo con administración.',
   no_coverage: 'Tu distribuidora aún no definió comunas de reparto. Contacta a su responsable.',
+  driver_documents:
+    'Tu licencia necesita revisión. Entra a Mi licencia y documentos para completar o actualizar tus archivos.',
+  vehicle_documents:
+    'Necesitas un vehículo disponible con foto y documentos vigentes revisados. Contacta al responsable de tu distribuidora.',
 };
 export function isDriverOfferCurrent(offer: DriverOffer, now: number) {
   return Date.parse(offer.expires_at) > now;
@@ -85,6 +97,10 @@ export function driverProgressError(error: unknown) {
 export function driverError(error: unknown) {
   const parsed = z.object({ code: z.string() }).safeParse(error);
   switch (parsed.success ? parsed.data.code : null) {
+    case 'GD001':
+      return 'Tu licencia necesita revisión. Completa o actualiza tus archivos en Mi licencia y documentos.';
+    case 'GD002':
+      return 'El vehículo vinculado no está disponible o sus documentos necesitan revisión.';
     case 'GW001':
       return 'Este pedido ya fue tomado por otro repartidor.';
     case 'GW002':

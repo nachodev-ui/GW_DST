@@ -13,7 +13,22 @@ for (const ref of [
 ]) {
   assert.throws(() => targetProject(ref), /dedicated Gasway Test/);
 }
-assert.equal(currentSuites().length, 8);
+assert.deepEqual(currentSuites(), [
+  'document_eligibility.sql',
+  'driver_self_documentation.sql',
+  'document_replacement.sql',
+  'abastible_cylinder_variants.sql',
+  'business_onboarding.sql',
+  'business_driver_invitations.sql',
+  'distributor_discovery.sql',
+  'distributor_owned_coverage.sql',
+  'driver_order_progress.sql',
+  'driver_workspace.sql',
+  'pilot_security.sql',
+  'mapped_delivery_point.sql',
+  'order_tracking.sql',
+  'distributor_workspace.sql',
+]);
 assert.deepEqual(currentSuites('driver_workspace.sql'), ['driver_workspace.sql']);
 for (const file of ['driver_offers.sql', '../seed.sql', 'absent.sql', '']) {
   assert.throws(() => currentSuites(file), /Only current/);

@@ -25,10 +25,25 @@ async function main() {
     credentialsSchema.parse({ email: '  cliente@example.cl ', password: 'x' }).email,
     'cliente@example.cl',
   );
-  assert.equal(
-    registrationSchema.safeParse({ email: 'cliente@example.cl', password: '1234567' }).success,
-    false,
-  );
+  for (const password of ['Gasway12', 'GASWAY12', 'A1234567', 'Frase larga 1', ' A12345 ']) {
+    const result = registrationSchema.parse({ email: 'cliente@example.cl', password });
+    assert.equal(result.password, password, 'Do not trim or transform passwords');
+  }
+  for (const password of [
+    '',
+    'Gasway1',
+    'gasway12',
+    'GASWAYAB',
+    '12345678',
+    '😀'.repeat(8),
+    'A1😀😀😀',
+  ]) {
+    assert.equal(
+      registrationSchema.safeParse({ email: 'cliente@example.cl', password }).success,
+      false,
+      password,
+    );
+  }
   assert.equal(credentialsSchema.safeParse({ email: 'incorrecto', password: 'x' }).success, false);
 
   const { registrationPhoneSchema, authErrorMessage, authRetryDelay } = load(
@@ -60,7 +75,7 @@ async function main() {
     { Date: { now: () => authNow } },
   );
   const registration = () => useRegistration.getState();
-  const credentials = { email: 'cliente@example.cl', password: 'safe-password' };
+  const credentials = { email: 'cliente@example.cl', password: 'Safe-password-fixture1' };
   let registrations = 0;
   let finishRegistration;
   let registrationInput;
@@ -162,6 +177,7 @@ async function main() {
     { getState: registration },
   );
   const { AccessScreen } = load('apps/mobile/src/features/auth/access-screen.tsx', {
+    'react-native': { View: 'view' },
     react: {
       useState: () => {
         const index = screenHook++;
@@ -253,6 +269,7 @@ async function main() {
       },
       '@/shared/supabase/client': { getSupabase: () => ({ auth: registrationAuth }) },
       '@/shared/ui/components': { Input: 'input', Button: 'button' },
+      '@/features/auth/check-email-page': { RegistrationCheckEmailPage: 'check-email-page' },
       '@/shared/ui/text': { Text: 'text' },
       '@/features/auth/access-ui': {
         AccessPage: 'page',
@@ -301,9 +318,9 @@ async function main() {
   assert.equal(formError, undefined);
   assert.equal(destination, '/auth/check-email', 'Final step must open the email notice');
   const emailScreen = RegistrationCheckEmailScreen();
-  assert.equal(emailScreen.props.title, 'Revisa tu\ncorreo.');
-  assert.ok(emailScreen.props.children[0].props.text.includes(credentials.email));
-  emailScreen.props.children.find((child) => child?.type === 'submit').props.onPress();
+  assert.equal(emailScreen.type, 'check-email-page');
+  assert.equal(emailScreen.props.email, credentials.email);
+  emailScreen.props.onSignIn();
   assert.equal(destination, '/access');
   registration().leave('/access');
 
@@ -390,6 +407,11 @@ async function main() {
     react: {
       createContext: () => ({ Provider: 'provider' }),
       useContext() {},
+      useRef: (initial) => {
+        const index = hookIndex++;
+        if (!(index in states)) states[index] = { current: initial };
+        return states[index];
+      },
       useEffect: (callback) => {
         effect = callback;
       },
@@ -473,6 +495,14 @@ async function main() {
   });
   const { AuthEntryScreen } = load('apps/mobile/src/features/auth/auth-entry-screen.tsx', {
     'expo-router': { Redirect: 'redirect' },
+    '@/features/business/business-data': {
+      useMyBusinesses: () => ({
+        data: [],
+        isError: false,
+        isPending: false,
+        refetch: async () => {},
+      }),
+    },
     '@/features/auth/auth-provider': authBoundary,
     '@/features/auth/auth-ui': {
       ActionButton: 'action',
@@ -537,7 +567,7 @@ async function main() {
       declarations
         .filter((element) => element.type === 'protected')
         .map((element) => element.props.guard),
-      transition.guards,
+      [false, ...transition.guards],
     );
     assert.deepEqual(
       declarations

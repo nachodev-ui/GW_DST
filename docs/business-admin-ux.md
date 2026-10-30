@@ -33,8 +33,11 @@ Los estados tienen texto, ícono y color. No se agregan librerías de UI.
   de quien gestiona se presenta por separado, sin inferir identidades.
 - `/business/catalog` muestra marca, kg/variante, precio CLP entero, stock y
   pertenencia al catálogo. Cada ficha separa identidad con ilustración, precio y
-  stock; la ficha completa abre `BottomSheet`, con identidad y badge, switch de
-  inclusión, precio con vista previa CLP y stock editable con −/+. Guardar cambios
+  stock; la ficha completa abre `BottomSheet`, con cabecera breve, identidad
+  desplazable, switch de inclusión y tres campos numéricos directos. Los dos
+  precios CLP comparten tamaño y prefijo discreto, sin vista previa. Stock admite
+  solo enteros no negativos y muestra errores junto al campo. «En catálogo» usa
+  check oliva sin relleno; las ayudas del Catálogo dicen «cilindro». Guardar cambios
   y Cancelar ocupan el pie fijo, sin Cerrar duplicado. Fuera del catálogo, precio
   y stock se conservan y se bloquean. Cuando el
   negocio no está habilitado muestra la restricción y la ficha no es interactiva.

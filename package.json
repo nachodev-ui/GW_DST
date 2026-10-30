@@ -31,11 +31,18 @@
     "db:test:concurrency": "node scripts/run-concurrency-tests.cjs",
     "db:test:prepare": "node scripts/prepare-test-cloud.cjs",
     "db:test:list": "node scripts/run-sql-tests.cjs --list",
+    "backup:init": "pwsh -NoProfile -File scripts/security/initialize-backup.ps1",
+    "backup:create": "node scripts/security/backup-database.cjs",
+    "backup:check": "node scripts/security/test-backup-database.cjs",
     "db:types": "node scripts/generate-db-types.mjs"
   },
   "devDependencies": {
     "c8": "12.0.0",
     "prettier": "3.9.10",
     "supabase": "2.121.0"
+  },
+  "overrides": {
+    "react": "19.3.0",
+    "react-dom": "19.3.0"
   }
 }

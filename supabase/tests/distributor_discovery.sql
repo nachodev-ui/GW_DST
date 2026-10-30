@@ -13,7 +13,9 @@ begin
     insert into public.distributors(id,name,is_verified,is_demo) values(business_a,'Prueba de compra A',true,true),(business_b,'Prueba de compra B',true,true);
     insert into public.distributor_brands values(business_a,'Gasco'),(business_b,'Gasco');
     insert into public.distributor_members values(business_a,owner_id,'owner');
-    insert into public.drivers(id,is_verified,is_available,distributor_id) values(driver_a,true,true,business_a),(driver_b,true,true,business_b);
+    insert into public.drivers(id,is_verified,is_available,distributor_id) values(driver_a,true,false,business_a),(driver_b,true,false,business_b);
+    perform private.seed_test_document_fixture(driver_a);
+    perform private.seed_test_document_fixture(driver_b);
     insert into public.distributor_communes(distributor_id,commune_code) values(business_a,'13101'),(business_b,'13101');
     insert into public.products(brand,weight_kg,variant,unit_price_clp,is_active) values('Gasco',15,'standard',999,true)
       on conflict(brand,weight_kg,variant) do update set unit_price_clp=999,is_active=true returning id into product;

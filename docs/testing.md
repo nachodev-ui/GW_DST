@@ -13,7 +13,7 @@ npm run test:coverage
 
 El runner descubre `scripts/test-*.cjs`, excepto su propio archivo, y ejecuta cada
 suite en un proceso de `node --test`. Después ejecuta la regresión administrativa
-PowerShell con HTTP/credenciales simulados. Son **17 suites Node y una PowerShell**,
+PowerShell con HTTP/credenciales simulados. Son **26 archivos Node y una suite PowerShell**,
 no un conteo de assertions. Falta de pwsh, timeout o salida no cero falla el comando.
 
 El loader común ejecuta fuentes TypeScript/TSX con mapas de origen y mocks explícitos
@@ -43,6 +43,20 @@ El loader registra los mapas mediante compilación de módulos de Node; se desca
 las mediciones preliminares del loader VM porque no registraba mapas para V8.
 
 ## CI
+
+La integración del 2026-10-30 aprobó 67 pruebas Node, la suite PowerShell y los
+umbrales de cobertura: 98,42 % líneas/statements, 92,59 % funciones y 87,56 % ramas.
+Se corrigieron los conteos obsoletos del runner y el mock de RefreshButton; el
+reintento comprueba la invalidación de postulación y acceso. Las comprobaciones
+sintéticas adicionales de backup y SMTP también pasaron.
+
+Las 14 suites SQL se comprobaron en Gasway Test incorporando temporalmente
+`20261030053253_eligibility_invoker_wrappers.sql` en cada transacción y revirtiendo
+la corrección junto a los fixtures. Sin esa migración, pilot_security detecta las
+dos RPC públicas SECURITY DEFINER de la migración documental anterior. Antes de
+ejecutar el runner normal otra vez, desplegar la corrección mediante el procedimiento
+autorizado del entorno. Esta integración no la aplicó de forma persistente.
+Detalle en [integración](integration-2026-10-30.md).
 
 DT-07 añade `scripts/test-confirmation.cjs`: frontera de URL nativa, códigos
 duplicados/malformados, PKCE, errores de confirmación y operaciones criptográficas
@@ -103,10 +117,32 @@ Las consultas se ejecutan en serie para no invalidar el login temporal del CLI.
 
 `db:test:cloud` valida el destino antes de conectar, rechaza la ref de la app
 **gleltbrvpfvfgggcatpt**, verifica el marcador en cada transacción y ejecuta solo
-los **ocho SQL current** de `supabase/tests/suites.json`, con timeout y rollback
+los **14 SQL current** de `supabase/tests/suites.json`, con timeout y rollback
 externo además del rollback interno de fixtures. Las secuencias pueden avanzar.
 SQL nuevo sin clasificación, archivo faltante o clasificación duplicada falla también
 en la regresión offline del tooling. Las nueve suites históricas están excluidas.
+
+D1 incorpora `mapped_delivery_point.sql`: punto WGS84, reintento idempotente sin
+doble reserva, rechazo de coordenadas ausentes/no finitas/fuera de rango y lectura
+de usuario ajeno bloqueada por RLS. Pasó de forma dirigida en Gasway Test el
+2026-10-24 con rollback de fixtures. No equivale a una nueva ejecución de todas
+las suites ni a comprobar el mapa en dispositivo.
+
+D2 incorpora `order_tracking.sql`: autorización por pedido, rangos/tiempos GPS,
+recepción de servidor, orden/frecuencia, frescura, revocación, borrado terminal y
+segunda entrega sin heredar posición. Pasó con rollback en Test el 2026-10-24,
+junto a `pilot_security.sql` y `driver_order_progress.sql`. Contratos zod y tooling
+pasaron de forma dirigida; typecheck final aprobado. No acredita GPS físico ni
+WebSocket o concurrencia entre conexiones. [Contrato y límites](gps-contract.md).
+
+D3 amplía `test-tracking.cjs` y añade `test-tracking-lifecycle.cjs`: envío exclusivo,
+descarte de fixes, pausa, respuestas tardías, caducidad monotónica, suscripción/
+reconexión, fallo/denegación sin coordenadas, evento terminal, cambio de sesión y
+abort/timeout. Pasaron junto a `test-driver-order-progress.cjs`; typecheck y lint
+dirigidos aprobados. `order_tracking.sql` añade destino confirmado, null legado y
+null terminal, aprobado en Test junto a `pilot_security.sql`, con rollback.
+No se renderizó la app ni se probó sensor, WebSocket o dos teléfonos. Estado y
+procedimiento de aceptación física en [D3](live-tracking.md).
 
 Con `SUPABASE_ACCESS_TOKEN` se ejecuta cada batch completo mediante HTTPS en
 `POST https://api.supabase.com/v1/projects/<ref>/database/query`, con `read_only: false`.

@@ -2,6 +2,7 @@ const assert = require('node:assert/strict');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 const { queryCloud } = require('./testing/cloud-query.cjs');
+const { currentSuites } = require('./testing/sql-suites.cjs');
 const { projectRef, protectedProjectRefs } = require('../supabase/test-environment.json');
 
 async function main() {
@@ -89,7 +90,10 @@ async function main() {
     );
     if (child.error) throw child.error;
     assert.equal(child.status, failure ? 1 : 0, child.stderr);
-    assert.equal((child.stdout.match(/FIXTURE HTTPS request/g) ?? []).length, failure ? 1 : 8);
+    assert.equal(
+      (child.stdout.match(/FIXTURE HTTPS request/g) ?? []).length,
+      failure ? 1 : currentSuites().length,
+    );
     assert.ok(child.stdout.includes('Supabase Management API over HTTPS'));
     assert.equal((child.stdout + child.stderr).includes(token), false);
     if (failure) assert.ok(child.stderr.includes('FAIL injected SQL assertion'));

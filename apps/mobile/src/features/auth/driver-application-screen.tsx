@@ -18,7 +18,7 @@ import {
   type AcceptedDriverInvitation,
   type DriverApplication,
 } from '@/features/auth/driver-application';
-import { Button, Card, Feedback, Input } from '@/shared/ui/components';
+import { Button, Card, Feedback, Input, RefreshButton } from '@/shared/ui/components';
 import { Screen } from '@/shared/ui/screen';
 import { Skeleton } from '@/shared/ui/skeleton';
 import { Text } from '@/shared/ui/text';
@@ -75,11 +75,7 @@ export function DriverApplicationScreen() {
           text={driverApplicationError(application.error ?? accepted.error ?? invitations.error)}
           error
         />
-        <Button
-          label="Reintentar"
-          disabled={application.isFetching || accepted.isFetching || invitations.isFetching}
-          onPress={() => void refresh()}
-        />
+        <RefreshButton label="Reintentar" onRefresh={refresh} />
       </Screen>
     );
   const current = application.data;
@@ -174,12 +170,7 @@ export function DriverApplicationScreen() {
       {acceptance.isError ? (
         <Feedback text={driverApplicationError(acceptance.error)} error />
       ) : null}
-      <Button
-        label="Actualizar invitaciones"
-        variant="secondary"
-        disabled={invitations.isFetching || accepted.isFetching}
-        onPress={() => void refresh()}
-      />
+      <RefreshButton label="Actualizar invitaciones" variant="secondary" onRefresh={refresh} />
     </Screen>
   );
 }

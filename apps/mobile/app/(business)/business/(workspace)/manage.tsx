@@ -1,1 +1,1 @@
-export { BusinessScreen as default } from '@/features/business/business-screen';
+export { BusinessDashboardScreen as default } from '@/features/business/dashboard-screen';

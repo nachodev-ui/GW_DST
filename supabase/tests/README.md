@@ -1,6 +1,27 @@
 # Suites SQL vigentes después de ADR 0021
 
-La lista ejecutable y clasificación de los 17 archivos está en [suites.json](suites.json).
+ADR 0043 incorpora document_replacement.sql: cinco envíos de licencia deben
+producir dos pendientes y tres históricos. Cubre reintento idempotente, rechazo
+de decisión obsoleta, conservación tras envío inválido y aprobaciones vigentes.
+El runner apply-document-replacements-test.cjs también ensaya la regularización
+de duplicados anteriores y revierte esos fixtures antes de aplicar la migración.
+
+Desde ADR 0042, `driver_self_documentation.sql` comprueba carga/edición de licencia
+por su dueño, lectura del negocio, aislamiento entre conductores y revisión por
+otro admin. Pasó junto con `document_eligibility.sql` en Test el 2026-10-27, con
+fixtures revertidos. La suite anterior ahora usa al conductor como cargador de su
+licencia y elige una patente libre para no colisionar con la demo persistente.
+
+Desde ADR 0039, `document_eligibility.sql` cubre los tres grupos documentales
+autorizados y pasó en Gasway Test el 2026-10-26. Para repetir solo esa suite usa
+`npm run db:test:cloud -- --suite=document_eligibility.sql`. Los fixtures de las
+suites anteriores ahora requieren `helpers/document-fixture.sql`, que el runner
+crea dentro de su transacción y revierte al terminar. Es postgres-only, no se
+instala por migración ni concede aprobaciones móviles. Las suites previas y sus
+fixtures adaptados **no se ejecutaron** en esta tarea. DT-03 prepara y retira el
+mismo helper en sus fixtures persistentes exclusivos de Test; no se ejecutó DT-03.
+
+La lista ejecutable y clasificación de los archivos está en [suites.json](suites.json).
 Cada SQL debe figurar exactamente una vez como current o historical. El runner no
 ejecuta SQL por glob; solo acepta la ref de Gasway Test y exige un marcador privado.
 
@@ -10,10 +31,17 @@ $env:GASWAY_TEST_PROJECT_REF = 'xnrueexpwzvxotgwmamj'
 npm run db:test:cloud
 ```
 
-Las ocho suites current son abastible_cylinder_variants, business_onboarding,
+Las suites current son abastible_cylinder_variants, business_onboarding,
 business_driver_invitations, distributor_discovery, distributor_owned_coverage,
-driver_order_progress, driver_workspace y pilot_security. DT-07 añade la última
-para permisos efectivos, RLS, RPC y aislamiento de perfiles. Las suites de catálogo/progreso/
+driver_order_progress, driver_workspace, pilot_security, mapped_delivery_point,
+order_tracking y distributor_workspace. Esta última requiere la migración
+20261026010000 (aplicada en Test/app) y cubre membresías, perfil/CUT/medios, flota,
+revisiones CAS, ventas, costos y aislamiento. distributor_workspace y pilot_security
+pasaron en Gasway Test el 2026-10-25 con rollback; no se ejecutaron fixtures en app.
+DT-07 añade pilot_security para permisos efectivos, RLS, RPC y
+aislamiento de perfiles; D1/D2 cubren destino y GPS por pedido. driver_locations
+ya es privada, sin escrituras directas ni coordenadas en Realtime (ADR 0032).
+Las suites de catálogo/progreso/
 workspace se adaptaron en DT-02 para rollback uniforme, compra comercial y cobertura
 heredada. Se ejecutan en serie, con timeout y rollback externo más subtransacciones
 internas. Los errores se propagan; las secuencias pueden avanzar.

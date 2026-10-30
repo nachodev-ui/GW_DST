@@ -15,6 +15,8 @@ export function ListRow({
   disabled = false,
   highlighted = false,
   accessibilityLabel,
+  showDivider = true,
+  subtitleNumberOfLines,
 }: {
   title: string;
   subtitle?: string;
@@ -25,6 +27,8 @@ export function ListRow({
   disabled?: boolean;
   highlighted?: boolean;
   accessibilityLabel?: string;
+  showDivider?: boolean;
+  subtitleNumberOfLines?: number;
 }) {
   const content = (
     <>
@@ -34,7 +38,7 @@ export function ListRow({
       <View style={styles.copy}>
         <Text variant="label">{title}</Text>
         {subtitle ? (
-          <Text variant="note" style={styles.muted}>
+          <Text variant="note" numberOfLines={subtitleNumberOfLines} style={styles.muted}>
             {subtitle}
           </Text>
         ) : null}
@@ -50,12 +54,14 @@ export function ListRow({
       accessibilityState={{ disabled }}
       onPress={onPress}
       disabled={disabled}
-      style={[styles.row, highlighted && styles.highlighted]}
+      style={[styles.row, !showDivider && styles.noDivider, highlighted && styles.highlighted]}
     >
       {content}
     </PulsePressable>
   ) : (
-    <View style={[styles.row, highlighted && styles.highlighted]}>{content}</View>
+    <View style={[styles.row, !showDivider && styles.noDivider, highlighted && styles.highlighted]}>
+      {content}
+    </View>
   );
 }
 const styles = StyleSheet.create({
@@ -80,6 +86,7 @@ const styles = StyleSheet.create({
   },
   copy: { flex: 1, gap: theme.spacing.xs },
   muted: { color: theme.colors.textMuted },
+  noDivider: { borderBottomWidth: theme.spacing.none },
   highlighted: {
     backgroundColor: theme.colors.primaryLight,
     borderRadius: theme.radii.card,

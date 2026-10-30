@@ -1,7 +1,17 @@
-import { useState } from 'react';
-import { FlatList, ScrollView, StyleSheet, View } from 'react-native';
-import { router, useLocalSearchParams } from 'expo-router';
-import { useMyBusinesses } from './business-data';
+import { useEffect, useRef, useState } from 'react';
+import {
+  FlatList,
+  Keyboard,
+  Platform,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  TouchableWithoutFeedback,
+  View,
+  type TextInputInstance,
+} from 'react-native';
+import { router } from 'expo-router';
+import { useSelectedBusiness } from './business-shell';
 import type { Business } from './business-contracts';
 import { useBusinessCoverage } from './coverage-data';
 import { CoverageEditor } from './coverage-editor';
@@ -13,14 +23,22 @@ import {
   type CoverageCommune,
   type CoverageDriver,
 } from './coverage-contracts';
-import { WorkspaceHero, WorkspaceMetric, workspaceStyles } from './workspace-ui';
-import { Button, Card, Feedback, Input, OptionCard, StatusBadge } from '@/shared/ui/components';
+import { workspaceStyles } from './workspace-ui';
+import {
+  CoverageDriverDetails,
+  CoverageFilter,
+  CoverageHelp,
+  CoverageSummary,
+} from './coverage-ui';
+import { TeamTabs } from './team-ui';
+import { Button, Card, Feedback, Input, StatusBadge } from '@/shared/ui/components';
 import { BottomSheet } from '@/shared/ui/bottom-sheet';
 import { EmptyState } from '@/shared/ui/empty-state';
 import { Icon } from '@/shared/ui/icon';
 import { ListRow } from '@/shared/ui/list-row';
 import { Screen, screenStyles } from '@/shared/ui/screen';
-import { SegmentedTabs } from '@/shared/ui/segmented-tabs';
+import { PulsePressable } from '@/shared/ui/pulse-pressable';
+import { useManualRefresh } from '@/shared/ui/use-manual-refresh';
 import { Skeleton } from '@/shared/ui/skeleton';
 import { Text } from '@/shared/ui/text';
 import { theme } from '@/theme';
@@ -35,9 +53,7 @@ const matches = (value: string, search: string) =>
     .includes(search);
 
 export function BusinessCoverageScreen() {
-  const { businessId } = useLocalSearchParams<{ businessId?: string }>();
-  const businesses = useMyBusinesses();
-  const business = businesses.data?.find((item) => item.id === businessId);
+  const business = useSelectedBusiness();
   if (!business)
     return (
       <Screen title="Cobertura" compactHeader onBack={() => router.replace('/business/manage')}>
@@ -49,9 +65,33 @@ export function BusinessCoverageScreen() {
 
 function CoverageWorkspace({ business }: { business: Business }) {
   const coverage = useBusinessCoverage(business.id);
+  const { refreshing, refresh } = useManualRefresh(() =>
+    coverage.refetch({ cancelRefetch: false }),
+  );
   const [tab, setTab] = useState<'communes' | 'drivers'>('communes');
   const [filter, setFilter] = useState<'all' | 'available'>('all');
   const [search, setSearch] = useState('');
+  const [searchActive, setSearchActive] = useState(false);
+  const searchInput = useRef<TextInputInstance>(null);
+  const dismissSearch = () => {
+    searchInput.current?.blur();
+    Keyboard.dismiss();
+    setSearchActive(false);
+  };
+  useEffect(() => {
+    const show = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+      () => setSearchActive(searchInput.current?.isFocused() ?? false),
+    );
+    const hide = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
+      () => setSearchActive(false),
+    );
+    return () => {
+      show.remove();
+      hide.remove();
+    };
+  }, []);
   const [selection, setSelection] = useState<Selection>(null);
   const [editing, setEditing] = useState<BusinessCoverage | null>(null);
   const data = coverage.data;
@@ -59,7 +99,16 @@ function CoverageWorkspace({ business }: { business: Business }) {
   const active = data
     ? communes.filter((commune) => communeCoverageState(data, commune).available > 0)
     : [];
-  const covered = communes;
+  const communeStates = data ? communes.map((entry) => communeCoverageState(data, entry)) : [];
+  const sharedState = communeStates.reduce<(typeof communeStates)[number] | undefined>(
+    (common, state) =>
+      !common ||
+      communeStates.filter((entry) => entry.label === state.label).length >
+        communeStates.filter((entry) => entry.label === common.label).length
+        ? state
+        : common,
+    undefined,
+  );
   const query = search
     .trim()
     .normalize('NFD')
@@ -82,69 +131,76 @@ function CoverageWorkspace({ business }: { business: Business }) {
       ? data?.drivers.find((entry) => entry.id === selection.id)
       : undefined;
   const openTeam = () => {
+    dismissSearch();
     setSelection(null);
     router.push({ pathname: '/business/team', params: { businessId: business.id } });
   };
   const header = (
     <View style={styles.header}>
-      <WorkspaceHero
-        eyebrow="COBERTURA DE REPARTO"
-        title="Dónde llegamos"
-        description={business.name}
-      >
-        <Text variant="note" style={workspaceStyles.heroDescription}>
-          Tu distribuidora define dónde repartir.
-        </Text>
-      </WorkspaceHero>
+      <View style={[styles.actions, searchActive && styles.searchHidden]}>
+        {data ? (
+          <PulsePressable
+            accessibilityRole="button"
+            accessibilityLabel={communes.length ? 'Editar comunas' : 'Elegir comunas'}
+            accessibilityState={{ disabled: coverage.isError }}
+            disabled={coverage.isError}
+            onPress={() => setEditing(data)}
+            style={[styles.editAction, coverage.isError && styles.disabled]}
+          >
+            <Icon name="edit" size={theme.layout.tagRemove} />
+            <Text variant="label" compact style={styles.olive}>
+              {communes.length ? 'Editar comunas' : 'Elegir comunas'}
+            </Text>
+          </PulsePressable>
+        ) : (
+          <View />
+        )}
+        <PulsePressable
+          accessibilityRole="button"
+          accessibilityLabel="Cómo sumar comunas"
+          onPress={() => setSelection({ kind: 'help' })}
+          style={styles.infoAction}
+        >
+          <Icon name="info" size={theme.layout.tagRemove} />
+        </PulsePressable>
+      </View>
       {data ? (
         <>
-          <Button
-            label={communes.length ? 'Editar comunas' : 'Elegir comunas'}
-            onPress={() => setEditing(data)}
-            disabled={coverage.isError}
-          />
-          <View style={workspaceStyles.metrics}>
-            <WorkspaceMetric
-              value={String(covered.length)}
-              label="Comunas de reparto"
-              icon="pin"
-              onPress={() => {
+          <View style={searchActive && styles.searchHidden}>
+            <CoverageSummary
+              communes={communes.length}
+              active={active.length}
+              isOpen={data.is_open}
+              enabled={data.business_enabled}
+              sharedState={sharedState}
+              onAll={() => {
                 setTab('communes');
                 setFilter('all');
                 setSearch('');
               }}
-            />
-            <WorkspaceMetric
-              value={String(active.length)}
-              label="Con reparto ahora"
-              icon="truck"
-              onPress={() => {
+              onAvailable={() => {
                 setTab('communes');
                 setFilter('available');
                 setSearch('');
               }}
             />
           </View>
-          {!data.business_enabled ? (
-            <Feedback text="Falta habilitar el negocio o sus marcas." error />
-          ) : !data.is_open ? (
-            <Feedback text="Fuera de horario. Tu cobertura se conserva." />
-          ) : null}
           {coverage.isError ? (
             <Feedback error text="No pudimos actualizar. Mostramos la última consulta." />
           ) : null}
           {data.drivers.length > 0 || communes.length > 0 ? (
             <>
-              <SegmentedTabs
+              <TeamTabs
                 value={tab}
                 onChange={(value) => {
+                  dismissSearch();
                   setTab(value);
                   setSearch('');
                 }}
                 label="Ver cobertura por"
                 options={[
-                  { value: 'communes', label: 'Comunas', count: communes.length },
-                  { value: 'drivers', label: 'Conductores', count: data.drivers.length },
+                  { value: 'communes', label: 'Comunas', count: String(communes.length) },
+                  { value: 'drivers', label: 'Conductores', count: String(data.drivers.length) },
                 ]}
               />
               {tab === 'communes' && communes.length > 0 ? (
@@ -153,155 +209,219 @@ function CoverageWorkspace({ business }: { business: Business }) {
                   accessibilityLabel="Disponibilidad de reparto"
                   style={styles.filters}
                 >
-                  <OptionCard
+                  <CoverageFilter
                     label="Todas"
                     selected={filter === 'all'}
-                    onPress={() => setFilter('all')}
+                    onPress={() => {
+                      dismissSearch();
+                      setFilter('all');
+                    }}
                   />
-                  <OptionCard
+                  <CoverageFilter
                     label="Con reparto ahora"
                     selected={filter === 'available'}
-                    onPress={() => setFilter('available')}
+                    onPress={() => {
+                      dismissSearch();
+                      setFilter('available');
+                    }}
                   />
                 </View>
               ) : null}
               <Input
+                ref={searchInput}
                 label={tab === 'communes' ? 'Buscar comuna' : 'Buscar conductor'}
+                hideLabel
+                placeholder={tab === 'communes' ? 'Buscar comuna' : 'Buscar conductor'}
+                prefix={
+                  <Icon
+                    name="search"
+                    size={theme.layout.tagRemove}
+                    color={theme.colors.textMuted}
+                  />
+                }
+                frameStyle={styles.searchFrame}
+                style={styles.searchInput}
+                autoCapitalize="none"
+                autoCorrect={false}
                 value={search}
                 onChangeText={setSearch}
+                onFocus={() => setSearchActive(true)}
+                onBlur={() => setSearchActive(false)}
               />
             </>
           ) : null}
         </>
       ) : null}
-      <View style={styles.actions}>
-        <Button
-          label="Cómo sumar comunas"
-          variant="link"
-          onPress={() => setSelection({ kind: 'help' })}
-        />
-        <Button
-          label={coverage.isFetching ? 'Actualizando…' : 'Actualizar'}
-          variant="link"
-          disabled={coverage.isFetching}
-          onPress={() => void coverage.refetch()}
-        />
-      </View>
     </View>
   );
   return (
     <>
-      <Screen
-        title="Cobertura"
-        compactHeader
-        onBack={() =>
-          router.replace({ pathname: '/business/manage', params: { businessId: business.id } })
-        }
-        list={
-          <FlatList<Row>
-            data={rows}
-            contentContainerStyle={[screenStyles.content, styles.list]}
-            keyboardShouldPersistTaps="handled"
-            keyExtractor={(item) =>
-              item.kind === 'commune' ? `commune:${item.value.code}` : `driver:${item.value.id}`
+      <TouchableWithoutFeedback accessible={false} onPress={dismissSearch}>
+        <View style={styles.listContainer}>
+          <Screen
+            tabbed
+            title="Cobertura"
+            compactHeader
+            onBack={() =>
+              router.replace({ pathname: '/business/manage', params: { businessId: business.id } })
             }
-            ListHeaderComponent={header}
-            ListEmptyComponent={
-              !data ? (
-                coverage.isError ? (
-                  <EmptyState
-                    title="No pudimos cargar la cobertura"
-                    description="Intenta actualizar nuevamente."
-                    action={{ label: 'Reintentar', onPress: () => void coverage.refetch() }}
-                  />
-                ) : (
-                  <Skeleton rows={3} />
-                )
-              ) : (
-                <EmptyState
-                  icon="pin"
-                  title={
-                    search
-                      ? 'Sin coincidencias'
-                      : tab === 'drivers' && !data.drivers.length
-                        ? 'Aún no hay conductores'
-                        : tab === 'communes' && filter === 'available'
-                          ? 'Sin reparto disponible ahora'
-                          : 'Aún no hay comunas'
+            list={
+              <View style={styles.listContainer}>
+                {header}
+                <FlatList<Row>
+                  data={rows}
+                  style={styles.listContainer}
+                  contentContainerStyle={[screenStyles.content, styles.list]}
+                  keyboardShouldPersistTaps="handled"
+                  keyboardDismissMode="on-drag"
+                  onScrollBeginDrag={dismissSearch}
+                  keyExtractor={(item) =>
+                    item.kind === 'commune'
+                      ? `commune:${item.value.code}`
+                      : `driver:${item.value.id}`
                   }
-                  description={
-                    search
-                      ? 'Prueba otro nombre.'
-                      : tab === 'drivers' && !data.drivers.length
-                        ? 'Invita y habilita a tu equipo para comenzar a repartir.'
-                        : tab === 'communes' && filter === 'available'
-                          ? 'Revisa el horario y la disponibilidad de tu equipo.'
-                          : 'Elige las comunas donde tu distribuidora hará entregas.'
+                  alwaysBounceVertical
+                  refreshControl={
+                    <RefreshControl
+                      accessibilityLabel="Actualizar cobertura"
+                      refreshing={refreshing}
+                      onRefresh={refresh}
+                      tintColor={theme.colors.primary}
+                      colors={[theme.colors.primary, theme.colors.lime]}
+                      progressBackgroundColor={theme.colors.background}
+                    />
                   }
-                  action={
-                    search
-                      ? { label: 'Limpiar búsqueda', onPress: () => setSearch('') }
-                      : tab === 'drivers' && !data.drivers.length
-                        ? { label: 'Ir a Equipo', onPress: openTeam }
-                        : filter === 'available' && tab === 'communes'
-                          ? { label: 'Ver todas', onPress: () => setFilter('all') }
-                          : { label: 'Elegir comunas', onPress: () => setEditing(data) }
+                  ListEmptyComponent={
+                    !data ? (
+                      coverage.isError ? (
+                        <EmptyState
+                          title="No pudimos cargar la cobertura"
+                          description="Intenta actualizar nuevamente."
+                          action={{ label: 'Reintentar', onPress: () => void coverage.refetch() }}
+                        />
+                      ) : (
+                        <Skeleton rows={3} />
+                      )
+                    ) : (
+                      <EmptyState
+                        icon="pin"
+                        title={
+                          search
+                            ? 'Sin coincidencias'
+                            : tab === 'drivers' && !data.drivers.length
+                              ? 'Aún no hay conductores'
+                              : tab === 'communes' && filter === 'available'
+                                ? 'Sin reparto disponible ahora'
+                                : 'Aún no hay comunas'
+                        }
+                        description={
+                          search
+                            ? 'Prueba otro nombre.'
+                            : tab === 'drivers' && !data.drivers.length
+                              ? 'Invita y habilita a tu equipo para comenzar a repartir.'
+                              : tab === 'communes' && filter === 'available'
+                                ? 'Revisa el horario y la disponibilidad de tu equipo.'
+                                : 'Elige las comunas donde tu distribuidora hará entregas.'
+                        }
+                        action={
+                          search
+                            ? {
+                                label: 'Limpiar búsqueda',
+                                onPress: () => {
+                                  dismissSearch();
+                                  setSearch('');
+                                },
+                              }
+                            : tab === 'drivers' && !data.drivers.length
+                              ? { label: 'Ir a Equipo', onPress: openTeam }
+                              : filter === 'available' && tab === 'communes'
+                                ? {
+                                    label: 'Ver todas',
+                                    onPress: () => {
+                                      dismissSearch();
+                                      setFilter('all');
+                                    },
+                                  }
+                                : {
+                                    label: 'Elegir comunas',
+                                    onPress: () => {
+                                      dismissSearch();
+                                      setEditing(data);
+                                    },
+                                  }
+                        }
+                      />
+                    )
                   }
+                  renderItem={({ item }) => {
+                    if (item.kind === 'driver')
+                      return (
+                        <Card
+                          onPress={() => {
+                            dismissSearch();
+                            setSelection({ kind: 'driver', id: item.value.id });
+                          }}
+                          style={styles.card}
+                        >
+                          <View style={styles.pin}>
+                            <Icon name="truck" />
+                          </View>
+                          <View style={styles.grow}>
+                            <Text variant="label" numberOfLines={1}>
+                              {item.value.name}
+                            </Text>
+                            <Text variant="note" style={workspaceStyles.muted}>
+                              {communes.length}{' '}
+                              {communes.length === 1 ? 'comuna heredada' : 'comunas heredadas'}
+                            </Text>
+                            <DriverBadge driver={item.value} />
+                          </View>
+                          <Icon name="arrowRight" />
+                        </Card>
+                      );
+                    if (!data) return null;
+                    const state = communeCoverageState(data, item.value);
+                    return (
+                      <Card
+                        onPress={() => {
+                          dismissSearch();
+                          setSelection({ kind: 'commune', id: item.value.code });
+                        }}
+                        style={styles.card}
+                      >
+                        <View style={styles.pin}>
+                          <Icon name="pin" />
+                        </View>
+                        <View style={styles.grow}>
+                          <Text variant="label" numberOfLines={1}>
+                            {item.value.name}
+                          </Text>
+                          <Text variant="note" numberOfLines={1} style={workspaceStyles.muted}>
+                            {state.enabled} {state.enabled === 1 ? 'conductor' : 'conductores'}
+                          </Text>
+                        </View>
+                        {state.label !== sharedState?.label ? (
+                          <StatusBadge
+                            compact
+                            label={state.label}
+                            tone={state.tone}
+                            icon={state.available ? 'check' : 'clock'}
+                          />
+                        ) : null}
+                        <Icon
+                          name="arrowRight"
+                          size={theme.layout.tagRemoveIcon}
+                          color={theme.colors.textMuted}
+                        />
+                      </Card>
+                    );
+                  }}
                 />
-              )
+              </View>
             }
-            renderItem={({ item }) => {
-              if (item.kind === 'driver')
-                return (
-                  <Card
-                    onPress={() => setSelection({ kind: 'driver', id: item.value.id })}
-                    style={styles.card}
-                  >
-                    <View style={styles.pin}>
-                      <Icon name="truck" />
-                    </View>
-                    <View style={styles.grow}>
-                      <Text variant="label">{item.value.name}</Text>
-                      <Text variant="note" style={workspaceStyles.muted}>
-                        {communes.length}{' '}
-                        {communes.length === 1 ? 'comuna heredada' : 'comunas heredadas'}
-                      </Text>
-                      <DriverBadge driver={item.value} />
-                    </View>
-                    <Icon name="arrowRight" />
-                  </Card>
-                );
-              if (!data) return null;
-              const state = communeCoverageState(data, item.value);
-              return (
-                <Card
-                  onPress={() => setSelection({ kind: 'commune', id: item.value.code })}
-                  style={styles.communeCard}
-                >
-                  <View style={styles.card}>
-                    <View style={styles.pin}>
-                      <Icon name="pin" />
-                    </View>
-                    <View style={styles.grow}>
-                      <Text variant="subtitle">{item.value.name}</Text>
-                      <Text variant="note" style={workspaceStyles.muted}>
-                        {state.enabled}{' '}
-                        {state.enabled === 1 ? 'conductor habilitado' : 'conductores habilitados'}
-                      </Text>
-                    </View>
-                    <Icon name="arrowRight" />
-                  </View>
-                  <StatusBadge
-                    label={state.label}
-                    tone={state.tone}
-                    icon={state.available ? 'check' : 'clock'}
-                  />
-                </Card>
-              );
-            }}
           />
-        }
-      />
+        </View>
+      </TouchableWithoutFeedback>
       {editing ? (
         <CoverageEditor
           businessId={business.id}
@@ -311,31 +431,24 @@ function CoverageWorkspace({ business }: { business: Business }) {
       ) : null}
       <BottomSheet
         visible={selection !== null}
+        header={
+          driver ? (
+            <Text variant="note" style={workspaceStyles.muted}>
+              Cobertura
+            </Text>
+          ) : undefined
+        }
         title={
           selection?.kind === 'help'
-            ? 'Cómo sumar comunas'
+            ? 'Sumar comunas'
             : (commune?.name ?? driver?.name ?? 'Cobertura')
         }
         onClose={() => setSelection(null)}
       >
-        <ScrollView contentContainerStyle={styles.sheet}>
+        <ScrollView style={driver && styles.driverSheetScroll} contentContainerStyle={styles.sheet}>
           {selection?.kind === 'help' ? (
             <>
-              <ListRow
-                title="1. Elige las comunas"
-                subtitle="Cobertura → Editar comunas."
-                leading={<Icon name="user" />}
-              />
-              <ListRow
-                title="2. Vincula a tu equipo"
-                subtitle="Sus conductores heredan la cobertura del negocio."
-                leading={<Icon name="pin" />}
-              />
-              <ListRow
-                title="3. Activa su disponibilidad"
-                subtitle="Con el negocio abierto, podrá recibir ofertas."
-                leading={<Icon name="truck" />}
-              />
+              <CoverageHelp />
               <Button label="Ir a Equipo" onPress={openTeam} />
             </>
           ) : commune ? (
@@ -357,22 +470,11 @@ function CoverageWorkspace({ business }: { business: Business }) {
               <Button label="Ver equipo" variant="secondary" onPress={openTeam} />
             </>
           ) : driver ? (
-            <>
-              <DriverBadge driver={driver} />
-              <Text variant="subtitle">Comunas de la distribuidora</Text>
-              {communes.length ? (
-                communes.map((entry) => (
-                  <ListRow key={entry.code} title={entry.name} leading={<Icon name="pin" />} />
-                ))
-              ) : (
-                <Text variant="note" style={workspaceStyles.muted}>
-                  La distribuidora aún no define su cobertura.
-                </Text>
-              )}
-              <Text variant="note" style={workspaceStyles.muted}>
-                Esta cobertura la administra tu distribuidora.
-              </Text>
-            </>
+            <CoverageDriverDetails
+              name={driver.name}
+              status={<DriverBadge driver={driver} />}
+              communes={communes}
+            />
           ) : (
             <Feedback text="Este registro cambió. Actualiza la cobertura." />
           )}
@@ -385,6 +487,7 @@ function CoverageWorkspace({ business }: { business: Business }) {
 function DriverBadge({ driver }: { driver: CoverageDriver }) {
   return (
     <StatusBadge
+      compact
       label={coverageDriverLabels[driver.status]}
       tone={
         driver.status === 'available'
@@ -399,17 +502,61 @@ function DriverBadge({ driver }: { driver: CoverageDriver }) {
 }
 
 const styles = StyleSheet.create({
-  header: { gap: theme.spacing.md },
-  list: { gap: theme.spacing.compact },
-  filters: { flexDirection: 'row', flexWrap: 'wrap', gap: theme.spacing.sm },
-  actions: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
-  card: { flexDirection: 'row', alignItems: 'center', gap: theme.spacing.md },
-  communeCard: { gap: theme.spacing.md },
-  grow: { flex: 1, gap: theme.spacing.xs },
+  header: {
+    gap: theme.spacing.sm,
+    paddingHorizontal: theme.spacing.screen,
+    paddingBottom: theme.spacing.compact,
+    width: '100%',
+    maxWidth: theme.layout.formWidth,
+    alignSelf: 'center',
+  },
+  listContainer: { flex: 1 },
+  searchHidden: { display: 'none' },
+  list: { gap: theme.spacing.sm, paddingTop: theme.spacing.xs },
+  filters: { flexDirection: 'row', gap: theme.spacing.sm },
+  actions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: theme.spacing.sm,
+  },
+  editAction: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.sm,
+    minHeight: theme.layout.touchTarget,
+  },
+  infoAction: {
+    minWidth: theme.layout.touchTarget,
+    minHeight: theme.layout.touchTarget,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: theme.colors.warm,
+    borderRadius: theme.radii.control,
+  },
+  olive: { color: theme.colors.primary },
+  disabled: { opacity: theme.opacity.disabled },
+  searchFrame: {
+    minHeight: theme.layout.touchTarget,
+    paddingLeft: theme.spacing.compact,
+    borderColor: theme.colors.divider,
+    backgroundColor: theme.colors.surface,
+  },
+  searchInput: { minHeight: theme.layout.touchTarget, paddingVertical: theme.spacing.sm },
+  card: {
+    ...theme.elevation.flat,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.compact,
+    padding: theme.spacing.compact,
+    borderRadius: theme.business.radius,
+  },
+  grow: { flex: 1, minWidth: 0, gap: theme.spacing.xs },
   pin: {
-    backgroundColor: theme.colors.primaryLight,
+    backgroundColor: theme.colors.warm,
     borderRadius: theme.radii.control,
     padding: theme.spacing.compact,
   },
   sheet: { gap: theme.spacing.md },
+  driverSheetScroll: { flexGrow: 0 },
 });

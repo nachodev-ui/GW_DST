@@ -3,7 +3,7 @@ import { StyleSheet, View } from 'react-native';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/features/auth/auth-provider';
 import { fetchDriverApplication } from '@/features/auth/driver-application';
-import { Button, Card, Feedback } from '@/shared/ui/components';
+import { Button, Card, Feedback, RefreshButton } from '@/shared/ui/components';
 import { Skeleton } from '@/shared/ui/skeleton';
 import { Text } from '@/shared/ui/text';
 import { theme } from '@/theme';
@@ -35,7 +35,7 @@ export function DriverApplicationCard() {
       ) : application.isError ? (
         <>
           <Feedback text="No pudimos consultar tu postulación. Puedes seguir comprando." error />
-          <Button label="Reintentar consulta" variant="secondary" onPress={() => void refresh()} />
+          <RefreshButton label="Reintentar consulta" variant="secondary" onRefresh={refresh} />
         </>
       ) : data ? (
         <>
@@ -47,7 +47,7 @@ export function DriverApplicationCard() {
               : data.status === 'rejected'
                 ? 'Solicitud rechazada'
                 : zone === 'driver'
-                  ? 'Conductor habilitado'
+                  ? 'Acceso aprobado por Gasway'
                   : 'Acceso a reparto no habilitado'}
           </Text>
           {data.decision_reason ? (
@@ -72,25 +72,27 @@ export function DriverApplicationCard() {
               : data.status === 'rejected'
                 ? 'Puedes seguir comprando. Corrige el motivo y pide una nueva invitación al negocio antes de solicitar otra revisión.'
                 : zone === 'driver'
-                  ? 'Tu acceso de reparto está habilitado.'
+                  ? 'Tu acceso está aprobado. La licencia y el vehículo también deben estar vigentes y revisados para repartir.'
                   : 'La solicitud fue aprobada anteriormente, pero tu habilitación actual no está activa. Actualiza tu acceso o contacta a administración de Gasway.'}
           </Text>
           {data.requested_distributor_name ? (
             <Text variant="label">Negocio: {data.requested_distributor_name}</Text>
           ) : null}
+          {data.applicant_rut && data.requested_distributor_id ? (
+            <Button
+              label="Mi licencia y documentos"
+              variant="secondary"
+              onPress={() => router.push('/driver-documents')}
+            />
+          ) : null}
           {data.status !== 'approved' ? (
             <Button
               label="Activar mi acceso como conductor"
-              disabled={application.isFetching}
+              disabled={application.isPending}
               onPress={() => router.push('/customer/driver-application')}
             />
           ) : null}
-          <Button
-            label={application.isFetching ? 'Actualizando…' : 'Actualizar estado'}
-            variant="secondary"
-            disabled={application.isFetching}
-            onPress={() => void refresh()}
-          />
+          <RefreshButton label="Actualizar estado" variant="secondary" onRefresh={refresh} />
         </>
       ) : (
         <>
@@ -100,7 +102,7 @@ export function DriverApplicationCard() {
           </Text>
           <Button
             label="Activar mi acceso como conductor"
-            disabled={application.isFetching}
+            disabled={application.isPending}
             onPress={() => router.push('/customer/driver-application')}
           />
         </>

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { FlatList, StyleSheet, View } from 'react-native';
+import { FlatList, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import { z } from 'zod';
@@ -10,18 +10,20 @@ import { BottomSheet } from '@/shared/ui/bottom-sheet';
 import { ProductImage } from '@/shared/ui/product-image';
 import { Enter } from '@/shared/ui/enter';
 import { EmptyState } from '@/shared/ui/empty-state';
-import { ListRow } from '@/shared/ui/list-row';
 import { PulsePressable } from '@/shared/ui/pulse-pressable';
 import { SegmentedTabs } from '@/shared/ui/segmented-tabs';
 import { Icon } from '@/shared/ui/icon';
 import { Skeleton } from '@/shared/ui/skeleton';
-import { OrderBusinessCard } from './order-business-card';
+import { CustomerTrackingCard } from '@/features/tracking/customer/customer-tracking-card';
+import { OrderSummary } from './order-summary';
+import { OrderReceipt } from './order-receipt';
 import { theme } from '@/theme';
 import { productLabel, canCancel, formatClp, statusLabels } from '@/shared/orders/contracts';
 import {
   useCatalogue,
   useOrders,
   useOrderEvents,
+  useOrderDetailRefresh,
   useOrdersList,
   useOrderActions,
   orderError,
@@ -31,7 +33,6 @@ import {
   OrderStatus,
   OrderHero,
   OrderProgressSummary,
-  Section,
   orderStyles,
 } from './order-ui';
 
@@ -64,8 +65,8 @@ export function OrdersScreen() {
               <PulsePressable
                 accessibilityRole="button"
                 accessibilityLabel="Actualizar pedidos"
-                disabled={orders.isFetching}
-                onPress={() => void orders.refetch()}
+                disabled={orders.isPending}
+                onPress={() => void orders.refetch({ cancelRefetch: false })}
                 style={styles.refresh}
               >
                 <Icon name="refresh" />
@@ -116,7 +117,7 @@ export function OrdersScreen() {
                     : 'Los pedidos de esta categoría aparecerán aquí.'
               }
             />
-          ) : null
+          ) : undefined
         }
         ListFooterComponent={
           orders.hasNextPage ? (
@@ -128,7 +129,7 @@ export function OrdersScreen() {
                 onPress={() => void orders.fetchNextPage()}
               />
             </View>
-          ) : null
+          ) : undefined
         }
         renderItem={({ item }) => {
           const product = catalogue.data?.products.find((entry) => entry.id === item.product_id);
@@ -195,16 +196,18 @@ function OrderDetail({ id }: { id: string }) {
   const catalogue = useCatalogue();
   const { cancel } = useOrderActions();
   const [confirm, setConfirm] = useState(false);
+  const [details, setDetails] = useState(false);
   const order = orders.data?.[0];
   const product = catalogue.data?.products.find((entry) => entry.id === order?.product_id);
   const commune = catalogue.data?.communes.find((entry) => entry.code === order?.commune_code);
-  const refresh = () => {
-    void orders.refetch();
-    void events.refetch();
-    void catalogue.refetch();
-  };
+  const refresh = useOrderDetailRefresh(id);
   return (
-    <Screen title="Tu pedido" compactHeader onBack={() => router.replace('/customer')}>
+    <Screen
+      title="Tu pedido"
+      compactHeader
+      onBack={() => router.replace('/customer')}
+      onRefresh={refresh}
+    >
       {orders.isPending ? <Skeleton rows={4} /> : null}
       {orders.isError ? (
         <EmptyState
@@ -228,100 +231,73 @@ function OrderDetail({ id }: { id: string }) {
             <OrderHero status={order.status} />
           </Enter>
           <OrderProgressSummary status={order.status} />
-          <OrderBusinessCard orderId={order.id} />
-          <Button
-            variant="secondary"
-            label={orders.isRefetching ? 'Actualizando…' : 'Actualizar estado'}
-            disabled={orders.isFetching || events.isFetching}
-            onPress={refresh}
+          <CustomerTrackingCard
+            orderId={order.id}
+            active={
+              !orders.isError && (order.status === 'accepted' || order.status === 'on_the_way')
+            }
           />
-          <Enter index={1}>
-            <Section title="Tu cilindro">
-              <View style={styles.productSummary}>
-                {product ? <ProductImage product={product} size="medium" /> : null}
-                <View style={ui.flex}>
-                  <Text variant="title">
-                    {product ? `${product.brand} · ${productLabel(product)}` : 'Cilindro de gas'}
-                  </Text>
-                  <Text variant="note" style={ui.muted}>
-                    {order.quantity} {order.quantity === 1 ? 'cilindro' : 'cilindros'}
-                  </Text>
-                  <Text variant="display" style={orderStyles.total}>
-                    {formatClp(order.total_clp)}
-                  </Text>
-                </View>
-              </View>
-              <Text variant="note" style={ui.muted}>
-                {order.exchange_empty ? 'Con canje de envase vacío' : 'Sin canje de envase vacío'}
-              </Text>
-              {order.exchange_empty && order.returned_brand ? (
-                <Text variant="note">
-                  Envase devuelto:{' '}
-                  {order.returned_brand === 'unknown'
-                    ? 'marca por confirmar'
-                    : order.returned_brand}
-                </Text>
-              ) : null}
-              {catalogue.isError ? (
-                <View style={ui.stack}>
-                  <Feedback error text="No pudimos actualizar la descripción del producto." />
-                  <Button
-                    variant="secondary"
-                    label="Reintentar catálogo"
-                    onPress={() => void catalogue.refetch()}
-                  />
-                </View>
-              ) : null}
-            </Section>
-          </Enter>
-          <Enter index={2}>
-            <Section title="Llegamos aquí">
-              <ListRow
-                title={order.delivery_address}
-                {...(commune ? { subtitle: commune.name } : {})}
-                leading={<Icon name="pin" />}
-              />
-              {order.notes ? (
-                <Text variant="note" style={ui.muted}>
-                  {order.notes}
-                </Text>
-              ) : null}
-            </Section>
-          </Enter>
-          <Section title="Paso a paso">
-            {events.isPending ? <Skeleton /> : null}
-            {events.isError ? (
-              <View style={ui.stack}>
-                <Feedback error text="No pudimos actualizar los eventos." />
-                <Button
-                  variant="secondary"
-                  label="Reintentar progreso"
-                  onPress={() => void events.refetch()}
-                />
-              </View>
-            ) : null}
-            {events.data ? (
-              <OrderTimeline events={events.data} cancelled={order.status === 'cancelled'} />
-            ) : null}
-          </Section>
-          <View style={ui.stack}>
-            <Text variant="note" style={ui.muted}>
-              {new Date(order.created_at).toLocaleString('es-CL')}
-            </Text>
-            <Text selectable variant="note" style={ui.muted}>
-              Pedido {order.id}
-            </Text>
-          </View>
-          {canCancel(order.status) && !orders.isError ? (
-            <Button
-              variant="destructive"
-              label="Cancelar pedido"
-              onPress={() => {
-                cancel.reset();
-                setConfirm(true);
-              }}
+          <OrderSummary
+            order={order}
+            product={product}
+            communeName={commune?.name}
+            onDetails={() => setDetails(true)}
+          />
+          {catalogue.isError ? (
+            <Feedback
+              error
+              text="No pudimos actualizar la descripción del producto. Desliza hacia abajo para reintentar."
             />
           ) : null}
+          <View style={styles.detailActions}>
+            {canCancel(order.status) && !orders.isError ? (
+              <Button
+                variant="destructive"
+                label="Cancelar pedido"
+                style={ui.flex}
+                onPress={() => {
+                  cancel.reset();
+                  setConfirm(true);
+                }}
+              />
+            ) : null}
+          </View>
+          <BottomSheet
+            key={order.id}
+            visible={details}
+            title="Detalles del pedido"
+            onClose={() => setDetails(false)}
+          >
+            <ScrollView style={styles.detailScroll} contentContainerStyle={styles.detailContent}>
+              <OrderReceipt order={order} product={product} communeName={commune?.name} />
+              <View style={styles.historySection}>
+                <Text variant="subtitle">Historial del pedido</Text>
+                {events.isPending ? <Skeleton /> : null}
+                {events.isError ? (
+                  <View style={ui.stack}>
+                    <Feedback error text="No pudimos actualizar los eventos." />
+                    <Button
+                      variant="secondary"
+                      label="Reintentar historial"
+                      onPress={() => void events.refetch()}
+                    />
+                  </View>
+                ) : null}
+                {events.data ? (
+                  <OrderTimeline events={events.data} cancelled={order.status === 'cancelled'} />
+                ) : null}
+              </View>
+              <View style={styles.receiptMetadata}>
+                <Text variant="label">Comprobante del pedido</Text>
+                <Text variant="note" style={ui.muted}>
+                  {new Date(order.created_at).toLocaleString('es-CL')}
+                </Text>
+                <Text selectable variant="note" style={ui.muted}>
+                  Pedido {order.id}
+                </Text>
+              </View>
+            </ScrollView>
+          </BottomSheet>
           <BottomSheet
             visible={confirm && canCancel(order.status) && !orders.isError}
             title="¿Cancelar este pedido?"
@@ -348,6 +324,21 @@ function OrderDetail({ id }: { id: string }) {
   );
 }
 const styles = StyleSheet.create({
+  detailActions: { flexDirection: 'row', flexWrap: 'wrap', gap: theme.spacing.sm },
+  detailScroll: { flexShrink: 1 },
+  detailContent: { gap: theme.spacing.lg, paddingBottom: theme.spacing.md },
+  historySection: {
+    gap: theme.spacing.md,
+    paddingTop: theme.spacing.lg,
+    borderTopWidth: theme.borders.thin,
+    borderTopColor: theme.colors.divider,
+  },
+  receiptMetadata: {
+    gap: theme.spacing.sm,
+    backgroundColor: theme.colors.warm,
+    borderRadius: theme.radii.control,
+    padding: theme.spacing.md,
+  },
   refresh: {
     backgroundColor: theme.colors.surface,
     borderRadius: theme.radii.pill,

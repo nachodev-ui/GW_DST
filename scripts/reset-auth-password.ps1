@@ -44,12 +44,14 @@ try {
         Write-Host 'El UUID y el correo no coinciden con la cuenta consultada. No se envio ningun cambio.'
         return
     }
-    $newPassword = Read-Host 'Nueva contrasena (oculta; minimo 8 caracteres)' -AsSecureString
+    $newPassword = Read-Host 'Nueva contrasena (oculta; minimo 8 caracteres, una mayuscula A-Z y un numero)' -AsSecureString
     $confirmation = Read-Host 'Repite la nueva contrasena (oculta)' -AsSecureString
     $plainPassword = [pscredential]::new('user', $newPassword).GetNetworkCredential().Password
     $plainConfirmation = [pscredential]::new('user', $confirmation).GetNetworkCredential().Password
-    if ($plainPassword.Length -lt 8 -or $plainPassword -cne $plainConfirmation) {
-        Write-Host 'Las contrasenas deben coincidir y tener al menos 8 caracteres. No se envio ningun cambio.'
+    $runeCount = 0
+    foreach ($rune in $plainPassword.EnumerateRunes()) { $runeCount++ }
+    if ($runeCount -lt 8 -or $plainPassword -cnotmatch '[A-Z]' -or $plainPassword -notmatch '[0-9]' -or $plainPassword -cne $plainConfirmation) {
+        Write-Host 'Las contrasenas deben coincidir y tener al menos 8 caracteres, una mayuscula A-Z y un numero. No se envio ningun cambio.'
         return
     }
     $payload = @{ password = $plainPassword } | ConvertTo-Json -Compress

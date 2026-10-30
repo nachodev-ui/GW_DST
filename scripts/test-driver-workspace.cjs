@@ -4,6 +4,16 @@ const { load } = require('./testing/load.cjs');
 const contracts = load('apps/mobile/src/features/driver/offer-contracts.ts', {
   '@/shared/orders/contracts': load('apps/mobile/src/shared/orders/contracts.ts'),
 });
+const documentContracts = load('apps/mobile/src/features/driver/document-contracts.ts', {
+  '@/shared/documents/owner-documents': {},
+});
+let licenseSubmission = 'unknown';
+const documentData = {
+  useDriverLicenseSubmission: () => ({
+    submission: licenseSubmission,
+    refresh: () => Promise.resolve(),
+  }),
+};
 const id = '10000000-0000-4000-8000-000000000001';
 const workspace = {
   is_verified: true,
@@ -39,10 +49,12 @@ const nodes = (value) =>
     ? []
     : Array.isArray(value)
       ? value.flatMap(nodes)
-      : [value, ...nodes(value.props?.children)];
+      : value.type === 'BottomSheet' && !value.props.visible
+        ? []
+        : [value, ...nodes(value.props?.children), ...nodes(value.props?.footer)];
 const button = (tree, label) =>
   nodes(tree).find((node) => node.type === 'Button' && node.props.label === label);
-const theme = { spacing: {}, borders: {}, colors: {}, layout: {} };
+const theme = { spacing: {}, borders: {}, colors: {}, layout: {}, radii: {} };
 const components = {
   Button: 'Button',
   Card: 'Card',
@@ -50,11 +62,19 @@ const components = {
   StatusBadge: 'StatusBadge',
   ui: {},
 };
+const homeNavigation = [];
 const ui = load('apps/mobile/src/features/driver/driver-ui.tsx', {
-  'react-native': { View: 'View', StyleSheet: { create: (value) => value } },
-  'expo-router': {},
+  './document-contracts': documentContracts,
+  'react-native': {
+    View: 'View',
+    Switch: 'Switch',
+    ActivityIndicator: 'Spinner',
+    StyleSheet: { create: (value) => value },
+  },
+  'expo-router': { router: { push: (target) => homeNavigation.push(target) } },
   '@/shared/ui/components': components,
   '@/shared/ui/text': { Text: 'Text' },
+  '@/shared/ui/icon': { Icon: 'Icon' },
   '@/theme': { theme },
   '@/features/driver/offer-contracts': contracts,
 });
@@ -93,6 +113,73 @@ button(
   'Dejar de recibir ofertas',
 ).props.onPress();
 assert.equal(available, false, 'business problems still allow stopping availability');
+available = undefined;
+const blockedHome = ui.DriverAvailability({ ...props, workspace: blocked, appearance: 'home' });
+button(blockedHome, 'Revisar habilitación').props.onPress();
+assert.equal(available, undefined, 'home recovery navigates without enabling a blocked driver');
+assert.equal(homeNavigation.at(-1), '/driver-account');
+const licenseWorkspace = {
+  ...workspace,
+  can_receive_offers: false,
+  blocking_reason: 'driver_documents',
+};
+const reviewHome = ui.DriverAvailability({
+  ...props,
+  workspace: licenseWorkspace,
+  appearance: 'home',
+  licenseSubmission: 'in_review',
+});
+assert.ok(nodes(reviewHome).some((node) => node.props?.children === 'Licencia en revisión'));
+assert.equal(button(reviewHome, 'Completar mi licencia'), undefined);
+available = undefined;
+button(reviewHome, 'Actualizar mis archivos').props.onPress();
+assert.equal(homeNavigation.at(-1), '/driver-documents');
+assert.equal(available, undefined, 'License review never enables availability');
+const incompleteHome = ui.DriverAvailability({
+  ...props,
+  workspace: licenseWorkspace,
+  appearance: 'home',
+  licenseSubmission: 'incomplete',
+});
+assert.ok(button(incompleteHome, 'Completar mi licencia'));
+assert.equal(button(incompleteHome, 'Actualizar mis archivos'), undefined);
+assert.equal(
+  button(
+    ui.DriverAvailability({ ...props, appearance: 'home', uncertain: true }),
+    'Comenzar a repartir',
+  ).props.disabled,
+  true,
+);
+
+// The new coverage control preserves authorization and only writes availability.
+const coverageSwitch = (overrides = {}) =>
+  nodes(ui.DriverAvailability({ ...props, appearance: 'coverage', ...overrides })).find(
+    (node) => node.type === 'Switch',
+  );
+available = undefined;
+coverageSwitch().props.onValueChange(true);
+assert.equal(available, true);
+for (const state of [
+  { settings: { is_available: false, communes: [] } },
+  { hasOrder: true },
+  { workspace: blocked },
+  { uncertain: true },
+  { busy: true },
+]) {
+  available = undefined;
+  const toggle = coverageSwitch(state);
+  assert.equal(toggle.props.disabled, true);
+  toggle.props.onValueChange(true);
+  assert.equal(available, undefined, 'a disabled coverage switch cannot activate availability');
+}
+const pauseDuringDelivery = coverageSwitch({
+  settings: { ...props.settings, is_available: true },
+  hasOrder: true,
+  workspace: blocked,
+});
+assert.equal(pauseDuringDelivery.props.disabled, false);
+pauseDuringDelivery.props.onValueChange(false);
+assert.equal(available, false, 'an active delivery/business block still permits pausing');
 
 let assigned = null,
   unknown = false,
@@ -117,6 +204,7 @@ function refetch(name) {
   return new Promise((resolve, reject) => pendingRefreshes.push({ resolve, reject }));
 }
 const { OffersScreen } = load('apps/mobile/src/features/driver/offers-screen.tsx', {
+  './document-data': documentData,
   react: {
     memo: (fn) => fn,
     useRef: () => refreshLock,
@@ -125,7 +213,13 @@ const { OffersScreen } = load('apps/mobile/src/features/driver/offers-screen.tsx
         ? [refreshing, (value) => (refreshing = value)]
         : ['', (message) => messages.push(message)],
   },
-  'react-native': { FlatList: 'FlatList', View: 'View' },
+  'react-native': {
+    FlatList: 'FlatList',
+    View: 'View',
+    RefreshControl: 'RefreshControl',
+    ActivityIndicator: 'Spinner',
+    StyleSheet: { create: (value) => value },
+  },
   'react-native-safe-area-context': { SafeAreaView: 'SafeAreaView' },
   'expo-router': { router: {} },
   '@/features/auth/auth-provider': {
@@ -168,6 +262,9 @@ const { OffersScreen } = load('apps/mobile/src/features/driver/offers-screen.tsx
   '@/shared/ui/avatar': { Avatar: 'Avatar' },
   '@/shared/ui/display-name': { getDisplayName: () => 'Conductor' },
   '@/shared/ui/components': components,
+  '@/shared/ui/icon': { Icon: 'Icon' },
+  '@/shared/ui/product-image': { ProductImage: 'ProductImage' },
+  '@/theme': { theme },
   '@/shared/ui/cylinder-illustration': { CylinderIllustration: 'CylinderIllustration' },
   '@/shared/ui/pulse-pressable': { PulsePressable: 'Pressable' },
   '@/shared/ui/skeleton': { Skeleton: 'Skeleton' },
@@ -200,6 +297,103 @@ unknown = false;
 currentWorkspace = blocked;
 assert.equal(list().props.data.length, 0);
 
+// Account management links follow trusted capabilities, never user metadata/cached errors.
+const accountQuery = { data: workspace, isPending: false, isError: false, error: null };
+const accountRoutes = [];
+const { DriverAccountScreen } = load('apps/mobile/src/features/driver/driver-account-screen.tsx', {
+  './document-data': documentData,
+  './document-contracts': documentContracts,
+  react: { useRef: () => ({ current: null }), useState: () => [false, () => {}] },
+  'react-native': {
+    View: 'View',
+    ScrollView: 'ScrollView',
+    StyleSheet: { create: (value) => value },
+  },
+  'expo-router': {
+    router: {
+      push: (route) => accountRoutes.push(route),
+      replace: (route) => accountRoutes.push(route),
+    },
+  },
+  '@/features/auth/auth-provider': {
+    useAuth: () => ({
+      session: {
+        user: {
+          email: 'driver@example.com',
+          user_metadata: { can_manage_business: true, is_verified: true },
+        },
+      },
+      retry: async () => {},
+    }),
+  },
+  '@/features/auth/zone-screen': { SignOutButton: 'SignOutButton' },
+  '@/features/driver/offer-data': { useDriverWorkspace: () => accountQuery },
+  '@/features/driver/offer-contracts': contracts,
+  '@/shared/ui/components': { ...components, RefreshButton: 'RefreshButton' },
+  '@/shared/ui/bottom-sheet': { BottomSheet: 'BottomSheet' },
+  '@/shared/ui/display-name': { getDisplayName: () => 'Conductor' },
+  '@/shared/ui/icon': { Icon: 'Icon' },
+  '@/shared/ui/list-row': { ListRow: 'ListRow' },
+  '@/shared/ui/pulse-pressable': { PulsePressable: 'Pressable' },
+  '@/shared/ui/screen': { Screen: 'Screen' },
+  '@/shared/ui/skeleton': { Skeleton: 'Skeleton' },
+  '@/shared/ui/text': { Text: 'Text' },
+  '@/theme': { theme },
+});
+const accountRow = (title) =>
+  nodes(DriverAccountScreen()).find(
+    (node) => node.type === 'ListRow' && node.props.title === title,
+  );
+assert.equal(
+  accountRow('Gestionar mi negocio'),
+  undefined,
+  'driver metadata cannot grant business management',
+);
+accountRow('Comprar como cliente').props.onPress();
+assert.equal(accountRoutes.at(-1), '/customer');
+accountQuery.data = { ...workspace, can_manage_business: true };
+accountRow('Gestionar mi negocio').props.onPress();
+assert.equal(accountRoutes.at(-1), '/business');
+accountQuery.isError = true;
+assert.equal(
+  accountRow('Gestionar mi negocio'),
+  undefined,
+  'cached management capability is hidden after a failed access check',
+);
+assert.ok(
+  nodes(DriverAccountScreen()).some(
+    (node) => node.props?.accessibilityLabel === 'Ver mi habilitación: Acceso sin confirmar',
+  ),
+);
+accountQuery.isError = false;
+accountQuery.data = {
+  ...workspace,
+  is_verified: false,
+  can_receive_offers: false,
+  blocking_reason: 'not_approved',
+};
+assert.ok(
+  nodes(DriverAccountScreen()).some(
+    (node) =>
+      node.props?.accessibilityLabel === 'Ver mi habilitación: Requisitos de reparto pendientes',
+  ),
+);
+accountQuery.data = {
+  ...workspace,
+  can_receive_offers: false,
+  blocking_reason: 'driver_documents',
+};
+licenseSubmission = 'in_review';
+assert.ok(
+  nodes(DriverAccountScreen()).some(
+    (node) => node.props?.accessibilityLabel === 'Ver mi habilitación: Licencia en revisión',
+  ),
+);
+assert.equal(button(DriverAccountScreen(), 'Completar mi licencia'), undefined);
+assert.equal(button(DriverAccountScreen(), 'Actualizar mis archivos').props.variant, 'secondary');
+accountRow('Mi licencia y documentos').props.onPress();
+assert.equal(accountRoutes.at(-1), '/driver-documents');
+
 // Route visibility follows capabilities; customer navigation never authorizes driver routes.
 let zone = 'customer';
 function Stack() {}
@@ -226,9 +420,15 @@ const guardFor = (name) =>
   ).props.guard;
 assert.equal(guardFor('(customer)'), true);
 assert.equal(guardFor('(driver)'), false);
+assert.equal(
+  guardFor('(driver-onboarding)'),
+  true,
+  'Personal documentation does not grant dispatch access',
+);
 zone = 'driver';
 assert.equal(guardFor('(customer)'), true);
 assert.equal(guardFor('(driver)'), true);
+assert.equal(guardFor('(driver-onboarding)'), true);
 
 // Delivery closes only after explicit confirmation; stale/terminal orders cannot advance.
 let deliveryConfirmation = false;
@@ -250,6 +450,13 @@ const { AssignedOrderScreen } = load('apps/mobile/src/features/driver/assigned-o
     ],
   },
   'expo-router': { router: {}, useLocalSearchParams: () => ({ id }) },
+  'react-native': {
+    View: 'View',
+    ScrollView: 'ScrollView',
+    StyleSheet: { create: (value) => value },
+  },
+  '@tanstack/react-query': { useQueryClient: () => ({ invalidateQueries: async () => {} }) },
+  '@/features/auth/auth-provider': { useAuth: () => ({ session: { user: { id } } }) },
   '@/features/driver/offer-data': {
     useAssignedOrder: () => ({
       data: delivery,
@@ -265,6 +472,24 @@ const { AssignedOrderScreen } = load('apps/mobile/src/features/driver/assigned-o
   '@/shared/ui/screen': { Screen: 'Screen' },
   '@/shared/ui/skeleton': { Skeleton: 'Skeleton' },
   '@/shared/ui/text': { Text: 'Text' },
+  '@/shared/ui/bottom-sheet': { BottomSheet: 'BottomSheet' },
+  '@/shared/ui/icon': { Icon: 'Icon' },
+  '@/shared/ui/product-image': { ProductImage: 'ProductImage' },
+  '@/features/tracking/driver/driver-tracking-card': { DriverTrackingCard: 'Tracking' },
+  './delivery-summary': { DeliverySummary: 'Summary' },
+  './delivery-action-notice': {
+    DeliveryActionNotice: 'Notice',
+    useDeliveryActionAnnouncement() {},
+  },
+  './use-delivery-progress': {
+    useDeliveryProgress: (_user, orderId, mutate) => ({
+      feedback: null,
+      pending: false,
+      clear() {},
+      submit: (status) => mutate({ id: orderId, status }),
+    }),
+  },
+  '@/theme': { theme },
 });
 button(AssignedOrderScreen(), 'Marcar como entregado').props.onPress();
 assert.equal(advanced.length, 0);
@@ -281,7 +506,10 @@ console.log(
 );
 
 async function checkManualRefresh() {
-  const refreshButton = () => button(list().props.ListHeaderComponent, 'Actualizar jornada');
+  const refreshButton = () =>
+    nodes(list().props.ListHeaderComponent).find(
+      (node) => node.props?.accessibilityLabel === 'Actualizar jornada',
+    );
   for (const fetching of [true, false, true]) {
     backgroundFetching = fetching;
     assert.equal(

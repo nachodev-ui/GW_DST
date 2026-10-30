@@ -6,7 +6,7 @@ validation remain incomplete; implemented screens do not imply production readin
 
 ## Stack and layout
 
-- npm workspaces; apps/mobile: Expo SDK 57, Expo Router, strict TypeScript.
+- npm workspaces; apps/mobile: Expo SDK 58, Expo Router, strict TypeScript.
 - TanStack Query: server state; Zustand: local UI state; react-hook-form + zod: forms.
 - expo-location, expo-notifications, react-native-maps (Google provider).
 - Supabase: Postgres/PostGIS, Auth, Realtime, Edge Functions, RLS.
@@ -31,8 +31,14 @@ validation remain incomplete; implemented screens do not imply production readin
 - Route files compose features; do not put business rules inside routes.
 - Use @/ for src imports, PascalCase components and kebab-case file names.
 - Use theme tokens; no generic UI kits or hardcoded visual values in components.
+- Positive states across every role must use the Gasway palette: olive text/icon
+  without a filled badge. Never introduce mint/pastel-green success backgrounds
+  or generic semantic green (retired colors: #E3F1E6 and #216144, including close
+  variants). Use shared StatusBadge with tone="success"; success tokens must alias
+  brand olive/cream. Keep status labels/icons and business conditions intact.
 - Validate external inputs with zod on the trusted boundary and constrain data in SQL.
 - Each relevant change MUST update README.md (including Changelog) and docs/ when applicable.
+- Visual-only tweaks do not require README/Changelog updates.
 - Keep docs/auth-confirmation.md append-only; record new evidence in dated sections.
 - Use docs/pilot-security.md for current DT-07 conditions; distinguish implementation,
   cloud deployment, automated checks and operator-reported device evidence.
@@ -78,3 +84,14 @@ validation remain incomplete; implemented screens do not imply production readin
 - For the initial scaffold: at most one dependency install. Run one final typecheck when code changes; documentation-only changes require no validation commands.
 - Never run visual checks, render the app, take screenshots or open emulators unless explicitly asked.
 - If a shell command fails to start, retry once; if it still fails, stop and report the exact error.
+
+## UI and design
+
+- For visual tasks, redesign with judgment and ambition within the theme tokens; "small, focused changes" applies to logic/data, not to UI quality.
+- Before creating or redesigning a screen, consult ScreenDesign, extract patterns and adapt them to Gasway tokens. Skip it for logic-only or minor tweaks.
+- Hierarchy: one primary action per screen (filled button); secondary actions as tonal/outlined, text link or icon. Never stack several full-width buttons of equal weight.
+- Minimal copy: titles of 1-4 words, no explanatory paragraphs or redundant subtitles. Secondary detail goes behind an info icon or bottom sheet. When in doubt, remove text.
+- Status/notices (e.g. out of catalog, pending): small subtle chips using tokens; never large banners or pills.
+- Data refresh is always pull-to-refresh; no "Update" buttons.
+- Header/summary cards stay compact; avoid hero cards with little content.
+- Match the patterns of an already-polished sibling screen for consistency.

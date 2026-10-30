@@ -5,7 +5,7 @@ import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { getSupabase } from '@/shared/supabase/client';
-import { Button, Input } from '@/shared/ui/components';
+import { Input } from '@/shared/ui/components';
 import {
   AccessPage,
   AccessSubmit,
@@ -18,6 +18,7 @@ import { Text } from '@/shared/ui/text';
 import { authErrorMessage, registrationPhoneDigitsSchema } from '@/features/auth/credentials';
 import { confirmationRedirect } from '@/features/auth/confirmation';
 import { useRegistration } from '@/features/auth/registration';
+import { RegistrationCheckEmailPage } from '@/features/auth/check-email-page';
 
 const phoneFormSchema = z.object({ phone: registrationPhoneDigitsSchema });
 type PhoneForm = z.input<typeof phoneFormSchema>;
@@ -158,27 +159,5 @@ export function RegistrationPhoneScreen() {
 export function RegistrationCheckEmailScreen() {
   const email = useRegistration((state) => state.email);
   if (!email) return <Redirect href="/access" />;
-  return (
-    <AccessPage
-      title={'Revisa tu\ncorreo.'}
-      navigation={
-        <Button
-          label="Volver al inicio de sesión"
-          variant="link"
-          onPress={() => router.replace('/access')}
-        />
-      }
-    >
-      <AccessFeedback
-        text={`Revisa ${email} y abre el enlace en este teléfono para confirmar tu cuenta. Si no lo encuentras, revisa la carpeta de spam.`}
-      />
-      <AccessFeedback text="Si ya tienes una cuenta con ese correo, inicia sesión con tu contraseña." />
-      <AccessSubmit
-        label="Ir a iniciar sesión"
-        loadingLabel="Continuando…"
-        loading={false}
-        onPress={() => router.replace('/access')}
-      />
-    </AccessPage>
-  );
+  return <RegistrationCheckEmailPage email={email} onSignIn={() => router.replace('/access')} />;
 }

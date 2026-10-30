@@ -4,6 +4,7 @@ import { useAuth } from '@/features/auth/auth-provider';
 import { getSupabase } from '@/shared/supabase/client';
 import { communeSchema, orderSchema, productSchema } from '@/shared/orders/contracts';
 import type { OrderForm } from '@/features/orders/customer/order-form';
+import { deliveryPointSchema } from '@/shared/orders/delivery-point';
 
 const orderColumns =
   'id,customer_id,product_id,distributor_id,returned_brand,quantity,exchange_empty,status,total_clp,currency,payment_method,delivery_address,commune_code,notes,created_at';
@@ -94,6 +95,33 @@ export function useOrderEvents(id: string) {
     staleTime: 0,
   });
 }
+export function useOrderDetailRefresh(id: string) {
+  const { session } = useAuth();
+  const queryClient = useQueryClient();
+  return async () => {
+    if (!session) return;
+    const userId = session.user.id;
+    // The order prefix also includes its events and distributor contact.
+    await Promise.all([
+      queryClient.refetchQueries(
+        { queryKey: ['customer-orders', userId, id], type: 'active' },
+        { cancelRefetch: false },
+      ),
+      queryClient.refetchQueries(
+        { queryKey: ['order-catalogue', userId], exact: true, type: 'active' },
+        { cancelRefetch: false },
+      ),
+      queryClient.refetchQueries(
+        { queryKey: ['order-tracking', userId, id], exact: true, type: 'active' },
+        { cancelRefetch: false },
+      ),
+      queryClient.refetchQueries(
+        { queryKey: ['order-route', userId, id], type: 'active' },
+        { cancelRefetch: false },
+      ),
+    ]);
+  };
+}
 export function useOrderActions() {
   const queryClient = useQueryClient();
   const { session } = useAuth();
@@ -113,21 +141,27 @@ export function useOrderActions() {
         returnedBrand: string | null;
       },
     ) => {
-      const { data, error } = await getSupabase()
-        .rpc('create_distributor_order', {
-          p_distributor_id: values.distributorId,
-          p_expected_unit_price: values.expectedUnitPrice,
-          p_request_id: values.requestId,
-          p_returned_brand: values.returnedBrand,
-          p_product_id: values.productId,
-          p_quantity: Number(values.quantity),
-          p_exchange_empty: values.exchangeEmpty,
-          p_delivery_address: values.address,
-          p_commune_code: values.communeCode,
-          p_notes: values.notes || null,
-        })
-        .select(orderColumns)
-        .single();
+      const parameters = {
+        p_distributor_id: values.distributorId,
+        p_expected_unit_price: values.expectedUnitPrice,
+        p_request_id: values.requestId,
+        p_returned_brand: values.returnedBrand,
+        p_product_id: values.productId,
+        p_quantity: Number(values.quantity),
+        p_exchange_empty: values.exchangeEmpty,
+        p_delivery_address: values.address,
+        p_commune_code: values.communeCode,
+        p_notes: values.notes || null,
+      };
+      const point = values.deliveryPoint ? deliveryPointSchema.parse(values.deliveryPoint) : null;
+      const request = point
+        ? getSupabase().rpc('create_mapped_distributor_order', {
+            ...parameters,
+            p_latitude: point.latitude,
+            p_longitude: point.longitude,
+          })
+        : getSupabase().rpc('create_distributor_order', parameters);
+      const { data, error } = await request.select(orderColumns).single();
       if (error) throw error;
       return orderSchema.parse(data);
     },

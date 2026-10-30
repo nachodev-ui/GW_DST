@@ -172,7 +172,10 @@ export function useDriverActions() {
         order.status === 'delivered' ? null : order,
       );
     },
-    onSettled: refresh,
+    // The RPC result already confirms the change. Refresh must not delay its feedback.
+    onSettled: () => {
+      void refresh().catch(() => undefined);
+    },
   });
   return { settings, accept, reject, advance };
 }

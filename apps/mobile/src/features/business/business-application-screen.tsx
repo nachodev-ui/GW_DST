@@ -1,12 +1,25 @@
-import { useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { useRef, useState } from 'react';
+import { StyleSheet, View, type ScrollViewInstance } from 'react-native';
 import { Redirect, router } from 'expo-router';
-import { Controller, useForm } from 'react-hook-form';
+import { Controller, useForm, useWatch, type FieldPath } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/features/auth/auth-provider';
 import { brands, type Commune } from '@/shared/orders/contracts';
-import { Button, Card, Feedback, Input, OptionCard } from '@/shared/ui/components';
+import { Button, Card, Feedback, RefreshButton, StatusBadge } from '@/shared/ui/components';
+import {
+  CompactFormInput,
+  FormCard,
+  FormChoiceTile,
+  FormInfo,
+  FormNotice,
+  FormStepHeading,
+  FormSummarySection,
+} from '@/shared/ui/compact-form';
+import { CompactSelect } from '@/shared/ui/compact-select';
+import { FormStepper, type FormStep } from '@/shared/ui/form-stepper';
+import { useFormSteps } from '@/shared/ui/use-form-steps';
+import { Enter } from '@/shared/ui/enter';
 import { Text } from '@/shared/ui/text';
 import { Screen } from '@/shared/ui/screen';
 import { theme } from '@/theme';
@@ -25,14 +38,64 @@ import {
 
 const back = () => router.replace('/');
 const fields = [
-  { name: 'name', label: 'Nombre del negocio', limit: 120 },
-  { name: 'rut', label: 'RUT del negocio', limit: 20 },
-  { name: 'contact_name', label: 'Responsable del negocio', limit: 100 },
-  { name: 'phone', label: 'Teléfono de contacto', limit: 24 },
-  { name: 'address', label: 'Dirección del recinto', limit: 240 },
-  { name: 'commercial_evidence', label: 'Antecedentes comerciales', limit: 1000 },
-  { name: 'storage_evidence', label: 'Antecedentes del recinto y seguridad', limit: 1000 },
+  {
+    name: 'name',
+    label: 'Nombre del negocio',
+    limit: 120,
+    icon: 'store',
+    placeholder: 'Nombre comercial',
+  },
+  { name: 'rut', label: 'RUT del negocio', limit: 20, icon: 'orders', placeholder: '76.123.456-0' },
+  {
+    name: 'contact_name',
+    label: 'Responsable del negocio',
+    limit: 100,
+    icon: 'user',
+    placeholder: 'Nombre y apellido',
+  },
+  {
+    name: 'phone',
+    label: 'Teléfono de contacto',
+    limit: 24,
+    icon: 'phone',
+    placeholder: '+56 9 1234 5678',
+  },
+  {
+    name: 'address',
+    label: 'Dirección del recinto',
+    limit: 240,
+    icon: 'pin',
+    placeholder: 'Calle, número y local',
+  },
+  {
+    name: 'commercial_evidence',
+    label: 'Antecedentes comerciales',
+    limit: 1000,
+    icon: 'orders',
+    placeholder: 'Inicio de actividades, patente, acuerdos…',
+  },
+  {
+    name: 'storage_evidence',
+    label: 'Antecedentes del recinto y seguridad',
+    limit: 1000,
+    icon: 'shield',
+    placeholder: 'Recinto, registro y seguridad…',
+  },
 ] as const;
+const steps = [
+  { label: 'Negocio', icon: 'store' },
+  { label: 'Recinto', icon: 'pin' },
+  { label: 'Antecedentes', icon: 'shield' },
+  { label: 'Marcas y envío', icon: 'flame' },
+] as const satisfies readonly FormStep[];
+const stepFields: FieldPath<BusinessForm>[][] = [
+  ['name', 'rut', 'contact_name', 'phone'],
+  ['address', 'commune_code'],
+  ['commercial_evidence', 'storage_evidence'],
+  ['brands'],
+];
+const evidenceNotice =
+  'Las referencias son privadas. Este formulario no sube documentos ni acredita permisos legales; administración debe contrastarlos antes de una operación real.';
 
 export function BusinessApplicationScreen() {
   const { session } = useAuth();
@@ -60,11 +123,14 @@ export function BusinessApplicationScreen() {
     return (
       <Screen title="Mi negocio" onBack={back}>
         <Feedback text="No pudimos cargar tu solicitud. Reintenta para continuar." error />
-        <Button
+        <RefreshButton
           label="Reintentar"
-          disabled={businesses.isFetching || application.isFetching || communes.isFetching}
-          onPress={() =>
-            void Promise.all([businesses.refetch(), application.refetch(), communes.refetch()])
+          onRefresh={() =>
+            Promise.all([
+              businesses.refetch({ cancelRefetch: false }),
+              application.refetch({ cancelRefetch: false }),
+              communes.refetch({ cancelRefetch: false }),
+            ])
           }
         />
       </Screen>
@@ -89,10 +155,14 @@ export function BusinessApplicationScreen() {
             Enviada: {new Date(application.data.requested_at).toLocaleString('es-CL')}
           </Text>
         </Card>
-        <Button
+        <RefreshButton
           label="Actualizar estado"
-          onPress={() => void Promise.all([businesses.refetch(), application.refetch()])}
-          disabled={businesses.isFetching || application.isFetching}
+          onRefresh={() =>
+            Promise.all([
+              businesses.refetch({ cancelRefetch: false }),
+              application.refetch({ cancelRefetch: false }),
+            ])
+          }
         />
       </Screen>
     );
@@ -107,12 +177,14 @@ function BusinessApplicationFields({
   communes: Commune[];
 }) {
   const queryClient = useQueryClient();
+  const scroll = useRef<ScrollViewInstance>(null);
   const [search, setSearch] = useState('');
   const [confirming, setConfirming] = useState(false);
   const {
     control,
     handleSubmit,
-    formState: { errors },
+    trigger,
+    formState: { errors, isValidating },
   } = useForm<BusinessForm>({
     resolver: zodResolver(
       businessFormSchema.refine((value) => communes.some((c) => c.code === value.commune_code), {
@@ -121,6 +193,7 @@ function BusinessApplicationFields({
       }),
     ),
     mode: 'onBlur',
+    shouldUnregister: false,
     defaultValues: initial ?? {
       name: '',
       rut: '',
@@ -142,156 +215,303 @@ function BusinessApplicationFields({
     },
     onError: () => setConfirming(false),
   });
-  const submit = handleSubmit((values) => {
-    if (initial && !confirming) {
-      setConfirming(true);
-      return;
-    }
-    request.mutate(values);
-  });
+  const { step, go, back: previous } = useFormSteps({ onExit: back, busy: request.isPending });
+  const values = useWatch({ control });
+  const submit = handleSubmit(
+    (values) => {
+      if (initial && !confirming) {
+        setConfirming(true);
+        return;
+      }
+      request.mutate(values);
+    },
+    (invalid) => {
+      const invalidStep = stepFields.findIndex((names) => names.some((name) => name in invalid));
+      if (invalidStep >= 0) go(invalidStep);
+    },
+  );
   const matching = communes.filter((c) =>
     `${c.name} ${c.code}`.toLocaleLowerCase('es-CL').includes(search.toLocaleLowerCase('es-CL')),
   );
+  const next = async () => {
+    if (await trigger(stepFields[step], { shouldFocus: true })) go(step + 1);
+  };
+  const selectedCommune = communes.find((c) => c.code === values.commune_code);
+  const renderField = (item: (typeof fields)[number]) => (
+    <Controller
+      key={item.name}
+      control={control}
+      name={item.name}
+      render={({ field }) => (
+        <CompactFormInput
+          ref={field.ref}
+          label={item.label}
+          icon={item.icon}
+          placeholder={item.placeholder}
+          value={field.value}
+          onChangeText={field.onChange}
+          onBlur={field.onBlur}
+          error={errors[item.name]?.message}
+          maxLength={item.limit}
+          editable={!request.isPending}
+          keyboardType={item.name === 'phone' ? 'phone-pad' : 'default'}
+          autoCapitalize={item.name === 'rut' ? 'characters' : 'sentences'}
+          multiline={item.name === 'commercial_evidence' || item.name === 'storage_evidence'}
+          help={
+            item.name === 'commercial_evidence'
+              ? 'Referencias de inicio de actividades, patente y acuerdos comerciales para revisión.'
+              : item.name === 'storage_evidence'
+                ? 'Referencias del recinto, registro y antecedentes de seguridad aplicables para revisión.'
+                : ''
+          }
+        />
+      )}
+    />
+  );
   return (
-    <Screen title="Registrar mi negocio" onBack={back}>
-      <Text>
-        Cuéntanos quién vende y dónde opera. El negocio y sus responsables tienen permisos distintos
-        a los del repartidor.
-      </Text>
-      <Text variant="note">
-        Las referencias de antecedentes son privadas. Este formulario no sube documentos ni acredita
-        permisos legales; administración debe contrastarlos antes de una operación real.
-      </Text>
-      {initial ? (
-        <Card>
-          <Text variant="subtitle">Solicitud rechazada</Text>
-          <Text selectable>{initial.decision_reason}</Text>
-          <Text>Corrige el motivo antes de volver a enviarla.</Text>
-        </Card>
-      ) : null}
-      {fields.map((item) => (
-        <Controller
-          key={item.name}
-          control={control}
-          name={item.name}
-          render={({ field }) => (
-            <Input
-              ref={field.ref}
-              label={item.label}
-              value={field.value}
-              onChangeText={field.onChange}
-              onBlur={field.onBlur}
-              error={errors[item.name]?.message}
-              maxLength={item.limit}
-              editable={!request.isPending}
-              keyboardType={item.name === 'phone' ? 'phone-pad' : 'default'}
-              autoCapitalize={item.name === 'rut' ? 'characters' : 'sentences'}
-              multiline={item.name === 'commercial_evidence' || item.name === 'storage_evidence'}
-              help={
-                item.name === 'commercial_evidence'
-                  ? 'Referencias de inicio de actividades, patente y acuerdos comerciales para revisión.'
-                  : item.name === 'storage_evidence'
-                    ? 'Referencias del recinto, registro y antecedentes de seguridad aplicables para revisión.'
-                    : ''
+    <Screen
+      title="Registrar negocio"
+      compactHeader
+      onBack={previous}
+      contentKey={step}
+      scrollRef={scroll}
+      headerAccessory={<FormStepper steps={steps} current={step} />}
+      footer={
+        <View style={styles.footer}>
+          {step > 0 ? (
+            <Button label="Atrás" variant="link" onPress={previous} disabled={request.isPending} />
+          ) : null}
+          <View style={styles.primary}>
+            <Button
+              label={
+                step < 3
+                  ? 'Continuar'
+                  : request.isPending
+                    ? 'Enviando…'
+                    : confirming
+                      ? 'Confirmar nueva solicitud'
+                      : initial
+                        ? 'Revisar nueva solicitud'
+                        : 'Enviar solicitud'
               }
+              disabled={request.isPending || isValidating}
+              onPress={() => {
+                if (step < 3) void next();
+                else void submit();
+              }}
             />
-          )}
-        />
-      ))}
-      <Controller
-        control={control}
-        name="commune_code"
-        render={({ field }) => (
-          <View
-            style={styles.options}
-            accessibilityRole="radiogroup"
-            accessibilityLabel="Comuna del negocio"
-          >
-            <Text variant="subtitle">Comuna del recinto</Text>
-            <Text>{communes.find((c) => c.code === field.value)?.name ?? 'Sin seleccionar'}</Text>
-            <Input
-              label="Buscar comuna o código CUT"
-              value={search}
-              onChangeText={setSearch}
-              editable={!request.isPending}
-            />
-            {matching.slice(0, 6).map((c) => (
-              <OptionCard
-                key={c.code}
-                label={`${c.name} (${c.code})`}
-                selected={field.value === c.code}
-                disabled={request.isPending}
-                onPress={() => field.onChange(c.code)}
-              />
-            ))}
-            <Text variant="note">
-              {matching.length > 6
-                ? 'Escribe para acotar los resultados.'
-                : `${matching.length} comunas encontradas.`}
-            </Text>
-            {errors.commune_code ? (
-              <Feedback text={errors.commune_code.message ?? 'Selecciona una comuna.'} error />
-            ) : null}
           </View>
-        )}
-      />
-      <Controller
-        control={control}
-        name="brands"
-        render={({ field }) => (
-          <View style={styles.options}>
-            <Text variant="subtitle">Marcas que comercializa el negocio</Text>
-            {brands.map((brand) => (
+        </View>
+      }
+    >
+      <Enter key={step}>
+        <View style={styles.content}>
+          {initial ? (
+            <FormCard>
+              <StatusBadge label="Solicitud rechazada" tone="error" compact />
+              <Text selectable>{initial.decision_reason}</Text>
+            </FormCard>
+          ) : null}
+          <FormStepHeading
+            title={step === 3 ? 'Marcas y envío' : steps[step]!.label}
+            icon={steps[step]!.icon}
+          />
+          {step === 0 ? (
+            <>
+              <FormCard>{fields.slice(0, 2).map(renderField)}</FormCard>
+              <FormCard>{fields.slice(2, 4).map(renderField)}</FormCard>
+            </>
+          ) : null}
+          {step === 1 ? (
+            <FormCard>
+              {renderField(fields[4])}
+              <Controller
+                control={control}
+                name="commune_code"
+                render={({ field }) => (
+                  <CompactSelect
+                    label="Comuna del recinto"
+                    selected={
+                      selectedCommune
+                        ? {
+                            value: selectedCommune.code,
+                            label: selectedCommune.name,
+                            detail: selectedCommune.code,
+                          }
+                        : undefined
+                    }
+                    options={matching
+                      .slice(0, 6)
+                      .map((c) => ({ value: c.code, label: c.name, detail: c.code }))}
+                    search={search}
+                    onSearch={setSearch}
+                    onChange={field.onChange}
+                    onBlur={field.onBlur}
+                    error={errors.commune_code?.message}
+                    disabled={request.isPending}
+                    hint={
+                      matching.length > 6
+                        ? 'Busca para acotar resultados.'
+                        : String(matching.length) + ' comunas encontradas.'
+                    }
+                  />
+                )}
+              />
+            </FormCard>
+          ) : null}
+          {step === 2 ? (
+            <>
+              <FormCard>{fields.slice(5).map(renderField)}</FormCard>
+              <FormNotice
+                label="Sin archivos ni acreditación; revisión admin."
+                detail={evidenceNotice}
+              />
+            </>
+          ) : null}
+          {step === 3 ? (
+            <>
+              <FormCard>
+                <View style={styles.row}>
+                  <Text variant="label" style={styles.primary}>
+                    Marcas que comercializa
+                  </Text>
+                  <FormInfo
+                    label="Marcas del negocio"
+                    detail="Selecciona las marcas que comercializa el negocio. Toca una marca para agregarla o quitarla."
+                  />
+                </View>
+                <Controller
+                  control={control}
+                  name="brands"
+                  render={({ field }) => (
+                    <View style={styles.stack}>
+                      <View style={styles.brandRow}>
+                        {brands.map((brand) => (
+                          <FormChoiceTile
+                            key={brand}
+                            label={brand}
+                            selected={field.value.includes(brand)}
+                            disabled={request.isPending}
+                            onPress={() =>
+                              field.onChange(
+                                field.value.includes(brand)
+                                  ? field.value.filter((b) => b !== brand)
+                                  : [...field.value, brand],
+                              )
+                            }
+                          />
+                        ))}
+                      </View>
+                      {errors.brands ? (
+                        <Text variant="note" accessibilityRole="alert" style={styles.error}>
+                          {errors.brands.message ?? 'Selecciona las marcas.'}
+                        </Text>
+                      ) : null}
+                    </View>
+                  )}
+                />
+              </FormCard>
+              <FormCard>
+                <Text variant="subtitle" accessibilityRole="header">
+                  Resumen
+                </Text>
+                <FormSummarySection
+                  title="Negocio"
+                  icon="store"
+                  onEdit={() => go(0)}
+                  disabled={request.isPending}
+                >
+                  <Text variant="label" selectable>
+                    {values.name}
+                  </Text>
+                  <Text variant="note" selectable>
+                    {values.rut}
+                  </Text>
+                  <Text variant="note" selectable>
+                    {values.contact_name} · {values.phone}
+                  </Text>
+                </FormSummarySection>
+                <FormSummarySection
+                  title="Recinto"
+                  icon="pin"
+                  onEdit={() => go(1)}
+                  disabled={request.isPending}
+                >
+                  <Text variant="note" selectable>
+                    {values.address}
+                  </Text>
+                  <Text variant="note">
+                    {selectedCommune?.name} · CUT {selectedCommune?.code}
+                  </Text>
+                </FormSummarySection>
+                <FormSummarySection
+                  title="Antecedentes"
+                  icon="shield"
+                  onEdit={() => go(2)}
+                  disabled={request.isPending}
+                >
+                  <View style={styles.summaryLine}>
+                    <Text variant="note" numberOfLines={1} style={styles.primary}>
+                      Comerciales: {values.commercial_evidence}
+                    </Text>
+                    <FormInfo
+                      label="Antecedentes comerciales"
+                      detail={values.commercial_evidence ?? ''}
+                    />
+                  </View>
+                  <View style={styles.summaryLine}>
+                    <Text variant="note" numberOfLines={1} style={styles.primary}>
+                      Recinto y seguridad: {values.storage_evidence}
+                    </Text>
+                    <FormInfo label="Recinto y seguridad" detail={values.storage_evidence ?? ''} />
+                  </View>
+                </FormSummarySection>
+                <FormSummarySection
+                  title="Marcas"
+                  icon="flame"
+                  onEdit={() => {
+                    go(3);
+                    scroll.current?.scrollTo({ y: 0, animated: true });
+                  }}
+                  disabled={request.isPending}
+                >
+                  <Text variant="note">{values.brands?.join(' · ') || 'Sin seleccionar'}</Text>
+                </FormSummarySection>
+                <FormNotice
+                  label="Sin archivos ni acreditación; revisión admin."
+                  detail={evidenceNotice}
+                />
+              </FormCard>
+            </>
+          ) : null}
+          {step === 3 && confirming ? (
+            <View style={styles.stack}>
+              <Text variant="note">
+                Al confirmar, declaras que corregiste el motivo informado. Administración volverá a
+                revisar el negocio.
+              </Text>
               <Button
-                key={brand}
-                label={`${field.value.includes(brand) ? 'Quitar' : 'Agregar'} ${brand}`}
-                variant={field.value.includes(brand) ? 'primary' : 'secondary'}
+                label="Seguir editando"
+                variant="link"
+                onPress={() => setConfirming(false)}
                 disabled={request.isPending}
-                onPress={() =>
-                  field.onChange(
-                    field.value.includes(brand)
-                      ? field.value.filter((b) => b !== brand)
-                      : [...field.value, brand],
-                  )
-                }
               />
-            ))}
-            {errors.brands ? (
-              <Feedback text={errors.brands.message ?? 'Selecciona las marcas.'} error />
-            ) : null}
-          </View>
-        )}
-      />
-      {confirming ? (
-        <Text>
-          Al confirmar, declaras que corregiste el motivo informado. Administración volverá a
-          revisar el negocio.
-        </Text>
-      ) : null}
-      {request.isError ? <Feedback text={businessError(request.error)} error /> : null}
-      <Button
-        label={
-          request.isPending
-            ? 'Enviando…'
-            : confirming
-              ? 'Confirmar nueva solicitud'
-              : initial
-                ? 'Revisar nueva solicitud'
-                : 'Enviar solicitud'
-        }
-        disabled={request.isPending}
-        onPress={() => void submit()}
-      />
-      {confirming ? (
-        <Button
-          label="Seguir editando"
-          variant="secondary"
-          onPress={() => setConfirming(false)}
-          disabled={request.isPending}
-        />
-      ) : null}
+            </View>
+          ) : null}
+          {request.isError ? <Feedback text={businessError(request.error)} error /> : null}
+        </View>
+      </Enter>
     </Screen>
   );
 }
 
-const styles = StyleSheet.create({ options: { gap: theme.spacing.sm } });
+const styles = StyleSheet.create({
+  content: { gap: theme.spacing.lg },
+  stack: { gap: theme.spacing.sm },
+  row: { flexDirection: 'row', alignItems: 'center', gap: theme.spacing.sm },
+  summaryLine: { flexDirection: 'row', alignItems: 'center', gap: theme.spacing.xs },
+  brandRow: { flexDirection: 'row', gap: theme.spacing.sm },
+  footer: { flexDirection: 'row', alignItems: 'center', gap: theme.spacing.sm },
+  primary: { flex: 1, minWidth: theme.spacing.none },
+  error: { color: theme.colors.error },
+});

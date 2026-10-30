@@ -35,7 +35,7 @@ begin
         and d.classid='pg_class'::regclass and d.deptype='e')
       and has_table_privilege(actor,c.oid,privilege)
       and not (actor='authenticated' and n.nspname='public'
-        and (privilege='SELECT' or (c.relname='driver_locations' and privilege in ('INSERT','UPDATE'))))
+        and privilege='SELECT')
   ) then raise exception 'FAIL: excessive effective table grants'; end if;
 
   if exists (
@@ -48,8 +48,7 @@ begin
         and d.classid='pg_class'::regclass and d.deptype='e')
       and has_column_privilege(actor,c.oid,a.attnum,privilege)
       and not (actor='authenticated' and n.nspname='public' and
-        ((c.relname='profiles' and privilege='UPDATE' and a.attname in ('display_name','rut','commune_code','phone'))
-        or c.relname='driver_locations'))
+        (c.relname='profiles' and privilege='UPDATE' and a.attname in ('display_name','rut','commune_code','phone')))
   ) then raise exception 'FAIL: excessive effective column writes'; end if;
 
   if exists (

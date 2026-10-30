@@ -1,5 +1,8 @@
 {
   "current": [
+    "document_eligibility.sql",
+    "driver_self_documentation.sql",
+    "document_replacement.sql",
     "abastible_cylinder_variants.sql",
     "business_onboarding.sql",
     "business_driver_invitations.sql",
@@ -7,7 +10,10 @@
     "distributor_owned_coverage.sql",
     "driver_order_progress.sql",
     "driver_workspace.sql",
-    "pilot_security.sql"
+    "pilot_security.sql",
+    "mapped_delivery_point.sql",
+    "order_tracking.sql",
+    "distributor_workspace.sql"
   ],
   "historical": {
     "initial_schema.sql": "Fixture de aceptación anterior al catálogo/precio por vendedor; cubierto por discovery/coverage/progress.",

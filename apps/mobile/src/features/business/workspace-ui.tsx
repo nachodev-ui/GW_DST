@@ -1,4 +1,3 @@
-import { LinearGradient } from 'expo-linear-gradient';
 import { type PropsWithChildren } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { Card } from '@/shared/ui/components';
@@ -17,24 +16,19 @@ export function WorkspaceHero({
   description: string;
 }>) {
   return (
-    <LinearGradient
-      colors={[theme.colors.heroStart, theme.colors.heroEnd]}
-      start={{ x: 0, y: 0 }}
-      end={{ x: 1, y: 1 }}
-      style={workspaceStyles.hero}
-    >
+    <View style={workspaceStyles.hero}>
       <View style={workspaceStyles.heroTop}>
         <Text variant="label" style={workspaceStyles.eyebrow}>
           {eyebrow}
         </Text>
         <Icon name="home" color={theme.colors.primaryLight} />
       </View>
-      <Text variant="display" accessibilityRole="header" style={workspaceStyles.heroTitle}>
+      <Text variant="title" accessibilityRole="header" style={workspaceStyles.heroTitle}>
         {title}
       </Text>
       <Text style={workspaceStyles.heroDescription}>{description}</Text>
       {children ? <View style={workspaceStyles.heroFooter}>{children}</View> : null}
-    </LinearGradient>
+    </View>
   );
 }
 
@@ -78,8 +72,8 @@ export function WorkspaceMetric({
 
 export const workspaceStyles = StyleSheet.create({
   hero: {
-    ...theme.elevation.medium,
-    borderRadius: theme.workspace.heroRadius,
+    backgroundColor: theme.business.dark,
+    borderRadius: theme.business.radius,
     padding: theme.spacing.lg,
     gap: theme.spacing.compact,
   },

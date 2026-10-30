@@ -4,25 +4,9 @@ import { Controller, useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useAuth } from '@/features/auth/auth-provider';
-import {
-  Button,
-  Card,
-  Feedback,
-  Input,
-  OptionCard,
-  SegmentedChoice,
-  Stepper,
-  ui,
-} from '@/shared/ui/components';
+import { Button, Feedback, Input, ui } from '@/shared/ui/components';
 import { Screen } from '@/shared/ui/screen';
-import {
-  brands,
-  weights,
-  formatClp,
-  productLabel,
-  type Commune,
-  type Product,
-} from '@/shared/orders/contracts';
+import { weights, productLabel, type Commune, type Product } from '@/shared/orders/contracts';
 import { deliveryAvailability, type DeliveryOption } from '@/shared/orders/delivery-options';
 import { useCatalogue, useOrderActions, orderError } from './order-data';
 import { createOrderFormSchema, type OrderForm } from './order-form';
@@ -31,17 +15,19 @@ import { DeliveryOptionsList } from './delivery-options-list';
 import { nativeGeocoder, readSavedAddress, rememberAddress } from './address-data';
 import { theme } from '@/theme';
 import { BottomSheet } from '@/shared/ui/bottom-sheet';
-import { BrandLogo, brandLogoKeys } from '@/shared/ui/brand-logo';
-import { ProductImage } from '@/shared/ui/product-image';
-import { CylinderSelector } from '@/shared/ui/cylinder-selector';
 import { EmptyState } from '@/shared/ui/empty-state';
 import { ListRow } from '@/shared/ui/list-row';
 import { Icon } from '@/shared/ui/icon';
 import { Skeleton } from '@/shared/ui/skeleton';
-import { PulsePressable } from '@/shared/ui/pulse-pressable';
 import { Text } from '@/shared/ui/text';
 import { trackEvent } from '@/shared/analytics/track-event';
 import { CoverageInterest } from './coverage-interest';
+import { DeliveryPointPicker } from './delivery-point-picker';
+import { deliveryPointSchema, type DeliveryPoint } from '@/shared/orders/delivery-point';
+import { OrderCylinderStep } from './order-cylinder-step';
+import { OrderSelectionSummary } from './order-selection-summary';
+import { OrderReviewSummary } from './order-review-summary';
+import { purchaseStyles as purchase } from './purchase-styles';
 
 type Weight = (typeof weights)[number];
 const steps = ['Entrega', 'Tu cilindro', 'Distribuidoras'] as const;
@@ -84,8 +70,9 @@ function OrderFields({ products, communes }: { products: Product[]; communes: Co
   const [remember, setRemember] = useState(false);
   const [locating, setLocating] = useState(false);
   const [addressFeedback, setAddressFeedback] = useState('');
+  const [locationSuggestion, setLocationSuggestion] = useState<DeliveryPoint | null>(null);
   const [selected, setSelected] = useState<DeliveryOption | null>(null);
-  const [demoDismissed, setDemoDismissed] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
   const addressEdited = useRef(false);
   const requestIds = useRef(new Map<string, string>());
   const { create } = useOrderActions();
@@ -105,9 +92,12 @@ function OrderFields({ products, communes }: { products: Product[]; communes: Co
       address: '',
       communeCode: '',
       notes: '',
+      deliveryPoint: null,
     },
   });
   const values = useWatch({ control });
+  const parsedPoint = deliveryPointSchema.safeParse(values.deliveryPoint);
+  const confirmedPoint = parsedPoint.success ? parsedPoint.data : null;
   const product = products.find((entry) => entry.id === values.productId);
   const selectedCommune = communes.find((entry) => entry.code === values.communeCode);
   const quantity = Number(values.quantity ?? '1');
@@ -147,6 +137,7 @@ function OrderFields({ products, communes }: { products: Product[]; communes: Co
             return;
           setValue('address', saved.address);
           setValue('communeCode', saved.communeCode);
+          setValue('deliveryPoint', saved.deliveryPoint ?? null);
           setRemember(true);
         })
         .catch(() => {
@@ -165,6 +156,8 @@ function OrderFields({ products, communes }: { products: Product[]; communes: Co
       const located = await nativeGeocoder.locate(communes);
       if (located.address) setValue('address', located.address);
       setValue('communeCode', located.communeCode ?? '');
+      setValue('deliveryPoint', null);
+      setLocationSuggestion(located.deliveryPoint ?? null);
       setAddressFeedback(
         located.communeCode
           ? 'Revisa la calle, número y comuna antes de continuar.'
@@ -182,12 +175,20 @@ function OrderFields({ products, communes }: { products: Product[]; communes: Co
   };
   const advance = async () => {
     if (step === 0 && (await trigger(['address', 'communeCode', 'notes']))) {
+      if (Platform.OS !== 'web' && !getValues('deliveryPoint')) {
+        setAddressFeedback('Confirma el punto de entrega en el mapa antes de continuar.');
+        return;
+      }
       if (session && Platform.OS !== 'web') {
         try {
           await rememberAddress(
             session.user.id,
             remember
-              ? { address: getValues('address'), communeCode: getValues('communeCode') }
+              ? {
+                  address: getValues('address'),
+                  communeCode: getValues('communeCode'),
+                  deliveryPoint: getValues('deliveryPoint') ?? null,
+                }
               : null,
           );
         } catch {
@@ -225,44 +226,58 @@ function OrderFields({ products, communes }: { products: Product[]; communes: Co
   });
   return (
     <Screen
+      key={step}
       title="Nuevo pedido"
+      {...(step === 2
+        ? {
+            onRefresh: async () => {
+              if (!busy) await results.refetch({ cancelRefetch: false });
+            },
+          }
+        : {})}
       compactHeader
       onBack={() => (step > 0 ? setStep(step - 1) : router.replace('/customer'))}
       footer={
-        <View style={ui.stack}>
-          <Text variant="label">
-            {product
-              ? `${quantity} × ${product.brand} ${productLabel(product)}`
-              : 'Tu próximo cilindro'}
-            {selectedCommune ? ` · ${selectedCommune.name}` : ''}
-          </Text>
+        <View style={purchase.footer}>
+          {step > 0 ? (
+            <OrderSelectionSummary
+              product={product}
+              quantity={quantity}
+              commune={selectedCommune?.name}
+              onEdit={step === 2 ? () => setEditOpen(true) : undefined}
+            />
+          ) : null}
           {step < 2 ? (
             <Button
               label={step === 0 ? 'Elegir cilindro' : 'Ver distribuidoras'}
+              style={purchase.primary}
               disabled={locating || busy}
               onPress={() => void advance()}
             />
-          ) : (
-            <Button
-              label="Cambiar dirección o cilindro"
-              variant="secondary"
-              onPress={() => setStep(0)}
-            />
-          )}
+          ) : null}
         </View>
       }
     >
-      <View style={styles.progress} accessibilityLabel={`Paso ${step + 1} de 3: ${steps[step]}`}>
-        {steps.map((label, index) => (
-          <View key={label} style={[styles.progressBar, index <= step && styles.progressActive]} />
-        ))}
+      <View style={purchase.heading}>
+        <View style={styles.progress} accessibilityLabel={`Paso ${step + 1} de 3: ${steps[step]}`}>
+          {steps.map((label, index) => (
+            <View
+              key={label}
+              style={[styles.progressBar, index <= step && styles.progressActive]}
+            />
+          ))}
+        </View>
+        <Text variant="note" style={purchase.muted}>
+          {step + 1} de 3 · {steps[step]}
+        </Text>
+        <Text
+          variant="display"
+          style={step > 0 ? purchase.title : undefined}
+          accessibilityRole="header"
+        >
+          {['¿Dónde lo llevamos?', 'Arma tu pedido', '¿Quién lo lleva?'][step]}
+        </Text>
       </View>
-      <Text variant="note" style={ui.muted}>
-        {step + 1} de 3 · {steps[step]}
-      </Text>
-      <Text variant="display" accessibilityRole="header">
-        {['¿Dónde lo llevamos?', 'El de siempre.', 'Elige quién lo lleva.'][step]}
-      </Text>
       {step === 0 ? (
         <View style={ui.stack}>
           <Text style={ui.muted}>Tu dirección primero, para encontrar cobertura en tu comuna.</Text>
@@ -288,6 +303,8 @@ function OrderFields({ products, communes }: { products: Product[]; communes: Co
                 onChangeText={(value) => {
                   addressEdited.current = true;
                   field.onChange(value);
+                  setValue('deliveryPoint', null);
+                  setLocationSuggestion(null);
                 }}
                 onBlur={field.onBlur}
                 error={errors.address?.message}
@@ -307,6 +324,15 @@ function OrderFields({ products, communes }: { products: Product[]; communes: Co
           {errors.communeCode?.message ? (
             <Feedback error text={errors.communeCode.message} />
           ) : null}
+          <DeliveryPointPicker
+            point={confirmedPoint}
+            suggestion={locationSuggestion}
+            onConfirm={(point) => {
+              addressEdited.current = true;
+              setValue('deliveryPoint', point, { shouldValidate: true });
+              setAddressFeedback('Punto confirmado. Revisa también la dirección y comuna.');
+            }}
+          />
           <Controller
             control={control}
             name="notes"
@@ -336,177 +362,79 @@ function OrderFields({ products, communes }: { products: Product[]; communes: Co
         </View>
       ) : null}
       {step === 1 ? (
-        <View style={ui.stack}>
-          <Text variant="subtitle">Marca que quieres recibir</Text>
-          <View
-            style={ui.equalRow}
-            accessibilityRole="radiogroup"
-            accessibilityLabel="Marca a comprar"
-          >
-            {brands.map((entry) => {
-              const available = products.filter((option) => option.brand === entry);
-              return (
-                <PulsePressable
-                  key={entry}
-                  accessibilityRole="radio"
-                  accessibilityLabel={entry}
-                  accessibilityState={{
-                    checked: brand === entry,
-                    disabled: busy || available.length === 0,
-                  }}
-                  disabled={busy || available.length === 0}
-                  style={[ui.option, ui.flex, brand === entry && ui.selected]}
-                  onPress={() => {
-                    setBrand(entry);
-                    const matching = available.filter((option) => option.weight_kg === weight);
-                    if (matching.length === 0) setWeight(undefined);
-                    setValue(
-                      'productId',
-                      matching.find((option) => option.variant === 'standard')?.id ?? '',
-                      {
-                        shouldValidate: true,
-                      },
-                    );
-                  }}
-                >
-                  <BrandLogo
-                    brand={brandLogoKeys[entry]}
-                    variant="mark"
-                    size={theme.layout.brandMark}
-                  />
-                  <Text variant="label">{entry}</Text>
-                </PulsePressable>
-              );
-            })}
-          </View>
-          {brand ? (
-            <CylinderSelector
-              value={weight}
-              brand={brand}
-              availableWeights={products
-                .filter((entry) => entry.brand === brand)
-                .map((entry) => entry.weight_kg)}
-              disabled={busy}
-              onChange={(next) => {
-                setWeight(next);
-                const matching = products.filter(
-                  (entry) => entry.brand === brand && entry.weight_kg === next,
-                );
-                setValue(
-                  'productId',
-                  matching.find((entry) => entry.variant === 'standard')?.id ?? '',
-                  { shouldValidate: true },
-                );
-                trackEvent('format_selected', { weight: next });
-              }}
-            />
-          ) : null}
-          {products
-            .filter((entry) => entry.weight_kg === weight && entry.brand === brand)
-            .map((option) => (
-              <OptionCard
-                key={option.id}
-                label={`${option.brand} · ${productLabel(option)}`}
-                detail="Consulta precio y stock por distribuidora"
-                illustration={<ProductImage product={option} size="small" />}
-                selected={values.productId === option.id}
-                onPress={() => setValue('productId', option.id, { shouldValidate: true })}
-              />
-            ))}
-          {errors.productId?.message ? <Feedback error text={errors.productId.message} /> : null}
-          <Card>
-            <View style={ui.equalRow}>
-              <Text variant="subtitle" style={ui.flex}>
-                Cantidad
-              </Text>
-              <Controller
-                control={control}
-                name="quantity"
-                render={({ field }) => (
-                  <Stepper
-                    value={Number(field.value)}
-                    onChange={(value) => field.onChange(String(value))}
-                  />
-                )}
-              />
-            </View>
-            {errors.quantity?.message ? <Feedback error text={errors.quantity.message} /> : null}
-          </Card>
-          <Text variant="subtitle">¿Entregas un envase vacío?</Text>
-          <Controller
-            control={control}
-            name="exchangeEmpty"
-            render={({ field }) => (
-              <SegmentedChoice value={field.value} onChange={field.onChange} />
-            )}
-          />
-          {values.exchangeEmpty ? (
-            <View style={ui.stack}>
-              <Text variant="label">Marca del envase que devuelves</Text>
-              <View
-                accessibilityRole="radiogroup"
-                accessibilityLabel="Marca del envase vacío"
-                style={ui.stack}
-              >
-                {[...brands, 'unknown'].map((entry) => (
-                  <OptionCard
-                    key={entry}
-                    label={entry === 'unknown' ? 'No sé / Otra marca' : entry}
-                    selected={returnedBrand === entry}
-                    onPress={() => setReturnedBrand(entry)}
-                  />
-                ))}
-              </View>
-              <Text variant="note" style={ui.muted}>
-                La marca del envase devuelto no excluye negocios ni cambia el precio. El negocio
-                debe revisar tipo, válvula y condición al recibirlo.
-              </Text>
-            </View>
-          ) : (
-            <Text variant="note" style={ui.muted}>
-              Verás el precio total con envase incluido, cuando el negocio lo haya informado.
-            </Text>
-          )}
-        </View>
+        <OrderCylinderStep
+          products={products}
+          brand={brand}
+          weight={weight}
+          productId={values.productId ?? ''}
+          quantity={quantity}
+          exchangeEmpty={values.exchangeEmpty ?? true}
+          returnedBrand={returnedBrand}
+          busy={busy}
+          productError={errors.productId?.message}
+          quantityError={errors.quantity?.message}
+          onBrand={(entry) => {
+            setBrand(entry);
+            const matching = products.filter(
+              (option) => option.brand === entry && option.weight_kg === weight,
+            );
+            if (!matching.length) setWeight(undefined);
+            setValue(
+              'productId',
+              matching.find((option) => option.variant === 'standard')?.id ?? '',
+              { shouldValidate: true },
+            );
+          }}
+          onWeight={(next) => {
+            setWeight(next);
+            const matching = products.filter(
+              (entry) => entry.brand === brand && entry.weight_kg === next,
+            );
+            setValue(
+              'productId',
+              matching.find((entry) => entry.variant === 'standard')?.id ?? '',
+              { shouldValidate: true },
+            );
+            trackEvent('format_selected', { weight: next });
+          }}
+          onProduct={(id) => setValue('productId', id, { shouldValidate: true })}
+          onQuantity={(value) =>
+            setValue('quantity', String(value), { shouldValidate: true, shouldDirty: true })
+          }
+          onExchange={(value) =>
+            setValue('exchangeEmpty', value, { shouldValidate: true, shouldDirty: true })
+          }
+          onReturnedBrand={setReturnedBrand}
+        />
       ) : null}
       {step === 2 ? (
         <View style={ui.stack}>
-          <Text style={ui.muted}>
-            Cada tarjeta indica si puede repartir en tu comuna; La dirección exacta se confirma al
-            aceptar.
-          </Text>
           {results.isPending ? (
             <Skeleton rows={4} />
           ) : results.isError ? (
             <EmptyState
               title="No pudimos consultar distribuidoras"
-              description="Revisa tu conexión. Necesitamos disponibilidad actualizada antes de pedir."
+              description="Revisa tu conexión y vuelve a intentarlo."
               action={{ label: 'Reintentar', onPress: () => void results.refetch() }}
             />
           ) : results.data?.length === 0 ? (
             <EmptyState
               icon="pin"
-              title="Aún no hay opciones para esta búsqueda"
-              description="No hay negocios habilitados con este producto publicado y stock suficiente. Prueba otro cilindro o una cantidad menor."
+              title="Sin opciones por ahora"
+              description="Prueba otro cilindro o una cantidad menor."
               action={{ label: 'Cambiar cilindro', onPress: () => setStep(1) }}
             />
           ) : results.data ? (
             <>
-              {!demoDismissed && results.data.some((entry) => entry.is_demo) ? (
-                <Card>
-                  <Text>Datos de demostración: los negocios señalados son ficticios.</Text>
-                  <Button label="Entendido" variant="link" onPress={() => setDemoDismissed(true)} />
-                </Card>
-              ) : null}
-              <DeliveryOptionsList options={results.data} quantity={quantity} onSelect={select} />
+              <DeliveryOptionsList
+                options={results.data}
+                quantity={quantity}
+                product={product}
+                exchangeEmpty={values.exchangeEmpty ?? true}
+                onSelect={select}
+              />
             </>
           ) : null}
-          <Button
-            label="Actualizar distribuidoras"
-            variant="link"
-            disabled={results.isFetching}
-            onPress={() => void results.refetch()}
-          />
           {results.data &&
           !results.data.some((entry) => entry.has_coverage) &&
           !results.isError &&
@@ -527,38 +455,17 @@ function OrderFields({ products, communes }: { products: Product[]; communes: Co
         dismissible={!busy}
       >
         <ScrollView contentContainerStyle={ui.stack}>
-          <Text variant="title">{selected?.name}</Text>
-          {selected?.is_demo ? (
-            <Feedback text="Negocio ficticio: este pedido es de demostración." />
-          ) : null}
-          {product ? (
-            <View style={ui.equalRow}>
-              <ProductImage product={product} size="medium" />
-              <View style={ui.flex}>
-                <Text variant="subtitle">
-                  {quantity} × {product.brand} · {productLabel(product)}
-                </Text>
-                <Text>
-                  {values.exchangeEmpty
-                    ? `Con canje · envase ${returnedBrand === 'unknown' ? 'de marca por confirmar' : returnedBrand}`
-                    : 'Sin canje · envase incluido'}
-                </Text>
-              </View>
-            </View>
-          ) : null}
-          <Text>{values.address}</Text>
-          <Text>{selectedCommune?.name}</Text>
-          {values.notes ? <Text variant="note">{values.notes}</Text> : null}
-          <Text variant="note">Total a pagar contra entrega</Text>
-          <Text variant="display">
-            {selected?.total_clp !== null && selected?.total_clp !== undefined
-              ? formatClp(selected.total_clp)
-              : ''}
-          </Text>
-          <Text variant="note" style={ui.muted}>
-            Se reserva stock al confirmar. El negocio y su conductor deben aceptar la entrega; el
-            horario y el tiempo informado son estimaciones.
-          </Text>
+          <OrderReviewSummary
+            option={selected}
+            product={product}
+            quantity={quantity}
+            exchangeEmpty={values.exchangeEmpty ?? true}
+            returnedBrand={returnedBrand}
+            address={values.address ?? ''}
+            commune={selectedCommune?.name}
+            pointConfirmed={!!values.deliveryPoint}
+            notes={values.notes ?? ''}
+          />
           {selected && !deliveryAvailability(selected).canOrder ? (
             <Feedback
               text={`${deliveryAvailability(selected).label}. Cierra la revisión y actualiza las distribuidoras para consultar disponibilidad.`}
@@ -575,7 +482,8 @@ function OrderFields({ products, communes }: { products: Product[]; communes: Co
             </>
           ) : null}
           <Button
-            label={create.isPending ? 'Confirmando…' : 'Confirmar pedido en Gasway'}
+            label={create.isPending ? 'Confirmando…' : 'Confirmar pedido'}
+            style={purchase.primary}
             disabled={busy || !selected || !deliveryAvailability(selected).canOrder}
             onPress={() => void submit()}
           />
@@ -589,6 +497,32 @@ function OrderFields({ products, communes }: { products: Product[]; communes: Co
             }}
           />
         </ScrollView>
+      </BottomSheet>
+      <BottomSheet visible={editOpen} title="Editar tu pedido" onClose={() => setEditOpen(false)}>
+        <View style={purchase.card}>
+          <ListRow
+            title="Dirección de entrega"
+            subtitle={selectedCommune?.name ?? 'Elegir comuna'}
+            leading={<Icon name="pin" />}
+            onPress={() => {
+              setEditOpen(false);
+              setStep(0);
+            }}
+          />
+          <ListRow
+            title="Cilindro y cantidad"
+            subtitle={
+              product
+                ? `${quantity} × ${product.brand} ${productLabel(product)}`
+                : 'Elegir cilindro'
+            }
+            leading={<Icon name="orders" />}
+            onPress={() => {
+              setEditOpen(false);
+              setStep(1);
+            }}
+          />
+        </View>
       </BottomSheet>
       <BottomSheet
         visible={communeSheetOpen}
@@ -613,6 +547,10 @@ function OrderFields({ products, communes }: { products: Product[]; communes: Co
               leading={<Icon name="pin" />}
               onPress={() => {
                 addressEdited.current = true;
+                if (getValues('communeCode') !== item.code) {
+                  setValue('deliveryPoint', null);
+                  setLocationSuggestion(null);
+                }
                 setValue('communeCode', item.code, { shouldValidate: true });
                 setCommuneSheetOpen(false);
               }}

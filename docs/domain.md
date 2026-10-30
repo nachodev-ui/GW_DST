@@ -1,5 +1,14 @@
 # Dominio Gasway
 
+Desde ADR 0039, la aprobación de incorporación y la revisión documental son
+requisitos distintos. Vehículo: foto, padrón, permiso, SOAP y revisión técnica o
+homologación vigente aprobada. Conductor: ambas caras de licencia, próximo control
+vigente de la clase seleccionada y RUT existente. El servidor exige ambos conjuntos
+en nuevas disponibilidades/ofertas/asignaciones; no interrumpe una entrega iniciada
+por vencimiento posterior. «Documentos revisados» es revisión manual de Gasway,
+sin certificación de autenticidad ni habilitación legal. Implementado solo en Test.
+[Contrato y fuentes](document-verification.md).
+
 ## Catálogo y compra
 
 Un pedido corresponde a un producto GLP de 5, 11, 15 o 45 kg, de Lipigas, Gasco o

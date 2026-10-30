@@ -18,15 +18,19 @@ export function AuthNavigator() {
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="index" />
       <Stack.Screen name="auth/confirm" />
-      <Stack.Protected guard={authenticated}>
+      <Stack.Protected guard={authenticated && zone === 'admin'}>
+        <Stack.Screen name="(admin)" />
+      </Stack.Protected>
+      <Stack.Protected guard={authenticated && zone !== 'admin'}>
         <Stack.Screen name="(business)" />
+        <Stack.Screen name="(driver-onboarding)" />
       </Stack.Protected>
       <Stack.Protected guard={accessReady && !session}>
         <Stack.Screen name="access" />
         <Stack.Screen name="auth/phone" />
         <Stack.Screen name="auth/check-email" />
       </Stack.Protected>
-      <Stack.Protected guard={authenticated}>
+      <Stack.Protected guard={authenticated && zone !== 'admin'}>
         <Stack.Screen name="(customer)" />
         <Stack.Screen name="pending" />
       </Stack.Protected>

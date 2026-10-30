@@ -1,4 +1,5 @@
 import { useCallback, useRef, useState } from 'react';
+import { View } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -10,6 +11,7 @@ import {
   AccessNavigation,
   AccessSubmit,
   AccessFeedback,
+  PasswordRequirements,
   styles,
 } from '@/features/auth/access-ui';
 import { useRegistration } from '@/features/auth/registration';
@@ -70,7 +72,7 @@ export function AccessScreen() {
 
   return (
     <AccessPage
-      title={register ? 'Crea tu\ncuenta.' : 'Inicia\nsesión.'}
+      title={register ? 'Crea tu cuenta.' : 'Inicia sesión.'}
       navigation={
         <AccessNavigation
           register={register}
@@ -125,31 +127,36 @@ export function AccessScreen() {
         control={control}
         name="password"
         render={({ field: { onChange, onBlur, value, ref } }) => (
-          <Input
-            ref={ref}
-            label="Contraseña"
-            error={errors.password?.message}
-            help={register && !errors.password ? 'Mínimo 8 caracteres.' : ''}
-            style={[
-              styles.input,
-              focusedField === 'password' && !errors.password && styles.inputFocused,
-            ]}
-            value={value}
-            onChangeText={onChange}
-            onFocus={() => setFocusedField('password')}
-            onBlur={() => {
-              onBlur();
-              setFocusedField(null);
-            }}
-            secureTextEntry
-            autoCapitalize="none"
-            autoCorrect={false}
-            autoComplete={register ? 'new-password' : 'current-password'}
-            textContentType={register ? 'newPassword' : 'password'}
-            editable={!isSubmitting && !registrationPending}
-            onSubmitEditing={() => void submit()}
-            returnKeyType="go"
-          />
+          <View style={styles.passwordField}>
+            <Input
+              ref={ref}
+              label="Contraseña"
+              error={errors.password?.message}
+              accessibilityHint={
+                register ? 'Mínimo 8 caracteres, una mayúscula y un número.' : undefined
+              }
+              style={[
+                styles.input,
+                focusedField === 'password' && !errors.password && styles.inputFocused,
+              ]}
+              value={value}
+              onChangeText={onChange}
+              onFocus={() => setFocusedField('password')}
+              onBlur={() => {
+                onBlur();
+                setFocusedField(null);
+              }}
+              secureTextEntry
+              autoCapitalize="none"
+              autoCorrect={false}
+              autoComplete={register ? 'new-password' : 'current-password'}
+              textContentType={register ? 'newPassword' : 'password'}
+              editable={!isSubmitting && !registrationPending}
+              onSubmitEditing={() => void submit()}
+              returnKeyType="go"
+            />
+            {register ? <PasswordRequirements password={value} /> : null}
+          </View>
         )}
       />
       {errors.root?.message ? <AccessFeedback text={errors.root.message} error /> : null}

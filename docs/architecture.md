@@ -2,6 +2,22 @@
 
 ## Gestión del negocio
 
+ADR 0039 añade [revisión documental](document-verification.md): versiones privadas,
+capacidad admin por tabla privada, pantalla mínima en `(admin)` y predicados SQL
+que complementan la aprobación operativa en disponibilidad/ofertas/aceptación.
+La flota deja de ser solo descriptiva. Migración aplicada solo en Test; no desplegada
+en Gasway Project. La función de limpieza está desplegada solo en Test (versión 1,
+ACTIVE), tras autorización explícita del operador el 2026-10-26.
+
+Desde ADR 0037, una membresía vigente dirige el inicio al workspace del distribuidor:
+Panel, Ventas, Operación y Perfil. `theme.business` diferencia su composición;
+`features/business` contiene agregados de ventas por período de Chile, costos por
+pedido, flota descriptiva y perfil comercial. Nuevas tablas con RLS, escrituras CAS
+mediante RPC y auditoría privada. Imágenes en Storage privado con URLs firmadas;
+no se copian antecedentes ni se amplía el acceso a ubicaciones de clientes.
+La migración del workspace está aplicada en Test y app; ver
+[contrato y activación](distributor-workspace.md).
+
 `features/business` y `(business)` contienen alta y gestión de la distribuidora, con
 entrada desde cliente/conductor por navegación. No se mezclan sus hooks de pedidos
 ni se añade un rol móvil: `profiles.role` permanece customer/driver, y las capacidades
@@ -48,9 +64,9 @@ tras leerla. expo-document-picker/expo-file-system necesitan un build que los in
 
 ## Límites
 
-Monorepo npm con una app Expo Android/iOS. El futuro panel web no se crea todavía.
+Monorepo npm con una app Expo SDK 58 Android/iOS. El futuro panel web no se crea todavía.
 app/ contiene rutas delgadas; src/features agrupa auth, orders, tracking, driver y
-profile; auth, orders/customer y driver están implementados; las demás features siguen reservadas. shared
+profile; auth, orders/customer, driver y tracking tienen implementación. shared
 contiene infraestructura compartida; theme exporta tokens semánticos propios.
 Las rutas componen AuthNavigator, AccessScreen, pedidos cliente y zona de repartidor.
 Los grupos (customer) y (driver) protegen también enlaces directos a sus pantallas.
@@ -63,12 +79,33 @@ SafeAreaProvider y AuthProvider. El cliente shared/supabase usa URL y publishabl
 públicas. SecureStore cifra fragmentos de sesión en Android/iOS, con manifiesto
 publicado al terminar la escritura; web conserva sesión solo en memoria.
 La web usa Metro únicamente para pruebas de desarrollo. SecureStore no recibe
-operaciones en web; ubicación, notificaciones y mapas no se importan en los flujos
-actuales. El registro web retorna al origen del navegador autorizado en Supabase y
+operaciones en web; el selector Google usa una implementación `.native.tsx` y un
+fallback web sin importar Maps nativo. El registro web retorna al origen autorizado en Supabase y
 la entrega utiliza confirmación explícita dentro de la pantalla, igual en web y nativo.
 El refresco sigue AppState y las consultas se pausan en segundo plano. Eventos Auth
 limpian caché para evitar compartir datos entre identidades; errores bloquean el guard.
-Stack.Protected restringe cada ruta y elimina del historial las rutas no autorizadas.
+Stack.Protected restringe cada ruta; en Router 58 las rutas protegidas siguen
+registradas y redirigen si falla el guard. Las RPC vuelven a autorizar cada operación.
+
+D1 confirma el punto de entrega en el cliente y usa una RPC específica que reutiliza
+la compra y guarda la geografía antes del mismo commit; los reintentos comparan
+también el punto. La compra anterior admite clientes/web sin coordenadas. No se
+añade captura de ubicación del conductor. Ver ADR 0031 y `docs/maps-setup.md`.
+
+D2 define GPS por pedido mediante RPC: coordenadas en `private.driver_locations`,
+recepción de servidor, validación temporal, límite 5 s y frescura 30 s. Realtime solo
+transporta revisiones sin coordenadas; cada aviso requiere lectura autorizada.
+El término/cancelación borra la posición en la misma transacción. Contratos neutrales
+en `shared/tracking`. Ver ADR 0032 y `docs/gps-contract.md`.
+
+D3 compone captura en `tracking/driver` con permiso explícito y ciclo de vida de
+pantalla; visualización en `tracking/customer` con Maps nativo y fallback web.
+`shared/tracking` no conoce roles: recibe usuario/pedido/activación, administra
+TanStack Query y señales Realtime, reconsulta al reconectar y caduca con reloj
+monotónico. Un error sustituye coordenadas por una lectura vacía; se cancelan
+peticiones y se elimina caché al salir/cambiar sesión. No hay persistencia GPS,
+cola offline ni servicios de segundo plano. La RPC añade destino confirmado solo
+durante el pedido activo; el stream sigue sin coordenadas. Ver ADR 0033 y `docs/live-tracking.md`.
 
 El espacio driver separa Ofertas/Cobertura/Cuenta de los pedidos del cliente y de la
 gestión business. Las rutas de compra están disponibles para toda sesión autenticada,
@@ -101,19 +138,20 @@ Postgres 17 con PostGIS geography(Point,4326), índices GiST y UUIDs. Auth crea 
 perfil customer mediante trigger; no copia rol desde metadata editable. RLS está
 activado en todas las tablas públicas, incluido el catálogo de comunas, y en las ofertas privadas. Grants explícitos
 restringen al cliente a lecturas autorizadas, edición de campos seguros de su perfil
-y publicación de su propia ubicación cuando el repartidor está verificado.
+y RPC de ubicación por pedido para el repartidor verificado asignado.
 
-| Datos                | Lectura móvil                                    | Escritura móvil                                                                    |
-| -------------------- | ------------------------------------------------ | ---------------------------------------------------------------------------------- |
-| profiles             | Propio                                           | display_name, rut, commune_code propios                                            |
-| drivers              | Propio                                           | RPC de solicitud pendiente y disponibilidad                                        |
-| distributor_communes | Miembros del negocio y sus conductores           | RPC set_business_coverage                                                          |
-| products             | Catálogo activo autenticado                      | Ninguna                                                                            |
-| orders               | Cliente o repartidor asignado                    | RPC create_distributor_order/cancel_order/accept_driver_offer/advance_driver_order |
-| communes             | Catálogo CUT autenticado                         | Ninguna                                                                            |
-| order_events         | Participantes del pedido                         | Ninguna                                                                            |
-| driver_locations     | Propia / cliente con pedido activo de ese driver | Driver verificado, propia                                                          |
-| private.order_offers | Ninguna                                          | Ninguna                                                                            |
+| Datos                    | Lectura móvil                                                 | Escritura móvil                                                                    |
+| ------------------------ | ------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| profiles                 | Propio                                                        | display_name, rut, commune_code propios                                            |
+| drivers                  | Propio                                                        | RPC de solicitud pendiente y disponibilidad                                        |
+| distributor_communes     | Miembros del negocio y sus conductores                        | RPC set_business_coverage                                                          |
+| products                 | Catálogo activo autenticado                                   | Ninguna                                                                            |
+| orders                   | Cliente o repartidor asignado                                 | RPC create_distributor_order/cancel_order/accept_driver_offer/advance_driver_order |
+| communes                 | Catálogo CUT autenticado                                      | Ninguna                                                                            |
+| order_events             | Participantes del pedido                                      | Ninguna                                                                            |
+| private.driver_locations | Solo RPC para participantes del pedido activo; muestra fresca | RPC del conductor verificado asignado; borrado terminal                            |
+| order_tracking_signals   | Participantes activos, solo ID/revisión                       | Sin escritura directa móvil                                                        |
+| private.order_offers     | Ninguna                                                       | Ninguna                                                                            |
 
 No se habilitan escrituras generales para completar features todavía ausentes.
 Precios, aprobación, ofertas y demás transiciones requieren operaciones confiables;
@@ -167,9 +205,11 @@ La aceptación condicional y el evento se confirman juntos. Se bloquea también 
 del driver y existe un índice único parcial de pedidos activos. El despacho usa comunas
 CUT y ofertas de 60 s. list_driver_offers entrega solo el resumen sin PII; accept_driver_offer
 reutiliza la aceptación y get_driver_order entrega datos privados solo al asignado.
-El rechazo vence la oferta propia. No se implementan matching geográfico, push ni tracking.
+El rechazo vence la oferta propia. No se implementan matching geográfico ni push;
+el seguimiento en primer plano se compone por separado en D3.
 
-Realtime publica orders, order_events y driver_locations. Las lecturas se sujetan a RLS;
+Realtime publica orders, order_events y order_tracking_signals; driver_locations es
+privada y no se publica. Las lecturas se sujetan a RLS;
 no publicar perfiles ni ofertas internas. Las ofertas se consultan por RPC autorizada
 con polling de 5 s solo con pantalla enfocada y AppState activo, validación zod y
 caché por usuario. La dirección se entrega tras aceptar. Ver ADR 0007.
@@ -192,10 +232,21 @@ callbacks sobre una suscripción anterior al remontar el layout, incluso en Stri
 
 ## Ubicación, mapas y pagos
 
-Solo están configurados permisos de ubicación en primer plano. No se solicita ubicación
-al iniciar ni se activa tracking en segundo plano. Un mapa futuro debe especificar
-PROVIDER_GOOGLE en react-native-maps. Claves de build por plataforma, restringidas a
-package/firma o bundle; no equivalen a secretos de servidor.
+La ubicación se solicita al activar explícitamente el seguimiento. El modo inicial
+es primer plano; navegación del conductor Android añade servicio de ubicación con
+notificación, permisos y consentimiento acotado por entrega (ADR 0036). iOS no
+incorpora ubicación en segundo plano. Selector y seguimiento usan
+react-native-maps: PROVIDER_GOOGLE en Android y builds iOS con su SDK; Apple Maps
+en Expo Go iOS por indicación del operador. Se verifica la capacidad nativa.
+`shared/maps/provider.ts` exige clave propia solo fuera de Expo Go. iOS/Android exigen pin
+para compras nuevas; web conserva dirección manual. Ver ADR 0035. Claves Google
+de build restringidas a package/firma o bundle; no son secretos de servidor.
+El motor puro compartido anima una instancia por vehículo; el cliente compone
+captura autorizada y marcador nativo. Apple gira la imagen respecto de la cámara;
+Google aplica rotación nativa. OSRM de demo proporciona rutas para Apple, separado
+por proveedor y con límite/atribución. Directions solo se consume sobre Google Maps desde Edge Functions,
+nunca con la clave del SDK móvil. Caché privada por pedido, lease, límite de intentos,
+desvío validado en servidor y purga terminal. [Contrato de rutas](vehicle-motion.md).
 
 PaymentProvider es solo contrato; cash_on_delivery es el único método habilitado en
 SQL. No existe SDK de gateway, implementación falsa ni servicio facturable activo.

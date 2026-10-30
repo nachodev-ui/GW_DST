@@ -1,0 +1,7 @@
+Archivos ficticios, solo Gasway Test.
+Vigente: usar 2027-04-24 como vencimiento.
+Vencido: usar 2026-10-25 como vencimiento.
+Imagen: ilustracion con patente ZZ9999; no es una foto real.
+Elige el tipo de documento en la app. El mismo PDF puede usarse para varios tipos.
+Carga como responsable nacho.rtk@gmail.com y revisa como ig.cisternas.dev@gmail.com.
+No usar estos archivos en produccion ni para acreditar habilitacion real.

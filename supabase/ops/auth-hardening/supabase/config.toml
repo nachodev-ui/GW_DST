@@ -1,0 +1,15 @@
+# Deliberately partial cloud overlay. Never push the development config to cloud.
+project_id = "gasway-auth-hardening"
+
+[auth]
+minimum_password_length = 8
+# Uppercase is checked by the app; this preset does not require lowercase.
+password_requirements = "letters_digits"
+
+[auth.rate_limit]
+sign_in_sign_ups = 10
+token_verifications = 10
+
+[auth.email]
+max_frequency = "2m"
+otp_length = 8

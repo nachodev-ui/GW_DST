@@ -1,11 +1,35 @@
 import { z } from 'zod';
 
+export const registrationPasswordRequirements = [
+  {
+    label: 'Al menos 8 caracteres',
+    message: 'Usa al menos 8 caracteres.',
+    check: (value: string) => Array.from(value).length >= 8,
+  },
+  {
+    label: 'Una mayúscula (A-Z)',
+    message: 'Incluye al menos una mayúscula (A-Z).',
+    check: (value: string) => /[A-Z]/.test(value),
+  },
+  {
+    label: 'Un número',
+    message: 'Incluye al menos un número.',
+    check: (value: string) => /[0-9]/.test(value),
+  },
+] as const;
+
 export const credentialsSchema = z.object({
   email: z.string().trim().pipe(z.email('Ingresa un correo válido.')),
   password: z.string().min(1, 'Ingresa tu contraseña.'),
 });
 export const registrationSchema = credentialsSchema.extend({
-  password: z.string().min(8, 'Usa al menos 8 caracteres.'),
+  password: z.string().superRefine((value, context) => {
+    for (const requirement of registrationPasswordRequirements) {
+      if (!requirement.check(value)) {
+        context.addIssue({ code: 'custom', message: requirement.message });
+      }
+    }
+  }),
 });
 export type Credentials = z.infer<typeof credentialsSchema>;
 
@@ -41,7 +65,7 @@ export function authErrorMessage(error: unknown) {
     case 'user_already_exists':
       return 'No pudimos crear la cuenta. Si ya tienes una, inicia sesión.';
     case 'weak_password':
-      return 'Elige una contraseña más segura, de al menos 8 caracteres.';
+      return 'Usa al menos 8 caracteres, una mayúscula (A-Z) y un número.';
     case 'over_request_rate_limit':
       return 'Hay demasiados intentos de acceso. Espera unos minutos antes de volver a intentarlo.';
     case 'over_email_send_rate_limit':

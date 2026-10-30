@@ -1,18 +1,22 @@
-import { useState } from 'react';
-import { ScrollView, StyleSheet, Switch, View } from 'react-native';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useState, type ReactNode } from 'react';
+import { StyleSheet, View } from 'react-native';
+import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/features/auth/auth-provider';
 import { getSupabase } from '@/shared/supabase/client';
 import {
   serviceSettingsSchema,
+  serviceStatus,
   weekdays,
   type ServiceSettings,
 } from '@/shared/orders/delivery-options';
-import { Button, Feedback, Input, ui } from '@/shared/ui/components';
-import { BottomSheet } from '@/shared/ui/bottom-sheet';
+import { Button, Feedback, StatusBadge } from '@/shared/ui/components';
+import { Icon, type IconName } from '@/shared/ui/icon';
+import { PulsePressable } from '@/shared/ui/pulse-pressable';
 import { Text } from '@/shared/ui/text';
 import { theme } from '@/theme';
-import { businessError, type Business } from './business-contracts';
+import type { Business } from './business-contracts';
+import { businessStyles as s } from './business-shell';
+import { ServiceSettingsForm, type ServiceSection } from './service-settings-form';
 
 const unreported: ServiceSettings = {
   whatsapp: null,
@@ -21,10 +25,12 @@ const unreported: ServiceSettings = {
   eta_max: null,
   revision: 0,
 };
+const week = [1, 2, 3, 4, 5, 6, 0] as const;
+const shortDays = ['Do', 'Lu', 'Ma', 'Mi', 'Ju', 'Vi', 'Sá'];
 
 export function ServiceSettingsEditor({ business }: { business: Business }) {
   const { session } = useAuth();
-  const [editing, setEditing] = useState(false);
+  const [editing, setEditing] = useState<ServiceSection | null>(null);
   const settings = useQuery({
     queryKey: ['business-service', session?.user.id, business.id],
     queryFn: async () => {
@@ -37,222 +43,205 @@ export function ServiceSettingsEditor({ business }: { business: Business }) {
       return data ? serviceSettingsSchema.parse(data) : unreported;
     },
   });
+  const data = settings.data;
+  const status = data ? serviceStatus(data.schedule) : null;
+  const timeRanges = [
+    ...new Set(
+      data?.schedule?.map(
+        (entry) => `${entry.open}–${entry.close}${entry.close < entry.open ? ' (+1 día)' : ''}`,
+      ) ?? [],
+    ),
+  ];
   return (
-    <View style={ui.stack}>
-      <Text variant="subtitle">Atención y consultas</Text>
-      <Text variant="note" style={ui.muted}>
-        Publica tu horario, estimación de reparto y WhatsApp comercial. La cobertura usa las comunas
-        guardadas por tus conductores habilitados. WhatsApp sirve para consultas; los pedidos llegan
-        a Gasway.
-      </Text>
-      <Button
-        label={settings.isPending ? 'Cargando atención…' : 'Editar atención y contacto'}
-        variant="secondary"
-        disabled={!settings.data || !business.is_verified}
-        onPress={() => setEditing(true)}
-      />
+    <View style={styles.section}>
+      {data && status ? (
+        <>
+          <ServiceCard
+            title="Horario semanal"
+            icon="calendar"
+            value={status.label}
+            disabled={!business.is_verified}
+            onPress={() => setEditing('schedule')}
+            accessibilityLabel={`Editar horario semanal. ${status.label}. ${data.schedule === null ? 'Sin informar' : data.schedule.map((entry) => `${weekdays[entry.day]}, ${entry.open} a ${entry.close}`).join('. ')}`}
+          >
+            <StatusBadge
+              label={
+                status.open === true
+                  ? 'Abierto ahora'
+                  : status.open === false
+                    ? 'Cerrado ahora'
+                    : 'Sin informar'
+              }
+              tone={status.open === true ? 'success' : 'neutral'}
+              labelVariant={status.open === true ? 'subtitle' : 'label'}
+            />
+            {timeRanges.length === 1 ? <Text variant="subtitle">{timeRanges[0]}</Text> : null}
+            {data.schedule !== null ? (
+              <View style={styles.week}>
+                {week.map((day) => {
+                  const entry = data.schedule?.find((item) => item.day === day);
+                  return (
+                    <View key={day} style={[styles.weekDay, entry && styles.activeDay]}>
+                      <Text variant="label" compact style={entry ? styles.activeDayLabel : s.muted}>
+                        {shortDays[day]}
+                      </Text>
+                      {entry ? (
+                        <Icon name="check" size={theme.layout.tagRemoveIcon} />
+                      ) : (
+                        <Text variant="note" compact style={s.muted}>
+                          –
+                        </Text>
+                      )}
+                    </View>
+                  );
+                })}
+              </View>
+            ) : null}
+            {data.schedule === null || status.open === false ? (
+              <Text variant="note" style={s.muted}>
+                {data.schedule === null ? 'Define días y horas de atención' : status.label}
+              </Text>
+            ) : null}
+          </ServiceCard>
+          <View style={styles.details}>
+            <ServiceCard
+              title="WhatsApp"
+              icon="chat"
+              disabled={!business.is_verified}
+              value={
+                data.whatsapp
+                  ? `+56 9 ${data.whatsapp.slice(3, 7)} ${data.whatsapp.slice(7)}`
+                  : 'Agregar contacto'
+              }
+              onPress={() => setEditing('contact')}
+            />
+            <ServiceCard
+              title="Reparto estimado"
+              icon="truck"
+              disabled={!business.is_verified}
+              value={
+                data.eta_min === null
+                  ? 'Añadir tiempo'
+                  : data.eta_min === data.eta_max
+                    ? `${data.eta_min} min`
+                    : `${data.eta_min}–${data.eta_max} min`
+              }
+              onPress={() => setEditing('eta')}
+            />
+          </View>
+        </>
+      ) : settings.isPending ? (
+        <Feedback text="Cargando horario y contacto…" />
+      ) : null}
       {settings.isError ? (
         <>
           <Feedback error text="No pudimos cargar la atención." />
           <Button label="Reintentar" variant="link" onPress={() => void settings.refetch()} />
         </>
       ) : null}
-      {editing && settings.data ? (
-        <ServiceForm
-          businessId={business.id}
-          initial={settings.data}
-          close={() => {
-            setEditing(false);
-            void settings.refetch();
-          }}
+      {editing && data ? (
+        <ServiceSettingsForm
+          business={business}
+          section={editing}
+          initial={data}
+          close={() => setEditing(null)}
         />
       ) : null}
     </View>
   );
 }
 
-function ServiceForm({
-  businessId,
-  initial,
-  close,
+function ServiceCard({
+  title,
+  icon,
+  value,
+  onPress,
+  disabled,
+  accessibilityLabel,
+  children,
 }: {
-  businessId: string;
-  initial: ServiceSettings;
-  close: () => void;
+  title: string;
+  icon: IconName;
+  value: string;
+  onPress: () => void;
+  disabled: boolean;
+  accessibilityLabel?: string;
+  children?: ReactNode;
 }) {
-  const queryClient = useQueryClient();
-  const [whatsapp, setWhatsapp] = useState(initial.whatsapp ?? '');
-  const [etaMin, setEtaMin] = useState(initial.eta_min?.toString() ?? '');
-  const [etaMax, setEtaMax] = useState(initial.eta_max?.toString() ?? '');
-  const [reported, setReported] = useState(initial.schedule !== null);
-  const [schedule, setSchedule] = useState(initial.schedule ?? []);
-  const parsed = serviceSettingsSchema.safeParse({
-    whatsapp: whatsapp.trim() || null,
-    schedule: reported ? schedule : null,
-    eta_min: etaMin.trim() === '' ? null : Number(etaMin),
-    eta_max: etaMax.trim() === '' ? null : Number(etaMax),
-    revision: initial.revision,
-  });
-  const save = useMutation({
-    mutationFn: async (values: ServiceSettings) => {
-      const { error } = await getSupabase().rpc('set_business_service', {
-        p_distributor_id: businessId,
-        p_whatsapp: values.whatsapp,
-        p_schedule: values.schedule,
-        p_eta_min: values.eta_min,
-        p_eta_max: values.eta_max,
-        p_revision: values.revision,
-      });
-      if (error) throw error;
-    },
-    onSuccess: async () => {
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['business-service'] }),
-        queryClient.invalidateQueries({ queryKey: ['delivery-options'] }),
-      ]);
-      close();
-    },
-  });
-  const update = (day: number, key: 'open' | 'close', value: string) =>
-    setSchedule((current) =>
-      current.map((entry) => (entry.day === day ? { ...entry, [key]: value } : entry)),
-    );
   return (
-    <BottomSheet
-      visible
-      title="Atención y contacto"
-      onClose={close}
-      dismissible={!save.isPending}
-      saving={save.isPending}
-      saveDisabled={!parsed.success}
-      onSave={() => {
-        if (parsed.success) save.mutate(parsed.data);
-      }}
+    <PulsePressable
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel ?? `Editar ${title}. ${value}`}
+      accessibilityHint="Abre su formulario de edición"
+      accessibilityState={{ disabled }}
+      disabled={disabled}
+      onPress={onPress}
+      style={styles.card}
     >
-      <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.form}>
-        <Input
-          label="WhatsApp comercial (opcional)"
-          value={whatsapp}
-          onChangeText={setWhatsapp}
-          keyboardType="phone-pad"
-          editable={!save.isPending}
-          maxLength={11}
-          placeholder="56912345678"
-          help="Al guardarlo autorizas mostrar este contacto a clientes. Solo móviles chilenos: 56 + 9 + ocho dígitos. Vacío lo oculta."
-        />
-        <Text variant="note" style={ui.muted}>
-          Los negocios de demostración no abren WhatsApp.
-        </Text>
-        <View style={ui.equalRow}>
-          <View style={ui.flex}>
-            <Input
-              label="Llegada desde (min)"
-              value={etaMin}
-              onChangeText={setEtaMin}
-              keyboardType="number-pad"
-              editable={!save.isPending}
-              maxLength={4}
-            />
-          </View>
-          <View style={ui.flex}>
-            <Input
-              label="Hasta (min)"
-              value={etaMax}
-              onChangeText={setEtaMax}
-              keyboardType="number-pad"
-              editable={!save.isPending}
-              maxLength={4}
-            />
-          </View>
+      <View style={styles.header}>
+        <View style={styles.iconWell}>
+          <Icon name={icon} />
         </View>
-        <Text variant="note" style={ui.muted}>
-          Estimación del negocio, no una promesa. Deja ambos vacíos si no puedes estimarla.
+        <Text variant="note" style={[styles.title, s.muted]}>
+          {title}
         </Text>
-        <View style={ui.equalRow}>
-          <View style={ui.flex}>
-            <Text variant="label">Informar horario semanal</Text>
-            <Text variant="note" style={ui.muted}>
-              Hora de Chile · un turno por día · admite cierre después de medianoche.
-            </Text>
-          </View>
-          <Switch
-            accessibilityLabel="Informar horario semanal"
-            value={reported}
-            onValueChange={setReported}
-            disabled={save.isPending}
-          />
-        </View>
-        {reported
-          ? weekdays.map((day, index) => {
-              const entry = schedule.find((item) => item.day === index);
-              return (
-                <View key={day} style={styles.day}>
-                  <View style={ui.equalRow}>
-                    <Text variant="label" style={ui.flex}>
-                      {day}
-                    </Text>
-                    <Switch
-                      accessibilityLabel={`Atiende ${day}`}
-                      value={!!entry}
-                      disabled={save.isPending}
-                      onValueChange={(enabled) =>
-                        setSchedule((current) =>
-                          enabled
-                            ? [...current, { day: index, open: '09:00', close: '18:00' }]
-                            : current.filter((item) => item.day !== index),
-                        )
-                      }
-                    />
-                  </View>
-                  {entry ? (
-                    <View style={ui.equalRow}>
-                      <View style={ui.flex}>
-                        <Input
-                          label={`Abre ${day}`}
-                          placeholder="09:00"
-                          value={entry.open}
-                          editable={!save.isPending}
-                          maxLength={5}
-                          onChangeText={(value) => update(index, 'open', value)}
-                        />
-                      </View>
-                      <View style={ui.flex}>
-                        <Input
-                          label={`Cierra ${day}`}
-                          placeholder="18:00"
-                          value={entry.close}
-                          editable={!save.isPending}
-                          maxLength={5}
-                          onChangeText={(value) => update(index, 'close', value)}
-                        />
-                      </View>
-                    </View>
-                  ) : (
-                    <Text variant="note" style={ui.muted}>
-                      Cerrado
-                    </Text>
-                  )}
-                </View>
-              );
-            })
-          : null}
-        {!parsed.success ? (
-          <Feedback
-            text="Revisa el móvil, ambas estimaciones (1 a 1.440 min) y las horas en formato HH:MM."
-            error
-          />
+        <Icon name="edit" size={theme.layout.tagRemoveIcon} color={theme.business.muted} />
+      </View>
+      <View style={styles.content}>
+        {icon !== 'calendar' ? (
+          <Text variant="title" numberOfLines={1} adjustsFontSizeToFit>
+            {value}
+          </Text>
         ) : null}
-        {save.isError ? <Feedback text={businessError(save.error)} error /> : null}
-      </ScrollView>
-    </BottomSheet>
+        {children}
+      </View>
+    </PulsePressable>
   );
 }
+
 const styles = StyleSheet.create({
-  form: { gap: theme.spacing.md, paddingBottom: theme.spacing.lg },
-  day: {
-    gap: theme.spacing.sm,
-    borderTopWidth: theme.borders.thin,
-    borderColor: theme.colors.divider,
-    paddingTop: theme.spacing.md,
+  section: { gap: theme.spacing.lg },
+  details: { gap: theme.spacing.compact },
+  card: {
+    backgroundColor: theme.business.surface,
+    borderWidth: theme.borders.thin,
+    borderColor: theme.business.border,
+    borderRadius: theme.radii.card,
+    padding: theme.spacing.screen,
+    gap: theme.spacing.md,
   },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.compact,
+  },
+  title: { flex: 1, minWidth: theme.spacing.none },
+  content: { gap: theme.spacing.md },
+  iconWell: {
+    width: theme.layout.brandMark,
+    height: theme.layout.brandMark,
+    borderRadius: theme.radii.control,
+    backgroundColor: theme.colors.background,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  week: {
+    flexDirection: 'row',
+    gap: theme.spacing.xs,
+    paddingHorizontal: theme.spacing.sm,
+    paddingVertical: theme.spacing.compact,
+    borderRadius: theme.business.radius,
+    backgroundColor: theme.colors.background,
+  },
+  weekDay: {
+    flex: 1,
+    minWidth: theme.spacing.none,
+    alignItems: 'center',
+    gap: theme.spacing.xs,
+    paddingVertical: theme.spacing.sm,
+    borderBottomWidth: theme.borders.focus,
+    borderBottomColor: theme.business.border,
+  },
+  activeDay: { borderBottomColor: theme.colors.primary },
+  activeDayLabel: { color: theme.colors.primary },
 });

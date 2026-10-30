@@ -1,17 +1,19 @@
 import { useEffect, useState } from 'react';
-import { FlatList, ScrollView, Share, View, StyleSheet } from 'react-native';
-import { router, useLocalSearchParams } from 'expo-router';
+import { FlatList, RefreshControl, ScrollView, Share, View, StyleSheet } from 'react-native';
+import { router } from 'expo-router';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as DocumentPicker from 'expo-document-picker';
 import { File, Paths } from 'expo-file-system';
-import { useMyBusinesses, confirmBusinessAffiliation } from '@/features/business/business-data';
+import { confirmBusinessAffiliation } from '@/features/business/business-data';
+import { useSelectedBusiness } from './business-shell';
 import { businessError, type Business } from '@/features/business/business-contracts';
 import {
   activationLabels,
   invitationLabels,
   invitationEntrySchema,
+  type TeamRow,
   type InvitationEntry,
   type InvitationResult,
 } from '@/features/business/team-contracts';
@@ -23,7 +25,7 @@ import {
   parseInvitationCsv,
   type InvitationImportRow,
 } from '@/features/business/team-import';
-import { Button, Card, Feedback, Input, StatusBadge } from '@/shared/ui/components';
+import { Button, Feedback, Input, StatusBadge } from '@/shared/ui/components';
 import { BottomSheet } from '@/shared/ui/bottom-sheet';
 import { SegmentedTabs } from '@/shared/ui/segmented-tabs';
 import { EmptyState } from '@/shared/ui/empty-state';
@@ -34,12 +36,15 @@ import { Text } from '@/shared/ui/text';
 import { theme } from '@/theme';
 import { Avatar } from '@/shared/ui/avatar';
 import { Skeleton } from '@/shared/ui/skeleton';
-import { WorkspaceHero, WorkspaceHeading, workspaceStyles } from './workspace-ui';
+import { workspaceStyles } from './workspace-ui';
+import { PulsePressable } from '@/shared/ui/pulse-pressable';
+import { useManualRefresh } from '@/shared/ui/use-manual-refresh';
+import { TeamTabs, TeamPersonRow } from './team-ui';
+import { DriverReadinessSheet } from './driver-readiness';
+import { useBusinessCoverage } from './coverage-data';
 
 export function TeamScreen() {
-  const { businessId } = useLocalSearchParams<{ businessId?: string }>();
-  const businesses = useMyBusinesses();
-  const business = businesses.data?.find((item) => item.id === businessId);
+  const business = useSelectedBusiness();
   if (!business)
     return (
       <Screen compactHeader title="Equipo" onBack={() => router.replace('/business/manage')}>
@@ -55,16 +60,20 @@ export function TeamScreen() {
 function TeamWorkspace({ business }: { business: Business }) {
   const queryClient = useQueryClient();
   const [search, setSearch] = useState('');
-  const [filter, setFilter] = useState('');
+  const [detailKey, setDetailKey] = useState<string | null>(null);
+  const [showInfo, setShowInfo] = useState(false);
+  const filter = search;
   const [tab, setTab] = useState<'drivers' | 'invitations'>('drivers');
   const [invitationFilter, setInvitationFilter] = useState<
     'pending' | 'accepted' | 'expired' | 'cancelled'
   >('pending');
   const [composer, setComposer] = useState<'single' | 'csv' | null>(null);
+  const [documentDriver, setDocumentDriver] = useState<{ id: string; name: string } | null>(null);
   const [notice, setNotice] = useState<{ title: string; text: string; error?: boolean } | null>(
     null,
   );
   const team = useTeamPages(business.id, filter);
+  const coverage = useBusinessCoverage(business.id);
   const people = team.data?.pages.flatMap((page) => page.items) ?? [];
   const drivers = people.filter(
     (person, index) =>
@@ -89,7 +98,12 @@ function TeamWorkspace({ business }: { business: Business }) {
     if (!visible.length && hasNextPage && !isFetching && !isFetchNextPageError)
       void fetchNextPage();
   }, [visible.length, hasNextPage, isFetching, isFetchNextPageError, fetchNextPage]);
-  const refresh = () => queryClient.invalidateQueries({ queryKey: ['driver-team'] });
+  const refresh = () =>
+    Promise.all([queryClient.invalidateQueries({ queryKey: ['driver-team'] }), coverage.refetch()]);
+  const { refreshing, refresh: pullRefresh } = useManualRefresh(refresh);
+  const detailPerson = people.find(
+    (person) => (person.invitation_id ?? person.driver_id) === detailKey,
+  );
   const cancellation = useMutation({
     mutationFn: cancelDriverInvitation,
     onSuccess: refresh,
@@ -110,37 +124,159 @@ function TeamWorkspace({ business }: { business: Business }) {
         error: true,
       }),
   });
+  const renderDetails = (person: TeamRow) => (
+    <View style={styles.stack}>
+      <View style={styles.personHeading}>
+        <Avatar name={person.name} />
+        <View style={workspaceStyles.grow}>
+          <Text variant="subtitle">{person.name}</Text>
+          {person.email ? (
+            <Text variant="note" style={workspaceStyles.muted} selectable>
+              {person.email}
+            </Text>
+          ) : null}
+        </View>
+      </View>
+      <StatusBadge
+        compact
+        label={invitationLabels[person.invitation_status]}
+        icon={person.invitation_status === 'accepted' ? 'check' : 'clock'}
+        tone={
+          person.invitation_status === 'accepted'
+            ? 'success'
+            : person.invitation_status === 'pending'
+              ? 'warning'
+              : 'accent'
+        }
+      />
+      {!person.is_current ? <Text variant="note">Invitación anterior</Text> : null}
+      {person.activation_status && person.is_current ? (
+        <StatusBadge
+          compact
+          label={activationLabels[person.activation_status]}
+          icon={
+            person.activation_status === 'enabled'
+              ? 'check'
+              : person.activation_status === 'rejected'
+                ? 'close'
+                : 'clock'
+          }
+          tone={
+            person.activation_status === 'enabled'
+              ? 'success'
+              : person.activation_status === 'rejected'
+                ? 'error'
+                : 'warning'
+          }
+        />
+      ) : null}
+      {person.driver_id && person.is_current && tab === 'drivers' ? (
+        <>
+          <Text variant="note" style={workspaceStyles.muted}>
+            {coverage.isError || !coverage.data
+              ? 'Habilitación de reparto sin confirmar'
+              : coverage.data.drivers.find((driver) => driver.id === person.driver_id)?.status ===
+                  'not_enabled'
+                ? 'Requisitos de reparto pendientes'
+                : coverage.data.drivers.some((driver) => driver.id === person.driver_id)
+                  ? 'Requisitos de reparto al día'
+                  : 'Vinculación de reparto por comprobar'}
+          </Text>
+          <Button
+            label="Ver habilitación"
+            variant="link"
+            style={styles.detailLink}
+            onPress={() => {
+              setDetailKey(null);
+              setDocumentDriver({ id: person.driver_id!, name: person.name });
+            }}
+          />
+        </>
+      ) : null}
+      {person.expires_at && person.invitation_status === 'pending' ? (
+        <Text variant="note">Vence: {new Date(person.expires_at).toLocaleString('es-CL')}</Text>
+      ) : null}
+      {person.invitation_status === 'pending' && person.is_current && person.invitation_id ? (
+        <>
+          <Button
+            label={`Compartir instrucciones para ${person.name}`}
+            variant="secondary"
+            onPress={() => {
+              setNotice(null);
+              void Share.share({
+                message: `${business.name} te invitó a su equipo en Gasway. Ingresa o crea tu cuenta con ${person.email}, confirma ese correo y abre Mi cuenta → Activar mi acceso como conductor. Aceptar la invitación no habilita el reparto hasta la revisión de administración.`,
+              }).catch(() =>
+                setNotice({
+                  title: 'No pudimos compartir',
+                  text: 'Puedes indicar a la persona que revise su invitación dentro de Gasway.',
+                  error: true,
+                }),
+              );
+            }}
+          />
+          <Button
+            label={`Cancelar invitación de ${person.name}`}
+            variant="destructive"
+            disabled={cancellation.isPending}
+            onPress={() => cancellation.mutate(person.invitation_id!)}
+          />
+        </>
+      ) : null}
+      {person.invitation_status === 'expired' ||
+      person.invitation_status === 'cancelled' ||
+      person.activation_status === 'rejected' ? (
+        <Text variant="note">
+          El negocio puede generar una nueva invitación desde «Invitar conductor».
+        </Text>
+      ) : null}
+      {person.invitation_status === 'legacy' &&
+      person.legacy_requested_at &&
+      !person.affiliation_confirmed ? (
+        <>
+          <Text variant="note">
+            Solicitud anterior al flujo de invitaciones. Confirma únicamente si reconoces este
+            vínculo. No aprueba al conductor.
+          </Text>
+          <Button
+            label={`Confirmar vínculo anterior de ${person.name}`}
+            variant="secondary"
+            disabled={!business.is_verified || confirmation.isPending}
+            onPress={() =>
+              confirmation.mutate({
+                driver_id: person.driver_id!,
+                name: person.name,
+                requested_at: person.legacy_requested_at!,
+                distributor_id: business.id,
+                affiliation_confirmed: false,
+              })
+            }
+          />
+        </>
+      ) : null}
+    </View>
+  );
   const header = (
     <View style={styles.header}>
-      <WorkspaceHero
-        eyebrow="PERSONAS Y VÍNCULOS"
-        title="Un equipo en movimiento"
-        description="Invita a tus conductores y acompaña su incorporación."
-      >
-        <Text variant="note" style={workspaceStyles.heroDescription}>
-          {business.name}
-        </Text>
-      </WorkspaceHero>
+      <View style={styles.toolbar}>
+        <PulsePressable
+          accessibilityRole="button"
+          accessibilityLabel="Información del equipo"
+          onPress={() => setShowInfo(true)}
+          style={styles.iconAction}
+        >
+          <Icon name="info" color={theme.colors.textMuted} size={theme.layout.tagRemove} />
+        </PulsePressable>
+        <Button
+          label="Invitar conductor"
+          style={styles.invite}
+          disabled={!business.is_verified}
+          onPress={() => setComposer('single')}
+        />
+      </View>
       {!business.is_verified ? (
         <Feedback text="El negocio no está habilitado para incorporar conductores." error />
       ) : null}
-      <Button
-        label="Invitar conductor"
-        disabled={!business.is_verified}
-        onPress={() => setComposer('single')}
-      />
-      <Button
-        label="Ver comunas de reparto"
-        variant="secondary"
-        onPress={() =>
-          router.push({ pathname: '/business/coverage', params: { businessId: business.id } })
-        }
-      />
-      <WorkspaceHeading
-        title="Tu equipo"
-        detail="Conductores e invitaciones, en su propio espacio"
-      />
-      <SegmentedTabs
+      <TeamTabs
         label="Vistas del equipo"
         value={tab}
         onChange={setTab}
@@ -157,257 +293,182 @@ function TeamWorkspace({ business }: { business: Business }) {
           },
         ]}
       />
-      {tab === 'invitations' ? (
-        <>
-          <Text variant="note">
-            Las invitaciones vencen a los 7 días. No se envían correos automáticamente.
-          </Text>
-          <SegmentedTabs
-            label="Estado de invitación"
-            value={invitationFilter}
-            onChange={setInvitationFilter}
-            options={(
-              [
-                { value: 'pending', label: 'Pendientes' },
-                { value: 'accepted', label: 'Aceptadas' },
-                { value: 'expired', label: 'Vencidas' },
-                { value: 'cancelled', label: 'Canceladas' },
-              ] as const
-            ).map((option) => ({
-              ...option,
-              count:
-                team.isPending || team.isError
-                  ? '—'
-                  : count(
-                      invitations.filter((person) => person.invitation_status === option.value)
-                        .length,
-                    ),
-            }))}
-          />
-        </>
-      ) : (
-        <Text variant="note">
-          Aceptar una invitación no habilita el reparto. Revisa la habilitación de cada conductor.
-        </Text>
-      )}
       <Input
         label="Buscar por nombre o correo"
+        hideLabel
+        placeholder={tab === 'drivers' ? 'Buscar conductor' : 'Buscar invitación'}
+        prefix={<Icon name="search" size={theme.layout.tagRemove} color={theme.colors.textMuted} />}
+        frameStyle={styles.searchFrame}
+        style={styles.searchInput}
         value={search}
         onChangeText={setSearch}
         maxLength={100}
+        autoCapitalize="none"
+        autoCorrect={false}
         returnKeyType="search"
-        onSubmitEditing={() => setFilter(search)}
+        clearButtonMode="while-editing"
       />
-      <Button label="Buscar" variant="secondary" onPress={() => setFilter(search)} />
-      {filter ? (
-        <Button
-          label="Limpiar búsqueda"
-          variant="secondary"
-          onPress={() => {
-            setSearch('');
-            setFilter('');
-          }}
+      {tab === 'invitations' ? (
+        <TeamTabs
+          scrollable
+          label="Estado de invitación"
+          value={invitationFilter}
+          onChange={setInvitationFilter}
+          options={(
+            [
+              { value: 'pending', label: 'Pendientes' },
+              { value: 'accepted', label: 'Aceptadas' },
+              { value: 'expired', label: 'Vencidas' },
+              { value: 'cancelled', label: 'Canceladas' },
+            ] as const
+          ).map((option) => ({
+            ...option,
+            count:
+              team.isPending || team.isError
+                ? '—'
+                : count(
+                    invitations.filter((person) => person.invitation_status === option.value)
+                      .length,
+                  ),
+          }))}
         />
-      ) : null}
-      {team.hasNextPage ? (
-        <Text variant="note">Conteos de registros cargados. Al desplazarte se cargarán más.</Text>
       ) : null}
     </View>
   );
   return (
     <>
       <Screen
+        tabbed
         compactHeader
         title="Equipo"
         onBack={() =>
           router.replace({ pathname: '/business/manage', params: { businessId: business.id } })
         }
         list={
-          <FlatList
-            data={visible}
-            keyExtractor={(person) => person.invitation_id ?? person.driver_id!}
-            contentContainerStyle={styles.list}
-            keyboardShouldPersistTaps="handled"
-            ListHeaderComponent={header}
-            ItemSeparatorComponent={() => <View style={styles.separator} />}
-            onEndReachedThreshold={0.5}
-            onEndReached={() => {
-              if (team.hasNextPage && !team.isFetching && !team.isFetchNextPageError)
-                void team.fetchNextPage();
-            }}
-            ListEmptyComponent={
-              team.isPending ||
-              (team.hasNextPage && !team.isError && !team.isFetchNextPageError) ? (
-                <Skeleton />
-              ) : team.isError ? (
-                <EmptyState
-                  title="No pudimos cargar el equipo"
-                  description={businessError(team.error)}
-                  action={{ label: 'Reintentar', onPress: () => void team.refetch() }}
+          <View style={styles.listContainer}>
+            {header}
+            <FlatList
+              data={visible}
+              keyExtractor={(person) => person.invitation_id ?? person.driver_id!}
+              contentContainerStyle={styles.list}
+              keyboardShouldPersistTaps="handled"
+              style={styles.listContainer}
+              alwaysBounceVertical
+              refreshControl={
+                <RefreshControl
+                  accessibilityLabel="Actualizar equipo"
+                  refreshing={refreshing}
+                  onRefresh={pullRefresh}
+                  tintColor={theme.colors.primary}
+                  colors={[theme.colors.primary, theme.colors.lime]}
+                  progressBackgroundColor={theme.colors.background}
                 />
-              ) : (
-                <EmptyState
-                  icon={tab === 'drivers' ? 'user' : 'mail'}
-                  title={
-                    tab === 'drivers'
-                      ? 'Sin conductores para mostrar'
-                      : 'Sin invitaciones en este estado'
-                  }
-                  description={
-                    filter
-                      ? 'Prueba con otro nombre o correo, o limpia la búsqueda.'
-                      : tab === 'drivers'
-                        ? 'Aquí aparecerán los vínculos actuales cuando acepten su invitación.'
-                        : 'Las invitaciones aparecerán aquí cuando correspondan a este estado.'
-                  }
-                />
-              )
-            }
-            ListFooterComponent={
-              <View style={styles.header}>
-                {team.isFetchingNextPage ? <Feedback text="Cargando más registros…" /> : null}
-                {team.isFetchNextPageError ? (
+              }
+              ItemSeparatorComponent={() => <View style={styles.separator} />}
+              onEndReachedThreshold={0.5}
+              onEndReached={() => {
+                if (team.hasNextPage && !team.isFetching && !team.isFetchNextPageError)
+                  void team.fetchNextPage();
+              }}
+              ListEmptyComponent={
+                team.isPending ||
+                (team.hasNextPage && !team.isError && !team.isFetchNextPageError) ? (
+                  <Skeleton />
+                ) : team.isError ? (
                   <EmptyState
-                    title="No pudimos cargar más registros"
-                    description="Tus registros cargados siguen disponibles."
-                    action={{ label: 'Reintentar carga', onPress: () => void team.fetchNextPage() }}
+                    title="No pudimos cargar el equipo"
+                    description={businessError(team.error)}
+                    action={{ label: 'Reintentar', onPress: () => void team.refetch() }}
                   />
-                ) : null}
-                {team.isRefetchError ? (
-                  <Feedback
-                    text="No pudimos actualizar. Se muestran los últimos datos cargados."
-                    error
-                  />
-                ) : null}
-                {team.hasNextPage && !team.isFetchingNextPage && !team.isFetchNextPageError ? (
-                  <Button
-                    label="Cargar más registros"
-                    variant="secondary"
-                    disabled={team.isFetching}
-                    onPress={() => void team.fetchNextPage()}
-                  />
-                ) : null}
-                <Button
-                  label="Actualizar equipo"
-                  variant="secondary"
-                  disabled={team.isFetching}
-                  onPress={() => void refresh()}
-                />
-              </View>
-            }
-            renderItem={({ item: person }) => (
-              <Card style={styles.card}>
-                <View style={styles.personHeading}>
-                  <Avatar name={person.name} />
-                  <View style={workspaceStyles.grow}>
-                    <Text variant="subtitle">{person.name}</Text>
-                    {person.email ? (
-                      <Text variant="note" style={workspaceStyles.muted} selectable>
-                        {person.email}
-                      </Text>
-                    ) : null}
-                  </View>
-                </View>
-                <StatusBadge
-                  label={invitationLabels[person.invitation_status]}
-                  icon={person.invitation_status === 'accepted' ? 'check' : 'clock'}
-                  tone={
-                    person.invitation_status === 'accepted'
-                      ? 'success'
-                      : person.invitation_status === 'pending'
-                        ? 'warning'
-                        : 'accent'
-                  }
-                />
-                {!person.is_current ? <Text variant="note">Invitación anterior</Text> : null}
-                {person.activation_status && person.is_current ? (
-                  <StatusBadge
-                    label={activationLabels[person.activation_status]}
-                    icon={
-                      person.activation_status === 'enabled'
-                        ? 'check'
-                        : person.activation_status === 'rejected'
-                          ? 'close'
-                          : 'clock'
+                ) : (
+                  <EmptyState
+                    icon={tab === 'drivers' ? 'user' : 'mail'}
+                    title={
+                      tab === 'drivers'
+                        ? 'Sin conductores para mostrar'
+                        : 'Sin invitaciones en este estado'
                     }
-                    tone={
-                      person.activation_status === 'enabled'
-                        ? 'success'
-                        : person.activation_status === 'rejected'
-                          ? 'error'
-                          : 'warning'
+                    description={
+                      filter
+                        ? 'Prueba con otro nombre o correo, o limpia la búsqueda.'
+                        : tab === 'drivers'
+                          ? 'Aquí aparecerán los vínculos actuales cuando acepten su invitación.'
+                          : 'Las invitaciones aparecerán aquí cuando correspondan a este estado.'
                     }
                   />
-                ) : null}
-                {person.expires_at && person.invitation_status === 'pending' ? (
-                  <Text variant="note">
-                    Vence: {new Date(person.expires_at).toLocaleString('es-CL')}
-                  </Text>
-                ) : null}
-                {person.invitation_status === 'pending' &&
-                person.is_current &&
-                person.invitation_id ? (
-                  <>
-                    <Button
-                      label={`Compartir instrucciones para ${person.name}`}
-                      variant="secondary"
-                      onPress={() => {
-                        setNotice(null);
-                        void Share.share({
-                          message: `${business.name} te invitó a su equipo en Gasway. Ingresa o crea tu cuenta con ${person.email}, confirma ese correo y abre Mi cuenta → Activar mi acceso como conductor. Aceptar la invitación no habilita el reparto hasta la revisión de administración.`,
-                        }).catch(() =>
-                          setNotice({
-                            title: 'No pudimos compartir',
-                            text: 'Puedes indicar a la persona que revise su invitación dentro de Gasway.',
-                            error: true,
-                          }),
-                        );
+                )
+              }
+              ListFooterComponent={
+                <View style={styles.stack}>
+                  {team.isFetchingNextPage ? <Feedback text="Cargando más registros…" /> : null}
+                  {team.isFetchNextPageError ? (
+                    <EmptyState
+                      title="No pudimos cargar más registros"
+                      description="Tus registros cargados siguen disponibles."
+                      action={{
+                        label: 'Reintentar carga',
+                        onPress: () => void team.fetchNextPage(),
                       }}
                     />
-                    <Button
-                      label={`Cancelar invitación de ${person.name}`}
-                      variant="destructive"
-                      disabled={cancellation.isPending}
-                      onPress={() => cancellation.mutate(person.invitation_id!)}
+                  ) : null}
+                  {team.isRefetchError ? (
+                    <Feedback
+                      text="No pudimos actualizar. Se muestran los últimos datos cargados."
+                      error
                     />
-                  </>
-                ) : null}
-                {person.invitation_status === 'expired' ||
-                person.invitation_status === 'cancelled' ||
-                person.activation_status === 'rejected' ? (
-                  <Text variant="note">
-                    El negocio puede generar una nueva invitación desde «Invitar conductor».
-                  </Text>
-                ) : null}
-                {person.invitation_status === 'legacy' &&
-                person.legacy_requested_at &&
-                !person.affiliation_confirmed ? (
-                  <>
-                    <Text variant="note">
-                      Solicitud anterior al flujo de invitaciones. Confirma únicamente si reconoces
-                      este vínculo. No aprueba al conductor.
-                    </Text>
+                  ) : null}
+                  {team.hasNextPage && !team.isFetchingNextPage && !team.isFetchNextPageError ? (
                     <Button
-                      label={`Confirmar vínculo anterior de ${person.name}`}
+                      label="Cargar más registros"
                       variant="secondary"
-                      disabled={!business.is_verified || confirmation.isPending}
-                      onPress={() =>
-                        confirmation.mutate({
-                          driver_id: person.driver_id!,
-                          name: person.name,
-                          requested_at: person.legacy_requested_at!,
-                          distributor_id: business.id,
-                          affiliation_confirmed: false,
-                        })
-                      }
+                      disabled={team.isFetching}
+                      onPress={() => void team.fetchNextPage()}
                     />
-                  </>
-                ) : null}
-              </Card>
-            )}
-          />
+                  ) : null}
+                </View>
+              }
+              renderItem={({ item: person }) => (
+                <TeamPersonRow
+                  person={person}
+                  driverView={tab === 'drivers'}
+                  coverage={coverage.isError ? undefined : coverage.data}
+                  onPress={() => {
+                    if (tab === 'drivers' && person.driver_id && person.is_current)
+                      setDocumentDriver({ id: person.driver_id, name: person.name });
+                    else setDetailKey(person.invitation_id ?? person.driver_id);
+                  }}
+                  onInfo={() => setDetailKey(person.invitation_id ?? person.driver_id)}
+                />
+              )}
+            />
+          </View>
         }
       />
+      {showInfo ? (
+        <BottomSheet visible title="Sobre el equipo" onClose={() => setShowInfo(false)}>
+          <ScrollView contentContainerStyle={styles.stack}>
+            <Text variant="note">
+              Aceptar una invitación no habilita el reparto. Revisa la habilitación de cada
+              conductor.
+            </Text>
+            <Text variant="note">
+              Las invitaciones vencen a los 7 días. No se envían correos automáticamente.
+            </Text>
+            {team.hasNextPage ? (
+              <Text variant="note">
+                Los conteos corresponden a los registros cargados. El signo + indica que quedan más.
+              </Text>
+            ) : null}
+          </ScrollView>
+        </BottomSheet>
+      ) : null}
+      {detailPerson && !notice ? (
+        <BottomSheet visible title="Detalle del vínculo" onClose={() => setDetailKey(null)}>
+          <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.stack}>
+            {renderDetails(detailPerson)}
+          </ScrollView>
+        </BottomSheet>
+      ) : null}
       {composer ? (
         <InvitationComposer
           business={business}
@@ -417,6 +478,14 @@ function TeamWorkspace({ business }: { business: Business }) {
             setTab('invitations');
             setInvitationFilter('pending');
           }}
+        />
+      ) : null}
+      {documentDriver ? (
+        <DriverReadinessSheet
+          key={documentDriver.id}
+          businessId={business.id}
+          driver={documentDriver}
+          onClose={() => setDocumentDriver(null)}
         />
       ) : null}
       {notice ? (
@@ -746,9 +815,32 @@ function InvitationComposer({
 
 const styles = StyleSheet.create({
   stack: { gap: theme.spacing.md, paddingBottom: theme.spacing.lg },
-  card: { backgroundColor: theme.colors.surface, gap: theme.spacing.md, padding: theme.spacing.md },
   personHeading: { flexDirection: 'row', alignItems: 'center', gap: theme.spacing.compact },
-  header: { gap: theme.spacing.md, paddingTop: theme.spacing.md, paddingBottom: theme.spacing.lg },
+  header: {
+    gap: theme.spacing.compact,
+    paddingHorizontal: theme.spacing.screen,
+    paddingBottom: theme.spacing.md,
+    width: '100%',
+    maxWidth: theme.layout.formWidth,
+    alignSelf: 'center',
+  },
+  toolbar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  invite: { width: 'auto', minHeight: theme.layout.touchTarget, paddingVertical: theme.spacing.sm },
+  iconAction: {
+    minWidth: theme.layout.touchTarget,
+    minHeight: theme.layout.touchTarget,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  searchFrame: {
+    minHeight: theme.layout.touchTarget,
+    paddingLeft: theme.spacing.compact,
+    borderColor: theme.colors.divider,
+    backgroundColor: theme.colors.surface,
+  },
+  searchInput: { minHeight: theme.layout.touchTarget, paddingVertical: theme.spacing.sm },
+  listContainer: { flex: 1 },
+  detailLink: { alignSelf: 'flex-start', width: 'auto' },
   list: {
     paddingHorizontal: theme.spacing.screen,
     paddingBottom: theme.spacing.lg,
@@ -757,5 +849,5 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     flexGrow: 1,
   },
-  separator: { height: theme.spacing.md },
+  separator: { height: theme.spacing.sm },
 });

@@ -1,5 +1,6 @@
 // Offline behavior checks. No Supabase, native runtime, app rendering or timers.
 const assert = require('node:assert/strict');
+const { test } = require('node:test');
 
 const { load } = require('./testing/load.cjs');
 
@@ -160,7 +161,7 @@ let mutation;
 let response;
 let rpcCalls = 0;
 const driverClient = {
-  invalidateQueries: () => {},
+  invalidateQueries: async () => {},
   setQueryData: (key, data) => cache.set(JSON.stringify(key), data),
 };
 const { useDriverActions } = load('apps/mobile/src/features/driver/offer-data.ts', {
@@ -235,4 +236,213 @@ async function checkMutation() {
 checkMutation().catch((error) => {
   console.error(error);
   process.exitCode = 1;
+});
+
+function progressHarness() {
+  let activeUser = userId,
+    activeOrder = orderId,
+    record = null,
+    cursor = 0,
+    previousScope,
+    cleanup,
+    pendingEffect,
+    updates = 0;
+  const refs = [],
+    calls = [];
+  const { useDeliveryProgress } = load('apps/mobile/src/features/driver/use-delivery-progress.ts', {
+    react: {
+      useState: () => [
+        record,
+        (next) => {
+          record = next;
+          updates++;
+        },
+      ],
+      useRef: (initial) => refs[cursor++] ?? (refs[cursor - 1] = { current: initial }),
+      useEffect: (callback, [scope]) => {
+        if (scope !== previousScope) {
+          previousScope = scope;
+          pendingEffect = callback;
+        }
+      },
+    },
+  });
+  return {
+    calls,
+    get updates() {
+      return updates;
+    },
+    identity: (user, id = orderId) => {
+      activeUser = user;
+      activeOrder = id;
+    },
+    render() {
+      cursor = 0;
+      const hook = useDeliveryProgress(activeUser, activeOrder, (values, callbacks) =>
+        calls.push({ values, callbacks }),
+      );
+      if (pendingEffect) {
+        cleanup?.();
+        cleanup = pendingEffect();
+        pendingEffect = null;
+      }
+      return hook;
+    },
+    close: () => cleanup?.(),
+  };
+}
+
+test('delivery feedback waits for server acknowledgement, deduplicates taps and ignores polling', () => {
+  const h = progressHarness();
+  const initial = h.render();
+  assert.equal(initial.feedback, null);
+  initial.submit('on_the_way');
+  initial.submit('on_the_way');
+  assert.equal(h.calls.length, 1, 'block second tap before React renders');
+  assert.equal(h.render().feedback.state, 'pending');
+  assert.equal(h.render().feedback.state, 'pending', 'a query refresh cannot manufacture success');
+  h.calls[0].callbacks.onSuccess({ order_id: orderId, status: 'on_the_way' });
+  h.calls[0].callbacks.onSettled();
+  const success = h.render();
+  assert.equal(success.feedback.state, 'success');
+  assert.equal(success.feedback.target, 'on_the_way');
+  assert.equal(h.render().feedback.key, success.feedback.key, 're-renders preserve one event');
+  success.clear();
+  assert.equal(h.render().feedback, null);
+  assert.equal(h.calls.length, 1, 'dismissal does not retry or change the order');
+  h.close();
+});
+
+test('failed or mismatched transitions never report success; final delivery has its own event', () => {
+  const h = progressHarness();
+  h.render().submit('delivered');
+  h.calls[0].callbacks.onError({ code: '55000' });
+  h.calls[0].callbacks.onSettled();
+  const failed = h.render().feedback;
+  assert.equal(failed.state, 'error');
+  assert.equal(failed.error.code, '55000');
+  h.render().clear();
+  h.render().submit('delivered');
+  h.calls[1].callbacks.onSuccess({ order_id: userId, status: 'delivered' });
+  h.calls[1].callbacks.onSettled();
+  assert.equal(h.render().feedback.state, 'error', 'another order cannot confirm this delivery');
+  h.render().submit('delivered');
+  h.calls[2].callbacks.onSuccess({ order_id: orderId, status: 'on_the_way' });
+  h.calls[2].callbacks.onSettled();
+  assert.equal(
+    h.render().feedback.state,
+    'error',
+    'a different status is not delivery confirmation',
+  );
+  h.render().submit('delivered');
+  h.calls[3].callbacks.onSuccess({ order_id: orderId, status: 'delivered' });
+  h.calls[3].callbacks.onSettled();
+  const delivered = h.render().feedback;
+  assert.equal(delivered.state, 'success');
+  assert.equal(delivered.target, 'delivered');
+  assert.notEqual(delivered.key, failed.key);
+  h.close();
+});
+
+test('late delivery replies cannot notify another account, order or an unmounted screen', () => {
+  for (const boundary of ['account', 'order', 'unmount']) {
+    const h = progressHarness();
+    h.render().submit('on_the_way');
+    if (boundary === 'account') {
+      h.identity('other-user');
+      h.render();
+    }
+    if (boundary === 'order') {
+      h.identity(userId, 'other-order');
+      h.render();
+    }
+    if (boundary === 'unmount') h.close();
+    const before = h.updates;
+    h.calls[0].callbacks.onSuccess({ order_id: orderId, status: 'on_the_way' });
+    h.calls[0].callbacks.onError(new Error('late error'));
+    h.calls[0].callbacks.onSettled();
+    assert.equal(h.updates, before);
+    if (boundary !== 'unmount') {
+      assert.equal(h.render().feedback, null);
+      h.close();
+    }
+  }
+});
+
+test('delivery notices announce once, pair text with icons, and keep final success persistent', () => {
+  const announcements = [],
+    vibrations = [],
+    ref = { current: null };
+  let foreground = true,
+    effect,
+    reduceMotion = false;
+  const { theme } = load('apps/mobile/src/theme/index.ts', {
+    'react-native': { Platform: { select: (value) => value.default } },
+  });
+  const { DeliveryActionNotice, useDeliveryActionAnnouncement } = load(
+    'apps/mobile/src/features/driver/delivery-action-notice.tsx',
+    {
+      react: {
+        useRef: () => ref,
+        useEffect: (callback) => {
+          effect = callback;
+        },
+      },
+      'react-native': {
+        View: 'View',
+        Platform: { OS: 'ios' },
+        AccessibilityInfo: { announceForAccessibility: (value) => announcements.push(value) },
+        StyleSheet: { create: (value) => value },
+      },
+      'react-native-reanimated': {
+        __esModule: true,
+        default: { View: 'AnimatedView' },
+        FadeIn: { duration: (duration) => duration },
+        useReducedMotion: () => reduceMotion,
+      },
+      'expo-haptics': {
+        notificationAsync: async (value) => {
+          vibrations.push(value);
+        },
+        NotificationFeedbackType: { Success: 'success', Error: 'error' },
+      },
+      '@/shared/lifecycle/use-foreground-screen': { useForegroundScreen: () => foreground },
+      '@/shared/ui/icon': { Icon: 'Icon' },
+      '@/shared/ui/pulse-pressable': { PulsePressable: 'Pressable' },
+      '@/shared/ui/text': { Text: 'Text' },
+      './offer-contracts': { driverProgressError: () => 'Revisa el pedido antes de reintentar.' },
+      '@/theme': { theme },
+    },
+  );
+  let feedback = { key: 'start:1', scope: 'scope', target: 'on_the_way', state: 'success' };
+  const render = () => {
+    useDeliveryActionAnnouncement(feedback);
+    const tree = DeliveryActionNotice({ feedback, onDismiss() {} });
+    effect();
+    return tree;
+  };
+  let tree = render();
+  render();
+  assert.equal(vibrations.length, 1);
+  assert.equal(announcements.length, 1);
+  assert.match(announcements[0], /Entrega iniciada/);
+  assert.equal(tree.props.children[0].props.accessibilityLiveRegion, 'polite');
+  assert.equal(tree.props.children[1].props.accessibilityLabel, 'Cerrar confirmación de inicio');
+  feedback = { ...feedback, key: 'end:2', target: 'delivered' };
+  tree = render();
+  assert.match(announcements[1], /Entrega completada/);
+  assert.equal(
+    tree.props.children[1],
+    null,
+    'final completion stays visible until leaving the screen',
+  );
+  reduceMotion = true;
+  assert.equal(render().props.entering, undefined);
+  foreground = false;
+  feedback = { ...feedback, key: 'error:3', state: 'error', error: new Error('offline') };
+  tree = render();
+  foreground = true;
+  render();
+  assert.equal(vibrations.length, 2, 'returning to the screen does not replay background feedback');
+  assert.equal(tree.props.children[0].props.accessibilityRole, 'alert');
 });
