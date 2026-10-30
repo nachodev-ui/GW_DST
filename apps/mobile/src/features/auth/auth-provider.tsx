@@ -1,4 +1,11 @@
-import { createContext, useContext, useEffect, useState, type PropsWithChildren } from 'react';
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+  type PropsWithChildren,
+} from 'react';
 import { AppState } from 'react-native';
 import { focusManager, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { Session } from '@supabase/supabase-js';
@@ -20,6 +27,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
   const [sessionError, setSessionError] = useState(false);
   const [attempt, setAttempt] = useState(0);
   const queryClient = useQueryClient();
+  const lastIdentity = useRef<string | null | undefined>(undefined);
   const access = useQuery({
     queryKey: ['auth-access', session?.user.id],
     queryFn: () => fetchAccess(session!.user.id),
@@ -38,7 +46,10 @@ export function AuthProvider({ children }: PropsWithChildren) {
       } = client.auth.onAuthStateChange((_event, next) => {
         if (!active) return;
         authEventReceived = true;
-        queryClient.clear();
+        // Refreshing the same session must not unmount an active driver service.
+        const identity = next?.user.id ?? null;
+        if (_event !== 'TOKEN_REFRESHED' || lastIdentity.current !== identity) queryClient.clear();
+        lastIdentity.current = identity;
         setSession(next);
         setReady(true);
         setSessionError(false);
@@ -48,6 +59,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
         .then(({ data, error }) => {
           if (!active || authEventReceived) return;
           if (error) throw error;
+          lastIdentity.current = data.session?.user.id ?? null;
           setSession(data.session);
           setReady(true);
         })

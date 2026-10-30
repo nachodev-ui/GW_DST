@@ -41,7 +41,10 @@ begin
     begin perform public.set_business_coverage(business_a,array['99999'],1); raise exception 'FAIL: unofficial CUT'; exception when invalid_parameter_value then null; end;
     begin perform public.set_business_coverage(business_a,array['13102'],0); raise exception 'FAIL: stale revision'; exception when serialization_failure then null; end;
     execute 'reset role';
-    insert into public.drivers(id,is_verified,is_available,distributor_id) values(driver_a,true,true,business_a),(driver_b,true,true,business_a),(foreign_driver,true,true,business_b);
+    insert into public.drivers(id,is_verified,is_available,distributor_id) values(driver_a,true,false,business_a),(driver_b,true,false,business_a),(foreign_driver,true,false,business_b);
+    perform private.seed_test_document_fixture(driver_a);
+    perform private.seed_test_document_fixture(driver_b);
+    perform private.seed_test_document_fixture(foreign_driver);
     insert into public.distributor_communes values(business_b,'13110');
     perform set_config('request.jwt.claims',json_build_object('sub',stranger,'role','authenticated')::text,true);
     execute 'set local role authenticated';

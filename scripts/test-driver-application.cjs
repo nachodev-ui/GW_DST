@@ -132,7 +132,12 @@ async function main() {
         useAuth: () => ({ session: { user: { id: 'current-user' } } }),
       },
       '@/features/auth/driver-application': contracts,
-      '@/shared/ui/components': { Button: 'Button', Card: 'Card', Feedback: 'Feedback' },
+      '@/shared/ui/components': {
+        Button: 'Button',
+        Card: 'Card',
+        Feedback: 'Feedback',
+        RefreshButton: 'RefreshButton',
+      },
       '@/shared/ui/skeleton': { Skeleton: 'Skeleton' },
       '@/shared/ui/text': { Text: 'Text' },
       '@/theme': {
@@ -172,7 +177,12 @@ async function main() {
   tree = DriverApplicationCard();
   assert.equal(button(tree, 'Activar mi acceso como conductor'), undefined);
   assert.ok(nodes(tree).some((node) => node.props?.text?.includes('Puedes seguir comprando')));
-  assert.ok(button(tree, 'Reintentar consulta'));
+  const retry = nodes(tree).find(
+    (node) => node.type === 'RefreshButton' && node.props.label === 'Reintentar consulta',
+  );
+  assert.ok(retry);
+  await retry.props.onRefresh();
+  assert.deepEqual(invalidated, ['driver-application', 'auth-access']);
   console.log(
     'PASS: application validation, scoped query, payload normalization, errors and form navigation',
   );

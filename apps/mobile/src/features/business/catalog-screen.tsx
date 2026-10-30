@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import { ScrollView, StyleSheet, Switch, View } from 'react-native';
-import { router, useLocalSearchParams } from 'expo-router';
+import { router } from 'expo-router';
+import { useSelectedBusiness } from './business-shell';
 import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/features/auth/auth-provider';
 import { productLabel, formatClp } from '@/shared/orders/contracts';
-import { Button, Card, Feedback, Input } from '@/shared/ui/components';
+import { Card, Feedback, Input, StatusBadge } from '@/shared/ui/components';
 import { Text } from '@/shared/ui/text';
 import { Screen } from '@/shared/ui/screen';
 import { theme } from '@/theme';
@@ -17,37 +18,30 @@ import {
   type BusinessProduct,
   type BusinessProductForm,
 } from '@/features/business/business-contracts';
-import {
-  fetchBusinessProducts,
-  saveBusinessProduct,
-  useMyBusinesses,
-} from '@/features/business/business-data';
+import { fetchBusinessProducts, saveBusinessProduct } from '@/features/business/business-data';
 
 import { BottomSheet } from '@/shared/ui/bottom-sheet';
 import { EmptyState } from '@/shared/ui/empty-state';
-import { StatusBadge } from '@/shared/ui/components';
 import { ProductImage } from '@/shared/ui/product-image';
+import { Icon } from '@/shared/ui/icon';
+import { PulsePressable } from '@/shared/ui/pulse-pressable';
 import { Skeleton } from '@/shared/ui/skeleton';
-import { WorkspaceHero, WorkspaceHeading, workspaceStyles } from './workspace-ui';
-import { ServiceSettingsEditor } from './service-settings-editor';
+import { WorkspaceHeading, workspaceStyles } from './workspace-ui';
 export function CatalogScreen() {
-  const { businessId } = useLocalSearchParams<{ businessId?: string }>();
-  const businesses = useMyBusinesses();
-  const business = businesses.data?.find((item) => item.id === businessId);
+  const business = useSelectedBusiness();
+  const businessId = business?.id;
+  if (business) return <BusinessWorkspace key={business.id} business={business} />;
   return (
     <Screen
+      tabbed
       compactHeader
       title="Catálogo"
       onBack={() => router.replace({ pathname: '/business/manage', params: { businessId } })}
     >
-      {business ? (
-        <BusinessWorkspace key={business.id} business={business} />
-      ) : (
-        <EmptyState
-          title="Negocio no disponible"
-          description="Vuelve a Mi negocio y selecciona el negocio que quieres gestionar."
-        />
-      )}
+      <EmptyState
+        title="Negocio no disponible"
+        description="Vuelve a Mi negocio y selecciona el negocio que quieres gestionar."
+      />
     </Screen>
   );
 }
@@ -56,6 +50,7 @@ function BusinessWorkspace({ business }: { business: Business }) {
   const { session } = useAuth();
   const queryClient = useQueryClient();
   const [editing, setEditing] = useState<BusinessProduct | null>(null);
+  const [showInfo, setShowInfo] = useState(false);
   const products = useQuery({
     queryKey: ['business-products', session?.user.id, business.id],
     queryFn: () => fetchBusinessProducts(business.id),
@@ -64,16 +59,35 @@ function BusinessWorkspace({ business }: { business: Business }) {
   const refresh = () =>
     Promise.all([queryClient.invalidateQueries({ queryKey: ['businesses'] }), products.refetch()]);
   return (
-    <>
-      <WorkspaceHero
-        eyebrow="CATÁLOGO DEL NEGOCIO"
-        title="Listo para ofrecer"
-        description="Organiza tus productos, precios y existencias."
-      >
-        <Text variant="note" style={workspaceStyles.heroDescription}>
-          {business.name}
-        </Text>
-      </WorkspaceHero>
+    <Screen
+      tabbed
+      compactHeader
+      title="Catálogo"
+      onBack={() =>
+        router.replace({ pathname: '/business/manage', params: { businessId: business.id } })
+      }
+      onRefresh={refresh}
+    >
+      <View style={styles.summary}>
+        <Icon name="store" color={theme.colors.primaryLight} />
+        <View style={styles.identity}>
+          <Text variant="note" style={styles.summaryLabel}>
+            Catálogo del negocio
+          </Text>
+          <Text variant="label" style={styles.summaryName}>
+            {business.name}
+          </Text>
+        </View>
+        <PulsePressable
+          accessibilityRole="button"
+          accessibilityLabel="Información del catálogo"
+          accessibilityHint="Abre el detalle sobre precios, existencias y canje"
+          onPress={() => setShowInfo(true)}
+          style={styles.infoAction}
+        >
+          <Icon name="info" color={theme.colors.primaryLight} size={theme.layout.tagRemove} />
+        </PulsePressable>
+      </View>
       {!business.is_verified ? (
         <Feedback
           text="El negocio no está habilitado para editar productos. Contacta a administración."
@@ -81,20 +95,20 @@ function BusinessWorkspace({ business }: { business: Business }) {
         />
       ) : null}
       <View style={styles.section}>
-        <View style={workspaceStyles.note}>
-          <Text variant="note" style={[workspaceStyles.muted, workspaceStyles.grow]}>
-            Estos precios y existencias se muestran al elegir tu distribuidora. Cada pedido reserva
-            stock; al cancelarlo se devuelve. El precio sin canje incluye el envase.
-          </Text>
-        </View>
-        <ServiceSettingsEditor business={business} />
-        <Button
-          label="Ver cobertura de reparto"
-          variant="secondary"
+        <PulsePressable
+          accessibilityRole="link"
+          accessibilityLabel="Ver cobertura de reparto"
+          style={styles.coverageLink}
           onPress={() =>
             router.push({ pathname: '/business/coverage', params: { businessId: business.id } })
           }
-        />
+        >
+          <Icon name="pin" size={theme.layout.tagRemove} />
+          <Text variant="note" style={styles.coverageLabel}>
+            Cobertura de reparto
+          </Text>
+          <Icon name="arrowRight" size={theme.layout.tagRemove} />
+        </PulsePressable>
         <WorkspaceHeading title="Tus productos" detail="Selecciona un producto para editarlo" />
         {products.isPending ? (
           <Skeleton />
@@ -128,11 +142,15 @@ function BusinessWorkspace({ business }: { business: Business }) {
                     {p.brand}
                   </Text>
                   <Text variant="subtitle">{productLabel(p)}</Text>
-                  <StatusBadge
-                    label={p.is_listed ? 'En catálogo' : 'Fuera del catálogo'}
-                    icon={p.is_listed ? 'check' : 'close'}
-                    tone={p.is_listed ? 'success' : 'accent'}
-                  />
+                  {p.is_listed ? (
+                    <StatusBadge label="En catálogo" icon="check" tone="success" />
+                  ) : (
+                    <View style={styles.unlistedBadge}>
+                      <Text variant="note" style={styles.unlistedLabel}>
+                        Fuera del catálogo
+                      </Text>
+                    </View>
+                  )}
                 </View>
               </View>
               <View style={styles.productFooter}>
@@ -166,13 +184,20 @@ function BusinessWorkspace({ business }: { business: Business }) {
           />
         ) : null}
       </View>
-      <Button
-        label="Actualizar datos"
-        variant="secondary"
-        disabled={products.isFetching}
-        onPress={() => void refresh()}
-      />
-    </>
+      {showInfo ? (
+        <BottomSheet visible title="Acerca del catálogo" onClose={() => setShowInfo(false)}>
+          <ScrollView style={styles.editorScroll} contentContainerStyle={styles.section}>
+            <Text variant="note" style={workspaceStyles.muted}>
+              Precios y stock visibles para tus clientes. Cada pedido reserva stock; al cancelarlo
+              se devuelve. Sin canje, el precio incluye el cilindro.
+            </Text>
+            <Text variant="note" style={workspaceStyles.muted}>
+              Sin precio para una modalidad, no se puede comprar en ella.
+            </Text>
+          </ScrollView>
+        </BottomSheet>
+      ) : null}
+    </Screen>
   );
 }
 
@@ -217,7 +242,7 @@ function ProductEditor({
   return (
     <BottomSheet
       visible
-      title={`Editar ${initial.brand} ${productLabel(initial)}`}
+      title="Editar producto"
       onClose={dismiss}
       dismissible={!save.isPending}
       saving={save.isPending}
@@ -225,24 +250,9 @@ function ProductEditor({
       saveLabel="Guardar cambios"
       onSave={() => void handleSubmit((values) => save.mutate(values))()}
       header={
-        <View style={styles.editorHeading}>
-          <View style={styles.illustration}>
-            <ProductImage product={initial} size="small" />
-          </View>
-          <View style={styles.identity}>
-            <Text variant="note" style={workspaceStyles.muted}>
-              Editar producto
-            </Text>
-            <Text variant="subtitle" accessibilityRole="header">
-              {initial.brand} {productLabel(initial)}
-            </Text>
-            <StatusBadge
-              label={listed ? 'En catálogo' : 'Fuera del catálogo'}
-              icon={listed ? 'check' : 'close'}
-              tone={listed ? 'success' : 'neutral'}
-            />
-          </View>
-        </View>
+        <Text variant="subtitle" accessibilityRole="header">
+          Editar producto
+        </Text>
       }
     >
       <ScrollView
@@ -251,19 +261,25 @@ function ProductEditor({
         keyboardDismissMode="on-drag"
         contentContainerStyle={styles.section}
       >
+        <View style={styles.editorProduct}>
+          <View style={styles.editorIllustration}>
+            <ProductImage product={initial} size="compact" />
+          </View>
+          <View style={styles.identity}>
+            <Text variant="note" style={workspaceStyles.muted}>
+              {initial.brand}
+            </Text>
+            <Text variant="subtitle">{productLabel(initial)}</Text>
+          </View>
+        </View>
         <Controller
           control={control}
           name="is_listed"
           render={({ field }) => (
             <View style={styles.listingControl}>
-              <View style={styles.identity}>
-                <Text variant="label">En catálogo</Text>
-                <Text variant="note" style={workspaceStyles.muted}>
-                  {field.value
-                    ? 'El producto se incluye en tu catálogo.'
-                    : 'Fuera del catálogo. Conservamos su precio y stock.'}
-                </Text>
-              </View>
+              <Text variant="label" style={workspaceStyles.grow}>
+                En catálogo
+              </Text>
               <View style={styles.switchTarget}>
                 <Switch
                   accessibilityLabel="En catálogo"
@@ -280,36 +296,37 @@ function ProductEditor({
             </View>
           )}
         />
+        {!listed ? (
+          <Text variant="note" style={workspaceStyles.muted}>
+            Activa el producto para editar precios y stock.
+          </Text>
+        ) : null}
         <View style={[styles.editorFields, fieldsDisabled && styles.dimmed]}>
           <Controller
             control={control}
             name="price"
             render={({ field }) => (
-              <>
-                <Input
-                  ref={field.ref}
-                  label="Precio con canje (CLP)"
-                  prefix="$"
-                  style={styles.priceInput}
-                  value={field.value}
-                  onChangeText={(value) => {
-                    if (/^\d*$/.test(value)) field.onChange(value);
-                  }}
-                  onBlur={field.onBlur}
-                  keyboardType="number-pad"
-                  maxLength={10}
-                  error={errors.price?.message}
-                  editable={!fieldsDisabled}
-                  help="Pesos enteros, sin puntos ni decimales. Vacío deja el precio pendiente."
-                />
-                <Text variant="note" accessibilityLiveRegion="polite" style={workspaceStyles.muted}>
-                  {field.value === ''
-                    ? 'Precio pendiente'
-                    : errors.price
-                      ? 'Revisa el precio ingresado.'
-                      : `Vista previa: ${formatClp(Number(field.value))}`}
-                </Text>
-              </>
+              <Input
+                ref={field.ref}
+                label="Precio con canje (CLP)"
+                prefix={
+                  <Text variant="note" style={styles.currencyPrefix}>
+                    $
+                  </Text>
+                }
+                style={styles.numericInput}
+                value={field.value}
+                placeholder="Precio pendiente"
+                onChangeText={(value) => {
+                  if (/^\d*$/.test(value)) field.onChange(value);
+                }}
+                onBlur={field.onBlur}
+                keyboardType="number-pad"
+                inputMode="numeric"
+                maxLength={10}
+                error={errors.price?.message}
+                editable={!fieldsDisabled}
+              />
             )}
           />
           <Controller
@@ -317,18 +334,26 @@ function ProductEditor({
             name="priceWithoutExchange"
             render={({ field }) => (
               <Input
-                label="Precio sin canje, con envase (CLP)"
-                prefix="$"
+                ref={field.ref}
+                label="Precio sin canje (CLP)"
+                prefix={
+                  <Text variant="note" style={styles.currencyPrefix}>
+                    $
+                  </Text>
+                }
+                style={styles.numericInput}
                 value={field.value}
+                placeholder="Sin precio"
                 onChangeText={(value) => {
                   if (/^\d*$/.test(value)) field.onChange(value);
                 }}
                 onBlur={field.onBlur}
                 keyboardType="number-pad"
+                inputMode="numeric"
                 maxLength={10}
                 editable={!fieldsDisabled}
                 error={errors.priceWithoutExchange?.message}
-                help="Total por cilindro con su envase. Vacío permite consultar, pero impide comprar sin canje."
+                help="Incluye el cilindro. Opcional."
               />
             )}
           />
@@ -336,50 +361,21 @@ function ProductEditor({
             control={control}
             name="stock"
             render={({ field }) => (
-              <View style={styles.editorFields}>
-                <Text variant="label">Cilindros disponibles</Text>
-                <View style={styles.stockStepper}>
-                  <Button
-                    label="−"
-                    variant="secondary"
-                    accessibilityLabel="Quitar un cilindro disponible"
-                    disabled={fieldsDisabled || Number(field.value) <= 0}
-                    onPress={() => field.onChange(String(Math.max(0, Number(field.value) - 1)))}
-                  />
-                  <View style={styles.identity}>
-                    <Input
-                      ref={field.ref}
-                      label="Cilindros disponibles"
-                      hideLabel
-                      style={styles.stockInput}
-                      value={field.value}
-                      onChangeText={(value) => {
-                        if (/^\d*$/.test(value)) field.onChange(value);
-                      }}
-                      onBlur={field.onBlur}
-                      keyboardType="number-pad"
-                      maxLength={7}
-                      accessibilityHint={errors.stock?.message}
-                      editable={!fieldsDisabled}
-                    />
-                  </View>
-                  <Button
-                    label="+"
-                    variant="secondary"
-                    accessibilityLabel="Agregar un cilindro disponible"
-                    disabled={fieldsDisabled || !!errors.stock}
-                    onPress={() => field.onChange(String(Number(field.value) + 1))}
-                  />
-                </View>
-                {errors.stock ? (
-                  <Text variant="note" accessibilityRole="alert" style={styles.fieldError}>
-                    {errors.stock.message}
-                  </Text>
-                ) : null}
-                <Text variant="note" style={workspaceStyles.muted}>
-                  Cilindros enteros, sin decimales.
-                </Text>
-              </View>
+              <Input
+                ref={field.ref}
+                label="Cilindros disponibles"
+                style={styles.numericInput}
+                value={field.value}
+                onChangeText={(value) => {
+                  if (/^\d*$/.test(value)) field.onChange(value);
+                }}
+                onBlur={field.onBlur}
+                keyboardType="number-pad"
+                inputMode="numeric"
+                maxLength={7}
+                error={errors.stock?.message}
+                editable={!fieldsDisabled}
+              />
             )}
           />
         </View>
@@ -390,16 +386,56 @@ function ProductEditor({
 }
 
 const styles = StyleSheet.create({
-  editorHeading: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: theme.spacing.md },
+  summary: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.compact,
+    padding: theme.spacing.md,
+    borderRadius: theme.business.radius,
+    backgroundColor: theme.business.dark,
+  },
+  summaryLabel: { color: theme.colors.primaryLight },
+  summaryName: { color: theme.business.onDark },
+  infoAction: {
+    minWidth: theme.layout.touchTarget,
+    minHeight: theme.layout.touchTarget,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  coverageLink: {
+    alignSelf: 'flex-start',
+    maxWidth: '100%',
+    minHeight: theme.layout.touchTarget,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.sm,
+    paddingHorizontal: theme.spacing.xs,
+  },
+  coverageLabel: { color: theme.colors.primary, flexShrink: 1 },
+  unlistedBadge: {
+    alignSelf: 'flex-start',
+    maxWidth: '100%',
+    paddingHorizontal: theme.spacing.sm,
+    paddingVertical: theme.spacing.xs,
+    borderRadius: theme.radii.control,
+    backgroundColor: theme.colors.warm,
+  },
+  unlistedLabel: { color: theme.colors.textMuted, fontSize: theme.business.navLabelSize },
+  editorProduct: { flexDirection: 'row', alignItems: 'center', gap: theme.spacing.compact },
+  editorIllustration: {
+    padding: theme.spacing.sm,
+    backgroundColor: theme.colors.warm,
+    borderRadius: theme.radii.control,
+  },
   editorScroll: { flexShrink: 1 },
-  editorFields: { gap: theme.spacing.compact },
+  editorFields: { gap: theme.spacing.md },
   listingControl: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: theme.spacing.compact,
-    backgroundColor: theme.colors.warm,
-    padding: theme.spacing.md,
-    borderRadius: theme.radii.control,
+    paddingVertical: theme.spacing.xs,
+    borderBottomWidth: theme.borders.thin,
+    borderBottomColor: theme.colors.divider,
   },
   switchTarget: {
     minWidth: theme.layout.touchTarget,
@@ -407,11 +443,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  priceInput: { fontSize: theme.typography.sizes.title },
-  stockInput: { textAlign: 'center', fontSize: theme.typography.sizes.subtitle },
-  stockStepper: { flexDirection: 'row', alignItems: 'center', gap: theme.spacing.sm },
+  numericInput: { fontSize: theme.typography.sizes.body, fontVariant: ['tabular-nums'] },
+  currencyPrefix: { paddingLeft: theme.spacing.md, color: theme.colors.textMuted },
   dimmed: { opacity: theme.opacity.disabled },
-  fieldError: { color: theme.colors.error },
   identity: { flex: 1, gap: theme.spacing.xs },
   row: { flexDirection: 'row', alignItems: 'center', gap: theme.spacing.md },
   product: {

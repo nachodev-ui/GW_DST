@@ -1,5 +1,17 @@
 # Registro con teléfono
 
+Actualización del 2026-10-23: el registro exige **8 caracteres, una mayúscula A-Z
+y un número**. Auth cloud tiene mínimo 8 y `letters_digits` aplicado y verificado
+en Test y app; este preset servidor no exige mayúscula. Ver [ADR 0030](decisions/0030-accessible-password-policy.md).
+El campo del registro muestra tres requisitos con cruz/check en tiempo real;
+al borrar o pegar texto se recalculan desde el valor actual sin guardar otra copia.
+El ingreso mantiene compatibilidad con claves anteriores. El intervalo servidor
+de correo es de 2 min y las cuotas de acceso/verificación son de 10/5 min/IP.
+La elección anterior de conservar el correo integrado se reemplaza por la
+configuración de Gmail SMTP gratuito en ambos clouds, con recepción real en Test.
+Ver [evidencia vigente de condición 2](auth-abuse-smtp.md); los apartados siguientes
+conservan el contexto de la entrega inicial del registro.
+
 ## Flujo implementado
 
 Fecha: 2026-10-23. La propuesta A anterior no estaba implementada: el formulario
@@ -33,6 +45,13 @@ repone el correo y pide nuevamente la contraseña; «Continuar» vuelve a teléf
 con los dígitos recuperados. Cambiar de correo inicia un teléfono vacío.
 Completar el registro elimina el borrador y conserva solo el correo del aviso.
 Recargar el proceso o abrir teléfono sin credenciales devuelve al acceso.
+
+El aviso posterior al teléfono tiene una composición propia: sobre ilustrado,
+correo seleccionable destacado, dos instrucciones numeradas, ayuda de spam y una
+acción de ingreso. El reloj indica espera; no se presenta la cuenta como confirmada
+ni se garantiza entrega de correo. Abrir la ruta sin el correo en memoria conserva
+el redirect al acceso. No incorpora reenvío, enlaces a proveedores ni llamadas Auth
+nuevas. [Detalles y referencia visual](design.md#aviso-de-confirmación-de-correo).
 
 La pantalla de teléfono usa cabecera clara compacta, navegación de vuelta visible,
 indicador de último paso y un solo campo con prefijo vectorial. El texto de ayuda

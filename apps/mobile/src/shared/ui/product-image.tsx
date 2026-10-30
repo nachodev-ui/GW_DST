@@ -33,9 +33,10 @@ export function ProductImage({
   size = 'small',
 }: {
   product: ProductIdentity;
-  size?: 'small' | 'selector' | 'medium' | 'large';
+  size?: 'compact' | 'small' | 'selector' | 'medium' | 'large';
 }) {
   const width = {
+    compact: theme.layout.brandStacked,
     small: theme.layout.illustrationSmall,
     selector: theme.layout.illustrationSelector,
     medium: theme.layout.illustration,

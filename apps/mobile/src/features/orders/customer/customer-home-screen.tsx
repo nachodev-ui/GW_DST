@@ -200,7 +200,7 @@ export function CustomerHomeScreen() {
           <View style={styles.receipt}>
             <Icon name="exchange" color={theme.colors.accent} />
             <View style={ui.flex}>
-              <Text variant="label">¿Tienes un envase vacío?</Text>
+              <Text variant="label">¿Tienes un cilindro vacío?</Text>
               <Text variant="note" style={ui.muted}>
                 Indícalo al pedir para coordinar el canje.
               </Text>

@@ -1,5 +1,5 @@
-import { memo, useRef, useState } from 'react';
-import { FlatList, View } from 'react-native';
+import { useRef, useState } from 'react';
+import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { useAuth } from '@/features/auth/auth-provider';
@@ -10,81 +10,29 @@ import {
   useDriverOffers,
   useDriverWorkspace,
 } from '@/features/driver/offer-data';
+import { driverError, isDriverOfferCurrent } from '@/features/driver/offer-contracts';
+import { DriverAvailability, driverStyles } from '@/features/driver/driver-ui';
+import { useDriverLicenseSubmission } from './document-data';
 import {
-  driverError,
-  isDriverOfferCurrent,
-  type DriverOffer,
-} from '@/features/driver/offer-contracts';
-import {
-  CurrentDeliveryCard,
-  DriverAvailability,
-  DriverBusinessCard,
-  driverStyles,
-} from '@/features/driver/driver-ui';
-import { productLabel, formatClp } from '@/shared/orders/contracts';
-import { Avatar } from '@/shared/ui/avatar';
+  DriverActiveDelivery,
+  DriverHomeContext,
+  DriverHomeEmpty,
+  DriverOfferCard,
+} from './driver-home-cards';
 import { getDisplayName } from '@/shared/ui/display-name';
-import { Button, Card, Feedback, ui } from '@/shared/ui/components';
-import { CylinderIllustration } from '@/shared/ui/cylinder-illustration';
+import { Feedback, ui } from '@/shared/ui/components';
+import { Icon } from '@/shared/ui/icon';
 import { PulsePressable } from '@/shared/ui/pulse-pressable';
 import { Skeleton } from '@/shared/ui/skeleton';
 import { Text } from '@/shared/ui/text';
 import { screenStyles } from '@/shared/ui/screen';
-
-const OfferCard = memo(function OfferCard({
-  offer,
-  busy,
-  accept,
-  reject,
-}: {
-  offer: DriverOffer;
-  busy: boolean;
-  accept: (id: string) => void;
-  reject: (id: string) => void;
-}) {
-  return (
-    <Card>
-      <View style={driverStyles.header}>
-        <CylinderIllustration weight={offer.weight_kg} size="small" />
-        <View style={driverStyles.flex}>
-          <Text variant="subtitle">
-            {offer.brand} {productLabel(offer)}
-          </Text>
-          <Text>
-            {offer.quantity} {offer.quantity === 1 ? 'cilindro' : 'cilindros'}
-          </Text>
-        </View>
-      </View>
-      <Text variant="label">{offer.commune_name}</Text>
-      <Text>
-        {offer.exchange_empty ? 'Cliente entrega envase vacío' : 'Cliente necesita envase'}
-      </Text>
-      {offer.exchange_empty && offer.returned_brand ? (
-        <Text>
-          Envase devuelto:{' '}
-          {offer.returned_brand === 'unknown' ? 'marca por confirmar' : offer.returned_brand}
-        </Text>
-      ) : null}
-      <Text variant="title">{formatClp(offer.total_clp)}</Text>
-      <Text variant="note">Cobro en efectivo contra entrega</Text>
-      <Text variant="note">
-        Vence a las {new Date(offer.expires_at).toLocaleTimeString('es-CL')}
-      </Text>
-      <Button label="Aceptar pedido" disabled={busy} onPress={() => accept(offer.order_id)} />
-      <Button
-        label="Rechazar oferta"
-        variant="secondary"
-        disabled={busy}
-        onPress={() => reject(offer.order_id)}
-      />
-    </Card>
-  );
-});
+import { theme } from '@/theme';
 
 export function OffersScreen() {
   const { session } = useAuth();
   const { settings, offers } = useDriverOffers();
   const workspace = useDriverWorkspace();
+  const license = useDriverLicenseSubmission(workspace.isError ? undefined : workspace.data);
   const assigned = useAssignedOrder();
   const now = useDriverClock();
   const actions = useDriverActions();
@@ -128,7 +76,7 @@ export function OffersScreen() {
   const reject = (id: string) => {
     clear();
     actions.reject.mutate(id, {
-      onSuccess: () => setMessage('Oferta rechazada. El pedido puede asignarse a otro conductor.'),
+      onSuccess: () => setMessage('Oferta rechazada.'),
     });
   };
   const refresh = async () => {
@@ -141,6 +89,7 @@ export function OffersScreen() {
         workspace.refetch(),
         offers.refetch(),
         assigned.refetch(),
+        license.refresh(),
       ]);
     } finally {
       refreshInFlight.current = false;
@@ -171,40 +120,73 @@ export function OffersScreen() {
         contentContainerStyle={driverStyles.list}
         refreshing={refreshing}
         onRefresh={refresh}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={refresh}
+            tintColor={theme.colors.primary}
+            colors={[theme.colors.primary, theme.colors.lime]}
+            progressBackgroundColor={theme.colors.background}
+          />
+        }
         renderItem={({ item }) => (
-          <OfferCard offer={item} busy={busy || uncertain} accept={accept} reject={reject} />
+          <DriverOfferCard
+            offer={item}
+            now={now}
+            busy={busy || uncertain}
+            accepting={actions.accept.isPending && actions.accept.variables === item.order_id}
+            rejecting={actions.reject.isPending && actions.reject.variables === item.order_id}
+            accept={accept}
+            reject={reject}
+          />
         )}
         ListHeaderComponent={
-          <View style={driverStyles.section}>
+          <View style={styles.headerContent}>
             <View style={driverStyles.header}>
               <View style={ui.flex}>
-                <Text variant="note">Tu jornada de reparto</Text>
-                <Text variant="display" accessibilityRole="header">
+                <Text variant="note" style={styles.muted}>
+                  Gasway · Reparto
+                </Text>
+                <Text variant="title" accessibilityRole="header">
                   Hola, {name}
                 </Text>
               </View>
               <PulsePressable
                 accessibilityRole="button"
+                accessibilityLabel="Actualizar jornada"
+                accessibilityState={{ disabled: busy || refreshing, busy: refreshing }}
+                disabled={busy || refreshing}
+                onPress={refresh}
+                style={styles.iconButton}
+              >
+                {refreshing ? (
+                  <ActivityIndicator color={theme.colors.primary} />
+                ) : (
+                  <Icon name="refresh" />
+                )}
+              </PulsePressable>
+              <PulsePressable
+                accessibilityRole="button"
                 accessibilityLabel="Ir a mi cuenta de conductor"
                 onPress={() => router.push('/driver-account')}
+                style={styles.accountButton}
               >
-                <Avatar name={name} />
+                <Icon name="user" color={theme.colors.text} />
               </PulsePressable>
             </View>
-            {workspace.isPending ? (
-              <Skeleton rows={2} />
-            ) : workspace.data && !workspace.isError ? (
-              <DriverBusinessCard workspace={workspace.data} />
-            ) : null}
             {assigned.data && !assigned.isError ? (
-              <CurrentDeliveryCard id={assigned.data.order_id} />
+              <DriverActiveDelivery order={assigned.data} />
             ) : null}
             <DriverAvailability
               settings={settings.data}
               workspace={workspace.data}
+              licenseSubmission={license.submission}
               hasOrder={!!assigned.data}
               busy={actions.settings.isPending}
-              uncertain={uncertain || busy}
+              uncertain={uncertain || actions.accept.isPending || actions.reject.isPending}
+              appearance="home"
+              checking={settings.isPending || workspace.isPending || assigned.isPending}
+              compact={items.length > 0}
               onChange={(available) => {
                 if (!settings.data) return;
                 clear();
@@ -213,43 +195,71 @@ export function OffersScreen() {
                 });
               }}
             />
+            {workspace.data && !workspace.isError ? (
+              <DriverHomeContext
+                workspace={workspace.data}
+                communes={!settings.isError ? settings.data?.communes.length : undefined}
+              />
+            ) : null}
             {error ? <Feedback text={driverError(error)} error /> : null}
             {message ? <Feedback text={message} /> : null}
-            <Button
-              label="Actualizar jornada"
-              variant="secondary"
-              onPress={refresh}
-              disabled={busy || refreshing}
-            />
-            <Text variant="subtitle" accessibilityRole="header">
-              Ofertas vigentes
-            </Text>
-            <Text variant="note">
-              Se consultan mientras esta pantalla está activa. La dirección se entrega únicamente al
-              conductor asignado.
-            </Text>
+            {!assigned.data && !uncertain && workspace.data?.can_receive_offers ? (
+              <View style={styles.offersHeading}>
+                <Text variant="subtitle" accessibilityRole="header" style={ui.flex}>
+                  Nuevas ofertas
+                </Text>
+                {items.length > 0 ? (
+                  <View style={styles.count}>
+                    <Text variant="label">{items.length}</Text>
+                  </View>
+                ) : null}
+              </View>
+            ) : null}
           </View>
         }
         ListEmptyComponent={
-          error ? (
-            <Feedback text="No podemos confirmar las ofertas. Actualiza tu jornada para reintentar." />
-          ) : offers.isPending || uncertain ? (
-            <Feedback text="Comprobando tu jornada y ofertas…" />
-          ) : (
-            <Feedback
-              text={
-                assigned.data
-                  ? 'Ya tienes una entrega en curso.'
-                  : !workspace.data?.can_receive_offers
-                    ? 'Regulariza tu habilitación y tu negocio para recibir pedidos.'
-                    : !settings.data?.is_available
-                      ? 'Estás fuera de disponibilidad. Puedes activarte cuando estés listo.'
-                      : 'No hay ofertas vigentes en las comunas de tu distribuidora.'
-              }
-            />
-          )
+          <>
+            {error || assigned.data ? null : offers.isPending || uncertain ? (
+              <Skeleton rows={2} />
+            ) : workspace.data?.can_receive_offers ? (
+              <DriverHomeEmpty available={settings.data?.is_available === true} />
+            ) : null}
+          </>
         }
       />
     </SafeAreaView>
   );
 }
+const styles = StyleSheet.create({
+  headerContent: { gap: theme.spacing.md },
+  muted: { color: theme.colors.primary },
+  iconButton: {
+    width: theme.layout.touchTarget,
+    height: theme.layout.touchTarget,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  accountButton: {
+    width: theme.layout.touchTarget,
+    height: theme.layout.touchTarget,
+    borderRadius: theme.radii.pill,
+    backgroundColor: theme.colors.lime,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  offersHeading: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.sm,
+    paddingTop: theme.spacing.sm,
+  },
+  count: {
+    minWidth: theme.layout.brandMark,
+    minHeight: theme.layout.brandMark,
+    paddingHorizontal: theme.spacing.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: theme.radii.pill,
+    backgroundColor: theme.colors.lime,
+  },
+});

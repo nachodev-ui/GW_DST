@@ -10,7 +10,7 @@ function node {
 function Read-Host {
     param($Prompt, [switch]$AsSecureString)
     $global:gaswayResetTest_promptCount++
-    $value = if ($global:gaswayResetTest_promptCount -eq 1) { $global:gaswayResetTest_fakeKey } else { 'Test-ñ-"-1234' }
+    $value = if ($global:gaswayResetTest_promptCount -eq 1) { $global:gaswayResetTest_fakeKey } else { $global:gaswayResetTest_password }
     return ConvertTo-SecureString $value -AsPlainText -Force
 }
 function Invoke-RestMethod {
@@ -38,7 +38,7 @@ function Invoke-RestMethod {
     if ($Method -ne 'Put') { throw 'Unexpected mutation' }
     $global:gaswayResetTest_puts++
     $decoded = $Body | ConvertFrom-Json
-    if (@($decoded.PSObject.Properties).Count -ne 1 -or $decoded.password -cne 'Test-ñ-"-1234') {
+    if (@($decoded.PSObject.Properties).Count -ne 1 -or $decoded.password -cne $global:gaswayResetTest_password) {
         throw 'Only the password should change'
     }
     Set-Variable -Name $StatusCodeVariable -Value 200 -Scope 1
@@ -47,19 +47,23 @@ function Invoke-RestMethod {
 
 foreach ($key in @('sb_secret_test_fixture', 'eyJlegacy-test-fixture')) {
     foreach ($wrong in @($false, $true)) {
-        $global:gaswayResetTest_fakeKey = $key
-        $global:gaswayResetTest_wrongAccount = $wrong
-        $global:gaswayResetTest_promptCount = 0
-        $global:gaswayResetTest_requests = 0
-        $global:gaswayResetTest_puts = 0
-        $outputText = (& $resetPath -UserId '11111111-1111-4111-8111-111111111111' -Email 'test@example.com' 6>&1 | Out-String)
-        if ($outputText.Contains($key) -or $outputText.Contains('Test-ñ-"-1234')) { throw 'Secret in output' }
-        $expectedPuts = if ($wrong) { 0 } else { 1 }
-        if ($global:gaswayResetTest_puts -ne $expectedPuts -or $global:gaswayResetTest_requests -ne (1 + $expectedPuts)) {
-            throw 'Unexpected requests or swallowed mock assertion'
+        foreach ($password in @('Test-ñ-"-123456789', 'GASWAY12', 'Gasway1', 'gasway12', 'GASWAYAB', 'A1😀😀😀')) {
+            $global:gaswayResetTest_fakeKey = $key
+            $global:gaswayResetTest_password = $password
+            $global:gaswayResetTest_wrongAccount = $wrong
+            $global:gaswayResetTest_promptCount = 0
+            $global:gaswayResetTest_requests = 0
+            $global:gaswayResetTest_puts = 0
+            $outputText = (& $resetPath -UserId '11111111-1111-4111-8111-111111111111' -Email 'test@example.com' 6>&1 | Out-String)
+            if ($outputText.Contains($key) -or $outputText.Contains($password)) { throw 'Secret in output' }
+            $valid = $password -cin @('Test-ñ-"-123456789', 'GASWAY12')
+            $expectedPuts = if ($wrong -or -not $valid) { 0 } else { 1 }
+            if ($global:gaswayResetTest_puts -ne $expectedPuts -or $global:gaswayResetTest_requests -ne (1 + $expectedPuts)) {
+                throw 'Unexpected requests or swallowed mock assertion'
+            }
+            $expected = if ($wrong) { 'El UUID y el correo no coinciden' } elseif (-not $valid) { 'Las contrasenas deben coincidir' } else { 'Supabase confirmo la actualizacion' }
+            if (-not $outputText.Contains($expected)) { throw 'Unexpected outcome or swallowed mock assertion' }
+            Write-Output "PASS modern=$($key.StartsWith('sb_secret_')) wrong-account=$wrong valid-password=$valid"
         }
-        $expected = if ($wrong) { 'El UUID y el correo no coinciden' } else { 'Supabase confirmo la actualizacion' }
-        if (-not $outputText.Contains($expected)) { throw 'Unexpected outcome or swallowed mock assertion' }
-        Write-Output "PASS modern=$($key.StartsWith('sb_secret_')) wrong-account=$wrong"
     }
 }

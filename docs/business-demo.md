@@ -1,6 +1,14 @@
 # Probar Mi negocio
 
-Rama de trabajo: `feat/business-onboarding`. Todo el ejemplo es ficticio.
+Rama de origen: `feat/business-onboarding`. Todo el ejemplo es ficticio.
+Esta guía conserva el ejemplo de gestión del negocio; la demo integral priorizada
+el 2026-10-23 se prepara con [el plan D0–D5](demo-commercial-validation.md).
+No asumir que estos IDs ni su estado histórico coinciden con el entorno elegido.
+
+**Estado cloud actualizado (2026-10-23):** D0 confirmó este negocio y responsable;
+el conductor `ig.cisternas@duocuc.cl` ya está aprobado para pruebas y la cobertura
+vigente es La Florida/Puente Alto/Pirque. Stock y precios actuales en
+[entorno de demo](demo-environment.md); los valores de abajo conservan el ejemplo inicial.
 
 ## Datos preparados
 
@@ -45,8 +53,11 @@ debe ser true y el motivo debe señalar claramente que es una prueba.
 
 ## Qué todavía no probar como flujo real
 
-La edición del catálogo prepara información del negocio, pero create_order continúa
-con el prototipo global. No hay compra al vendedor elegido ni reserva de existencias.
+La compra actual usa vendedor elegido y reserva de existencias mediante el flujo
+documentado en [compra por distribuidora](distributor-shopping.md); `create_order`
+pertenece al prototipo histórico. Maps Android y punto de entrega están implementados
+en [D1](maps-setup.md), pendientes de validación en teléfono; el seguimiento GPS
+del conductor sigue pendiente.
 Tampoco se capturan archivos, vencimientos de antecedentes de conductor/vehículo ni
 una revisión regulatoria real. No usar el demo para entregas reales.
 

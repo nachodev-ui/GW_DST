@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import type { Commune } from '@/shared/orders/contracts';
+import { deliveryPointSchema } from '@/shared/orders/delivery-point';
 
 export function createOrderFormSchema(communes: Commune[]) {
   const codes = new Set(communes.map((commune) => commune.code));
@@ -22,6 +23,7 @@ export function createOrderFormSchema(communes: Commune[]) {
       .string()
       .refine((value) => codes.has(value), 'Elige una comuna del listado oficial.'),
     notes: z.string().trim().max(1000, 'Usa hasta 1.000 caracteres.'),
+    deliveryPoint: deliveryPointSchema.nullable().optional(),
   });
 }
 export type OrderForm = z.infer<ReturnType<typeof createOrderFormSchema>>;

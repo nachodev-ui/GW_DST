@@ -56,7 +56,7 @@ export const teamPageSchema = z
   .strict();
 export const invitationLabels: Record<TeamRow['invitation_status'], string> = {
   pending: 'Pendiente de aceptación',
-  accepted: 'Aceptada',
+  accepted: 'Invitación aceptada',
   cancelled: 'Cancelada',
   expired: 'Vencida',
   legacy: 'Incorporación anterior',
@@ -64,7 +64,7 @@ export const invitationLabels: Record<TeamRow['invitation_status'], string> = {
 export const activationLabels = {
   incomplete: 'Antecedentes incompletos',
   in_review: 'En revisión de administración',
-  enabled: 'Habilitado para repartir',
+  enabled: 'Acceso aprobado por Gasway',
   rejected: 'Revisión rechazada',
   suspended: 'Habilitación suspendida',
 };

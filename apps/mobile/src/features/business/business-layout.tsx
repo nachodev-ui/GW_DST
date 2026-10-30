@@ -1,13 +1,21 @@
-import { type PropsWithChildren } from 'react';
-import { Redirect, router } from 'expo-router';
+import { useMemo, type PropsWithChildren } from 'react';
+import { Redirect, router, useGlobalSearchParams } from 'expo-router';
+import { useIsFocused } from 'expo-router/react-navigation';
 import { useAuth } from '@/features/auth/auth-provider';
-import { Button, Feedback } from '@/shared/ui/components';
+import { Feedback, RefreshButton } from '@/shared/ui/components';
 import { Screen } from '@/shared/ui/screen';
 import { useMyBusinesses } from '@/features/business/business-data';
+import { WorkspaceAccessContext } from './workspace-access';
 
 export function BusinessMemberGuard({ children }: PropsWithChildren) {
   const { session } = useAuth();
   const businesses = useMyBusinesses();
+  const { businessId } = useGlobalSearchParams<{ businessId?: string }>();
+  const focused = useIsFocused();
+  const access = useMemo(
+    () => ({ data: businesses.data ?? [], refetch: businesses.refetch }),
+    [businesses.data, businesses.refetch],
+  );
   if (!session) return <Redirect href="/" />;
   if (businesses.isPending || businesses.isError)
     return (
@@ -21,14 +29,17 @@ export function BusinessMemberGuard({ children }: PropsWithChildren) {
           error={businesses.isError}
         />
         {businesses.isError ? (
-          <Button
+          <RefreshButton
             label="Reintentar"
-            onPress={() => void businesses.refetch()}
-            disabled={businesses.isFetching}
+            onRefresh={() => businesses.refetch({ cancelRefetch: false })}
           />
         ) : null}
       </Screen>
     );
   if (businesses.data.length === 0) return <Redirect href="/business" />;
-  return children;
+  if (focused && businessId && !businesses.data.some((business) => business.id === businessId))
+    return <Redirect href="/business/manage" />;
+  return (
+    <WorkspaceAccessContext.Provider value={access}>{children}</WorkspaceAccessContext.Provider>
+  );
 }

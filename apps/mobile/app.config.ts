@@ -6,6 +6,12 @@ const config: ExpoConfig = {
   slug: 'gasway',
   scheme: 'gasway',
   version: '0.0.0',
+  extra: {
+    googleMaps: {
+      android: Boolean(process.env.GOOGLE_MAPS_ANDROID_API_KEY),
+      ios: Boolean(process.env.GOOGLE_MAPS_IOS_API_KEY),
+    },
+  },
   orientation: 'portrait',
   userInterfaceStyle: 'light',
   icon: brand.assets.icon,
@@ -19,12 +25,37 @@ const config: ExpoConfig = {
       backgroundColor: brand.colors.green,
     },
   },
-  web: { bundler: 'metro', favicon: brand.assets.favicon, name: 'Gasway', shortName: 'Gasway' },
+  web: {
+    bundler: 'metro',
+    output: 'single',
+    favicon: brand.assets.favicon,
+    name: 'Gasway',
+    shortName: 'Gasway',
+  },
   plugins: [
+    './plugins/with-windows-cmake-path-limit.cjs',
     'expo-router',
     'expo-dev-client',
+    'expo-font',
     'expo-secure-store',
     'expo-status-bar',
+    [
+      'expo-image-picker',
+      {
+        photosPermission: 'Gasway usa la foto que selecciones para registrar tu vehículo.',
+        cameraPermission:
+          'Gasway usa la cámara para fotografiar tu vehículo y escanear los documentos que decidas adjuntar.',
+        microphonePermission: false,
+      },
+    ],
+    [
+      'react-native-document-scanner-plugin',
+      {
+        cameraPermission:
+          'Gasway usa la cámara para fotografiar tu vehículo y escanear los documentos que decidas adjuntar.',
+      },
+    ],
+    './plugins/with-document-camera-permission.cjs',
     [
       'expo-splash-screen',
       {
@@ -40,7 +71,9 @@ const config: ExpoConfig = {
       {
         locationWhenInUsePermission: 'Gasway usa tu ubicación para coordinar entregas cercanas.',
         isIosBackgroundLocationEnabled: false,
-        isAndroidBackgroundLocationEnabled: false,
+        // Driver navigation only: activated explicitly for an assigned delivery.
+        isAndroidBackgroundLocationEnabled: true,
+        isAndroidForegroundServiceEnabled: true,
       },
     ],
     'expo-notifications',

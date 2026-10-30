@@ -37,6 +37,7 @@ do $environment$ begin
     raise exception 'Dedicated test environment marker missing';
   end if;
 end $environment$;
+${file === 'document_eligibility.sql' ? '' : fs.readFileSync(path.join(root, 'supabase/tests/helpers/document-fixture.sql'), 'utf8')}
 ${sql}
 rollback;\n`;
         console.log(`SQL: ${file}`);

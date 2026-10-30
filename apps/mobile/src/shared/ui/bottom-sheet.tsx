@@ -1,10 +1,23 @@
-import type { PropsWithChildren, ReactNode } from 'react';
-import { KeyboardAvoidingView, Modal, Platform, Pressable, StyleSheet, View } from 'react-native';
+import { useLayoutEffect, useState, type PropsWithChildren, type ReactNode } from 'react';
+import {
+  Animated,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  Pressable,
+  StyleSheet,
+  View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { theme } from '@/theme';
 import { Button } from './components';
+import { BottomSheetMotion } from './bottom-sheet-motion';
+import { Icon } from './icon';
+import { PulsePressable } from './pulse-pressable';
 import { Text } from './text';
 import { useReducedMotion } from 'react-native-reanimated';
+
+const AnimatedSafeAreaView = Animated.createAnimatedComponent(SafeAreaView);
 
 export function BottomSheet({
   visible,
@@ -17,6 +30,7 @@ export function BottomSheet({
   header,
   saveDisabled = false,
   saveLabel = 'Guardar cambios',
+  compactFooter = false,
 }: PropsWithChildren<{
   visible: boolean;
   title: string;
@@ -27,11 +41,15 @@ export function BottomSheet({
   header?: ReactNode;
   saveDisabled?: boolean;
   saveLabel?: string;
+  compactFooter?: boolean;
 }>) {
   const reducedMotion = useReducedMotion();
-  const dismiss = () => {
-    if (dismissible && !saving) onClose();
-  };
+  const [motion] = useState(() => new BottomSheetMotion());
+  useLayoutEffect(() => {
+    motion.update({ visible, dismissible, saving, reducedMotion, onClose });
+  }, [motion, visible, dismissible, saving, reducedMotion, onClose]);
+  useLayoutEffect(() => () => motion.dispose(), [motion]);
+  const dismiss = motion.dismiss;
   return (
     <Modal
       visible={visible}
@@ -50,47 +68,57 @@ export function BottomSheet({
           onPress={dismiss}
           style={StyleSheet.absoluteFill}
         />
-        <SafeAreaView
+        <AnimatedSafeAreaView
           edges={['bottom']}
           accessibilityViewIsModal
           onAccessibilityEscape={dismiss}
-          style={styles.sheet}
+          onLayout={(event) => {
+            motion.measure(event.nativeEvent.layout.height);
+          }}
+          style={[styles.sheet, { transform: [{ translateY: motion.translateY }] }]}
         >
-          <View accessible={false} style={styles.handle} />
-          <View style={styles.header}>
-            {header ?? (
-              <Text variant="title" accessibilityRole="header" style={styles.title}>
-                {title}
-              </Text>
-            )}
-            {!onSave ? (
-              <View>
-                <Button
-                  label="Cerrar"
-                  variant="secondary"
-                  onPress={dismiss}
-                  disabled={!dismissible || saving}
-                />
+          <View collapsable={false} {...motion.panHandlers} style={styles.dragArea}>
+            <View accessible={false} style={styles.handle} />
+            <View style={styles.header}>
+              <View style={styles.title}>
+                {header ?? (
+                  <Text variant="title" accessibilityRole="header">
+                    {title}
+                  </Text>
+                )}
               </View>
-            ) : null}
+              <PulsePressable
+                accessibilityRole="button"
+                accessibilityLabel="Cerrar ventana"
+                accessibilityState={{ disabled: !dismissible || saving }}
+                disabled={!dismissible || saving}
+                onPress={dismiss}
+                style={styles.close}
+              >
+                <Icon name="close" color={theme.colors.primary} />
+              </PulsePressable>
+            </View>
           </View>
           {children}
           {onSave ? (
-            <View style={styles.actions}>
+            <View style={[styles.actions, compactFooter && styles.compactActions]}>
               <Button
                 label={saving ? 'Guardando…' : saveLabel}
                 onPress={onSave}
                 disabled={saving || saveDisabled}
+                style={compactFooter && styles.compactButton}
               />
-              <Button
-                label="Cancelar"
-                variant="link"
-                onPress={dismiss}
-                disabled={!dismissible || saving}
-              />
+              {!compactFooter ? (
+                <Button
+                  label="Cancelar"
+                  variant="link"
+                  onPress={dismiss}
+                  disabled={!dismissible || saving}
+                />
+              ) : null}
             </View>
           ) : null}
-        </SafeAreaView>
+        </AnimatedSafeAreaView>
       </KeyboardAvoidingView>
     </Modal>
   );
@@ -100,7 +128,7 @@ const styles = StyleSheet.create({
   sheet: {
     ...theme.elevation.high,
     maxHeight: theme.layout.sheetMaxHeight,
-    width: '100%',
+    width: '100%' as const,
     maxWidth: theme.layout.formWidth,
     alignSelf: 'center',
     backgroundColor: theme.colors.surface,
@@ -119,13 +147,30 @@ const styles = StyleSheet.create({
     borderRadius: theme.radii.pill,
     alignSelf: 'center',
   },
+  dragArea: { gap: theme.spacing.sm },
   header: { flexDirection: 'row', alignItems: 'center', gap: theme.spacing.sm },
-  title: { flex: 1 },
+  title: { flex: 1, minWidth: theme.spacing.none },
+  close: {
+    width: theme.layout.touchTarget,
+    height: theme.layout.touchTarget,
+    flexShrink: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: theme.radii.pill,
+  },
   actions: {
     gap: theme.spacing.sm,
     paddingTop: theme.spacing.md,
     borderTopWidth: theme.borders.thin,
     borderTopColor: theme.colors.surfaceBorder,
     flexShrink: 0,
+  },
+  compactActions: {
+    paddingTop: theme.spacing.xs,
+    borderTopWidth: theme.spacing.none,
+  },
+  compactButton: {
+    minHeight: theme.layout.touchTarget,
+    paddingVertical: theme.spacing.sm,
   },
 });

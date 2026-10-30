@@ -3,10 +3,12 @@ import { Platform } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
 import { z } from 'zod';
 import type { Commune } from '@/shared/orders/contracts';
+import { deliveryPointSchema } from '@/shared/orders/delivery-point';
 
 const addressSchema = z.object({
   address: z.string().trim().min(1).max(300),
   communeCode: z.string().regex(/^\d{5}$/),
+  deliveryPoint: deliveryPointSchema.nullable().optional(),
 });
 export type DeliveryAddress = z.infer<typeof addressSchema>;
 const keyFor = (userId: string) => `gasway.delivery-address.${userId}`;
@@ -61,6 +63,7 @@ export const nativeGeocoder: GeocodingProvider = {
       names.some((name) => normalizeCommune(name) === normalizeCommune(commune.name)),
     );
     return {
+      deliveryPoint: deliveryPointSchema.parse(position.coords),
       address: [place.street, place.streetNumber].filter(Boolean).join(' '),
       ...(matches.length === 1 ? { communeCode: matches[0]!.code } : {}),
     };

@@ -16,8 +16,8 @@ export default function DriverLayout() {
         <BottomTabBar
           items={[
             {
-              label: 'Ofertas',
-              icon: 'truck',
+              label: 'Inicio',
+              icon: 'home',
               selected: pathname === '/driver',
               onPress: () => router.replace('/driver'),
             },

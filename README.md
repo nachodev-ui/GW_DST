@@ -7,6 +7,136 @@ de conducción. El panel administrativo web queda para una etapa posterior.
 
 ## Estado actual
 
+**Ventas simplificadas (2026-10-29):** Panel y Ventas muestran únicamente el total
+vendido al cliente en entregas completadas. Se retiran registro de costos,
+ganancia estimada y avisos de costos pendientes de la interfaz. El cálculo de
+ganancias queda para una etapa futura; se conserva la base existente.
+[Alcance actual](docs/distributor-workspace.md#ventas).
+
+**Compra visual, pasos 2 y 3 (2026-10-27):** contador corregido, canje y marca del
+cilindro vacío con imágenes, fichas de distribuidora centradas en producto/precio,
+pie compacto y actualización por gesto. Acciones secundarias sin relleno verde y
+avisos demo repetidos retirados del recorrido. [Diseño y alcance](docs/design.md).
+Typecheck y tres suites locales dirigidas aprobados; revisión visual en teléfono
+pendiente. Recargar el proyecto en Metro incorpora esta entrega.
+
+**Licencia personal del conductor (2026-10-27):** asistente de cuatro pasos para
+datos, frente, dorso y resumen, con seguimiento de revisión. Operación ofrece
+«Ver qué falta» y Equipo consulta la habilitación sin cargar licencias ajenas.
+Aceptación de invitación, acceso aprobado y requisitos de reparto se distinguen.
+Inicio, Cobertura y Cuenta muestran «Licencia en revisión» tras guardar datos y
+ambas caras vigentes, con «Actualizar mis archivos» como acción secundaria.
+Permisos aplicados solo en Test; typecheck, pruebas locales dirigidas y dos suites
+SQL aprobados. La comprobación en teléfonos queda pendiente.
+[Flujo, permisos y evidencia](docs/driver-documentation-flow.md).
+
+**Flota y documentación guiada (2026-10-26):** tarjetas con foto, conductor y avance;
+asistente de siete etapas con previsualización, guardado por archivo y resumen editable.
+Interiores con ilustraciones propias, marcos de imagen, estados sin fondo verde
+menta y carpeta numerada en el resumen; progreso persistente al desplazarse.
+Revisión técnica, homologación y SOAP se pueden omitir para probar **solo en Test**;
+siguen pendientes y no habilitan repartos. Sin dependencias nativas nuevas.
+[Diseño y recorrido](docs/vehicle-documentation-flow.md). Validación visual pendiente.
+
+**Revisión documental (2026-10-26):** carga de versiones, foto de vehículo,
+homologación alternativa y revisión por otro admin; requisitos en disponibilidad,
+ofertas y aceptación/asignación SQL. Migración aplicada **solo en Gasway Test**,
+con tres grupos SQL/RLS aprobados. Función de borrado desplegada y activa solo en Test;
+sin comprobación visual ni despliegue en Gasway Project.
+[Alcance, acceso y pendientes](docs/document-verification.md).
+
+**Demo persistente en Test (2026-10-26):** negocio ficticio, responsable/cliente,
+conductor, catálogo, cobertura y vehículo preparados para el ensayo documental.
+No incluye documentos aprobados ni pedidos: se cargan desde la app.
+[Pasos en teléfonos, cuentas y archivos DEMO](docs/device-demo-test.md).
+
+**Espacio del distribuidor reestructurado (2026-10-25):** inicio propio por membresía,
+pestañas Panel/Ventas/Operación/Perfil, ventas por período (costos y ganancias
+pospuestos desde el 2026-10-29),
+flota y perfil con logo, portada, ubicación y horario. Referencias directas de
+ScreenDesign y detalles en [workspace del distribuidor](docs/distributor-workspace.md).
+**Migración aplicada en Test y app; suites SQL dirigidas aprobadas en Test**.
+La verificación visual y de imágenes/mapa en dispositivos sigue pendiente.
+
+La prioridad desde el **2026-10-23** es una **demo privada funcional** y confirmar
+la viabilidad contractual con distribuidores antes de completar el roadmap.
+[Investigación, alcance y pasos de la demo](docs/demo-commercial-validation.md):
+**D0 y D1 completados**, D1 cerrado por indicación del operador el 2026-10-24;
+GPS en primer plano y mapa en vivo están implementados en D3, pendientes de
+validación física en dos teléfonos. Las condiciones
+del piloto siguen abiertas; una demo no habilita ventas reales.
+
+**D0 completado en cloud (2026-10-23):** tres cuentas conservadas, cuatro cuentas
+de prueba eliminadas y conductor aprobado para Gasway Demo Santiago, con
+disponibilidad apagada. Entorno, cobertura y evidencia en [D0](docs/demo-environment.md).
+El ensayo integral en teléfonos sigue en D4.
+
+D1 tiene [configuración y evidencia](docs/maps-setup.md), fechadas 2026-10-24:
+Maps SDK Android habilitado, clave restringida y selector del punto implementado.
+La compra guarda las coordenadas atómicamente; migración aplicada en Test y app.
+El proyecto vigente es **Gasway Maps (`mapapp-389403`)**, con facturación ya activa;
+el cierre de D1 no añade una prueba visual de Codex ni acredita el recorrido D4.
+El APK de desarrollo ARM64 ya compiló; su ubicación está en la guía D1.
+
+**D2 completado:** [contrato GPS](docs/gps-contract.md) con publicación del conductor
+asignado, lectura de participantes, validación/frescura en servidor y borrado al
+entregar/cancelar. Se retiraron escrituras directas de `driver_locations` y las
+coordenadas de Realtime. Migración aplicada en Test/app y suites dirigidas aprobadas.
+**D3 implementado (2026-10-24):** captura explícita desde la entrega del conductor,
+mapa de destino/repartidor en el detalle del cliente, estado de señal,
+reconexión y caducidad. Limpieza al pausar, terminar o cambiar sesión. Ampliación
+del destino en la RPC aplicada en Test/app. [Uso y pruebas pendientes](docs/live-tracking.md).
+**Corrección de compatibilidad, 2026-10-25:** Expo Go para iOS no incluye el SDK
+Google Maps; la afirmación anterior de soporte fue incorrecta. Se comprueba el
+componente nativo antes de montar Google, además de la configuración de claves.
+Por indicación del operador, selector y seguimiento recuperan Apple Maps en Expo
+Go del iPhone. Android conserva Google Maps; futuros builds iOS usan Google si
+incluyen su SDK y clave. No se requiere recompilar para esta corrección.
+Animación RAF del camión con giro de imagen en Apple y `rotation`/`flat` nativos
+en Google, interpolación, filtro de ruido
+y snap/look-ahead cuando existe ruta. Directions por pedido implementado y desplegado;
+su clave de servidor ya está autorizada y configurada. Apple Maps recibe rutas
+OSRM solo para demo, con atribución y caché separada de Google.
+[Configuración y límites](docs/vehicle-motion.md). El operador confirmó los anteriores
+pines y actualizaciones. El cliente ahora conserva zoom manual y resume el pedido;
+historial/indicaciones en «Ver detalles», con fotografía pequeña del cilindro.
+Marcadores propios de casa/camión de gas y actualización al tirar hacia abajo.
+Recargar Metro, sin recompilar para Expo Go. La nueva animación requiere ensayo nativo.
+Falta comprobar la composición y corrección de cámara en el teléfono.
+El development build Android ya se recompiló con SDK 58 y se instaló por USB en el
+Samsung, conservando firma y configuración Maps. Ver [runtimes de Expo](docs/expo-runtime.md)
+para conectarlo junto al iPhone con Expo Go. Necesita Metro activo.
+D3 queda pendiente de prueba física; después sigue el ensayo completo D4.
+
+**Navegación del conductor implementada (2026-10-25):** mapa ampliable, ruta vial
+completa y enlaces a Waze/Google Maps. El Android incorpora GPS durante navegación
+externa con activación explícita, permisos y notificación persistente. APK compilado
+e instalado en el Samsung principal, conservando datos/firma. El iPhone sigue en
+Expo Go; no se compiló iOS. [Pasos de prueba y límites](docs/driver-navigation.md).
+
+«Tu entrega» del conductor prioriza destino y mapa, reúne la navegación en un CTA
+y muestra GPS/carga/cobro de forma compacta. El avance del pedido queda fijo abajo;
+los detalles de privacidad y envase se consultan bajo demanda. Actualización al
+deslizar, sin reinstalar el APK para estos cambios de JavaScript.
+
+El Inicio del conductor destaca la disponibilidad y da prioridad a la entrega
+activa. Distribuidora/cobertura ocupan una fila compacta; las ofertas reúnen foto
+del cilindro, cantidad, comuna, canje, cobro y vencimiento. Se actualiza por gesto
+o icono, sin activar GPS. [Diseño y comportamiento](docs/driver-workspace.md).
+
+«Disponibilidad y cobertura» incorpora un interruptor con estado de guardado,
+resumen de distribuidora/marcas/comunas y búsqueda local de comunas. Conserva la
+cobertura heredada y los bloqueos; actualización por gesto o icono.
+
+«Mi cuenta de conductor» reúne identidad y habilitación en una tarjeta de marca,
+distribuidora/marcas y accesos agrupados. Los detalles de habilitación se consultan
+bajo demanda; el acceso se actualiza al deslizar. Administración solo aparece con
+la capacidad confirmada del servidor.
+
+Las hojas inferiores de todos los roles usan una X accesible en lugar de «Cerrar».
+Se pueden arrastrar hacia abajo desde la cabecera/manilla; un gesto corto vuelve
+a su posición. Los bloqueos de guardado/confirmación siguen impidiendo el cierre.
+
 Hay flujos implementados sobre Supabase; el proyecto ya supera el scaffold inicial,
 pero todavía requiere validación y trabajo antes de un piloto real.
 
@@ -15,13 +145,14 @@ pero todavía requiere validación y trabajo antes de un piloto real.
 | Acceso        | Registro en dos pasos (correo/contraseña → teléfono), aviso de confirmación, ingreso, sesión segura nativa, guards y permisos de servidor.                                  | Recuperación de contraseña dentro de la app y prueba manual del nuevo registro con teléfono.    |
 | Cliente       | Dirección y comuna CUT, marca/formato/variante, cantidad, canje explícito, selección de distribuidora, revisión, compra, historial, detalle, cancelación y eventos.         | Resolver automáticamente pedidos sin asignación y ampliar regresiones de concurrencia.          |
 | Distribuidora | Alta y revisión administrativa SQL; catálogo con precio CLP, stock/publicación, horarios/ETA/contacto opcionales; equipo, invitaciones individuales/CSV y cobertura propia. | Panel admin web, suspensión operativa y verificación de evidencia vigente para negocios reales. |
-| Repartidor    | Invitación aceptada y postulación, aprobación administrativa, Ofertas/Cobertura/Cuenta, disponibilidad, aceptación/rechazo y avance a en camino/entregado.                  | Push y tracking; la cobertura se hereda del negocio y el conductor solo edita disponibilidad.   |
+| Repartidor    | Invitación aceptada y postulación, aprobación administrativa, Inicio/Cobertura/Cuenta, disponibilidad, aceptación/rechazo, avance y GPS explícito en primer plano.          | Validación física del seguimiento, push y segundo plano; cobertura heredada del negocio.        |
 | Backend       | Migraciones Postgres/PostGIS, RLS, RPC, asignación atómica, reserva/liberación de stock e idempotencia de compra; concurrencia validada en Gasway Test.                     | Tipos generados integrados y revisión del entorno concreto del piloto.                          |
 
 El cliente recibe cambios de sus pedidos por Realtime y polling de respaldo en
 primer plano. El repartidor consulta ofertas cada 5 s con pantalla enfocada y app
 activa. La aceptación es atómica en Postgres y no revela dirección antes de asignar.
-El pago habilitado es **efectivo contra entrega**: no hay gateway, tracking ni envío
+El pago habilitado es **efectivo contra entrega**: hay tracking en primer plano;
+no hay gateway ni envío
 de notificaciones. `supabase/functions/` está reservado, sin handlers implementados.
 
 La compra vigente usa precios y stock de `distributor_products`, con vendedor
@@ -46,7 +177,7 @@ configurado usa URLSearchParams; su exposición debe verificarse antes del pilot
 validación en [seguridad de dependencias](docs/dependency-security.md).
 
 DT-02 añade `npm test`, cobertura de siete módulos críticos y CI Linux/Windows con
-tipos, lint y formato. Hay 17 suites Node y una PowerShell; ocho SQL vigentes y
+tipos, lint y formato. Hay 19 suites Node y una PowerShell; diez SQL vigentes y
 nueve históricos clasificados. El proyecto separado **Gasway Test** recibe las
 migraciones y regresiones con rollback. Configuración y límites: [pruebas](docs/testing.md).
 
@@ -65,7 +196,29 @@ Evidencia en [confirmación de correo](docs/auth-confirmation.md).
 El detector de secretos ya pasó en
 [Actions](https://github.com/nachodev-ui/GW_DST/actions/runs/40038443767);
 GitGuardian aprobó también el commit consolidado del PR #11.
-Siguen pendientes política de contraseñas/abuso, restricciones de claves y backup/restauración. No habilita un
+La condición 2 quedó **Aprobada (2026-10-23)** con mínimo 15 móvil/cloud; la revisión
+posterior implementa registro de mínimo 8 con mayúscula y número e indicadores en
+tiempo real; cloud actualizado en Test y app con mínimo 8 y letra+número
+([ADR 0030](docs/decisions/0030-accessible-password-policy.md)). Cuotas Auth
+endurecidas y Gmail SMTP gratuito configurado en ambos proyectos; recepción real
+en Test verificada y cuenta temporal eliminada. Las decisiones de filtradas y abuso
+tienen responsable y vencimiento 2026-10-30; el WARN de filtradas permanece.
+Ver [contraseñas, SMTP y abuso](docs/auth-abuse-smtp.md).
+La condición 3 quedó **aprobada y cerrada (2026-10-23)**: esquemas Data API verificados en
+ambos proyectos; PAT observado limitado a Test, con caducidad 2026-11-21.
+MFA Google del operador verificado; Supabase/GitHub confirmados por él.
+Nacho asume la operación unipersonal; automatización futura y Maps fuera del
+piloto. El operador confirma que `gasway-github-tests` es el guardado como
+`SUPABASE_TEST_ACCESS_TOKEN`; no se requiere reemplazo ahora. Google actual: `gw-dst`
+(`494420889765`), indicado por el operador; revisar su IAM/claves al integrar Maps.
+Ver [accesos y claves](docs/platform-access-security.md).
+La condición 4 está **parcial (2026-10-23)**: primera copia cifrada en Drive
+privado verificada por SHA-256, responsable Nacho y objetivos RPO ≤24 h / RTO
+≤4 h aprobados. Falta segunda copia de la clave fuera del PC; restauración
+sin ensayar. Automatización de 12 h activa, sin primera ejecución programada
+observada. [Backups](docs/backups.md), ADR 0029.
+Siguen pendientes controles de abuso previos a apertura,
+restricciones de claves y backup/restauración. No habilita un
 piloto. Evidencia y condiciones de cierre: [seguridad operativa](docs/pilot-security.md).
 
 La condición 1 de DT-07 valida confirmación nativa mediante
@@ -82,8 +235,8 @@ nuevo. Inventario, alcance y pendientes en [integración de entregas](docs/integ
 
 ## Stack
 
-- npm workspaces; Expo SDK 57: rango `^57.0.31`, lockfile **57.0.31**.
-- App móvil: **React Native 0.86.3**, **React/React DOM 19.2.3**, Expo Router y
+- npm workspaces; Expo SDK 58: rango `^58.0.0`, lockfile **58.0.19**.
+- App móvil: **React Native 0.88.0**, **React/React DOM 19.3.0**, Expo Router y
   TypeScript 6 estricto. Estas son las versiones resueltas desde `apps/mobile`,
   coherentes con `bundledNativeModules` del Expo instalado.
 - TanStack Query para datos remotos; react-hook-form + zod para formularios y
@@ -97,15 +250,15 @@ nuevo. Inventario, alcance y pendientes en [integración de entregas](docs/integ
   Ver [sistema visual](docs/design.md), [recursos de cilindros](docs/cylinder-assets.md)
   y [aviso de marcas](apps/mobile/assets/brands/NOTICE.md).
 
-El registro ya ofrece versiones superiores, incluido Expo 58. Actualizar el SDK
-requiere una tarea separada que preserve su matriz nativa; una versión `latest`
-superior no demuestra por sí sola incompatibilidad o vulnerabilidad.
+SDK 58 permite abrir el proyecto en el Expo Go vigente para iPhone. El cambio de
+SDK exige reconstruir los development builds anteriores; ver
+[runtimes, comandos y validación](docs/expo-runtime.md).
 
 ## Instalación
 
 Requisitos: **Node 24** según `.nvmrc`, npm y acceso al proyecto Supabase correcto.
-Para Android se necesita Android SDK y **JDK 17**, recomendado para React Native
-0.86 usado por Expo SDK 57. El SDK puede prepararse con herramientas de línea de
+Para Android se necesita Android SDK y **JDK 17** para la compilación local.
+El SDK puede prepararse con herramientas de línea de
 comandos, sin instalar Android Studio. Compilar iOS localmente requiere macOS/Xcode.
 Definir `ANDROID_HOME` hacia el SDK y añadir `platform-tools` al PATH. Si Gradle
 no recibe aún esas variables, `apps/mobile/android/local.properties` puede indicar
@@ -218,7 +371,7 @@ El registro nativo usa `gasway://auth/confirm`. Ver
 | `npm run db:test`                                           | Runner de Supabase local; los SQL actuales no son una suite pgTAP compatible sin adaptación.        |
 | `npm run db:start` / `npm run db:stop` / `npm run db:reset` | Herramientas locales con Docker; reset destruye datos locales. No iniciar/resetear en este entorno. |
 
-Hay 16 suites CommonJS de pruebas y una PowerShell, para Auth, confirmación, pedidos, ofertas,
+Hay 19 suites CommonJS de pruebas y una PowerShell, para Auth, confirmación, pedidos, GPS, ofertas,
 progreso, postulación, negocio, equipo, disponibilidad y cobertura. Usan assertions,
 transpilación y mocks; no equivalen a pruebas reales de dispositivo. CI y cobertura
 de lógica crítica se incorporan en DT-02. Actions offline y SQL ya fueron ejecutados;
@@ -255,13 +408,15 @@ apps/mobile/
     orders/customer/    # Dirección, catálogo, compra, pedidos y actualizaciones
     driver/             # Ofertas, disponibilidad, cobertura heredada y entrega
     business/           # Alta, catálogo, equipo, invitaciones y cobertura
-    tracking/, profile/ # Espacios reservados
+    tracking/customer/  # Mapa, destino y posición vigente del repartidor
+    tracking/driver/    # Captura GPS explícita en primer plano
+    profile/            # Espacio reservado
   src/shared/           # Supabase, contratos, validación, pagos y UI reutilizable
   src/theme/            # Tokens y estilos centrales
   assets/               # Fuentes visuales locales, productos y marcas
 supabase/
-  migrations/           # 20 migraciones de esquema, RLS y RPC
-  tests/                # 16 SQL; vigentes e históricos clasificados en su README
+  migrations/           # Migraciones de esquema, RLS y RPC
+  tests/                # 19 SQL; vigentes e históricos clasificados en su README
   admin/                # Operaciones privilegiadas de revisión y demo
   functions/            # Reservado, sin handlers
   seed.sql              # 14 productos con variantes, sin precios comerciales
@@ -278,6 +433,7 @@ en la composición de providers, registrada como DT-05 del roadmap.
 
 ## Documentación y próximos pasos
 
+- [Demo funcional y validación contractual: investigación y pasos D0–D5](docs/demo-commercial-validation.md).
 - [Roadmap priorizado: Alta / Media / Baja, deuda técnica y funcionalidades](docs/ROADMAP.md).
 - [Revisión técnica del 2026-10-22](docs/review-2026-10-22.md).
 - [Arquitectura](docs/architecture.md), [dominio chileno](docs/domain.md) y
@@ -291,10 +447,10 @@ en la composición de providers, registrada como DT-05 del roadmap.
   [checklist anterior](docs/roadmap-history.md): conservan instrucciones y resultados
   reportados anteriormente, sin presentarlos como verificación vigente.
 
-Prioridades inmediatas: tratar avisos npm, automatizar pruebas actuales y
-concurrencia, generar tipos, corregir límites de arquitectura e integridad y
-definir privacidad/seguridad operativa. Después, recuperación de acceso y pedidos
-sin asignación. No se implementan nuevas features por esta revisión documental.
+Prioridad inmediata: preparar la demo privada D0–D5 y consultar el contrato del
+distribuidor interesado. El roadmap conserva el trabajo de seguridad, integridad
+y funcionalidades para el piloto tras confirmar viabilidad comercial. Esta entrega
+documenta el cambio de prioridad; todavía no implementa mapas ni seguimiento.
 
 ## Seguridad, administración y costos
 
@@ -314,12 +470,421 @@ el cloud actual.
 No se activan planes ni servicios pagados automáticamente. Evaluar cuotas Supabase,
 mapas, distribución/tiendas y proveedores antes del piloto; no se promete costo cero.
 Ver [ADR de costos](docs/decisions/0003-free-services.md). Mercado Pago/Webpay,
-tracking y push requieren tareas explícitas. No se incorpora el cupón estatal de
+push requieren tareas explícitas. El GPS Android durante navegación fue autorizado
+e implementado para la demo; su ensayo físico sigue pendiente. No se incorpora el cupón estatal de
 GLP vencido.
 
 ## Changelog
 
+### 2026-10-30
+
+- Consolidada la entrega local de distribuidor, documentos, mapas, seguimiento y
+  seguridad para integración mediante PR. Corregidas regresiones desactualizadas
+  y el reinicio del visor documental. La migración correctiva de elegibilidad deja
+  las RPC públicas como SECURITY INVOKER; las 14 suites SQL pasan con la corrección
+  aplicada y revertida en Test. Despliegue persistente de esa corrección pendiente.
+  [Inventario, comprobaciones y límites](docs/integration-2026-10-30.md).
+
+- Selector «Comuna del negocio»: conserva el catálogo de Supabase en caché durante
+  la sesión, la lista virtualizada y el montaje solo al abrir. Búsqueda sin tildes
+  ni mayúsculas con debounce de 200 ms, hasta 40 coincidencias al escribir y filas
+  memoizadas. Sin cambios en validación CUT, contratos ni guardado.
+
+### 2026-10-29
+
+- Ventas se limita a sumar los precios históricos al cliente de las entregas
+  completadas del período. Panel y tarjetas ya no muestran costos, ganancias ni
+  acciones para registrar costos. Se conserva el diseño visual de las entregas;
+  contratos, datos y RPC de costos quedan reservados para una etapa futura.
+
+- Regla global en `AGENTS.md`: estados positivos con oliva Gasway y sin badges
+  rellenos de verde menta. `StatusBadge` unifica Catálogo, Flota («Disponible»),
+  «Abierto ahora» y los demás estados positivos. Los tokens success/successLight
+  pasan a oliva/crema para retirar también el verde genérico fuera de los badges.
+  Solo presentación; condiciones de negocio y accesibilidad se conservan.
+
+- Editor del Catálogo simplificado: cabecera sin solapamientos por `flex: 1`,
+  producto dentro del contenido desplazable y stock en un campo numérico directo.
+  Precios del mismo tamaño, símbolo `$` discreto, sin vista previa y con textos
+  breves que usan «cilindro». «En catálogo» se muestra sin fondo verde genérico.
+  Conserva validaciones, permisos, revisión concurrente y guardado existentes.
+
+- Catálogo del negocio con cabecera compacta, información bajo demanda y cobertura
+  como enlace discreto. «Fuera del catálogo» usa un badge pequeño y suave; las
+  demás partes de las cards de productos se conservan. «Actualizar datos» se
+  reemplaza por pull-to-refresh con las mismas consultas. Referencias públicas
+  de ScreensDesign en [diseño](docs/design.md); sin verificaciones visuales.
+
+### 2026-10-27
+
+- Rediseñados Tu cilindro y Distribuidoras con fotos, canje visual, datos comerciales
+  compactos, detalles bajo demanda y pie con miniatura/edición. Corregido el ancho
+  del contador compartido; «cilindro» reemplaza «envase» en el flujo.
+- Refresco de distribuidoras por gesto, acciones de ordenar/editar sin relleno verde
+  y revisión del pedido con iconos. Sin nuevas dependencias ni cambios de backend.
+
+- La revisión documental muestra una versión actual por tipo y un historial
+  plegado de solo lectura. Los reenvíos reemplazan pendientes anteriores, también
+  los ya acumulados; conservan archivos y aprobaciones vigentes. ADR 0043 aplicada
+  solo en Test: dos pendientes actuales y tres envíos reemplazados, sin duplicados.
+  Typecheck, pruebas locales y tres suites SQL aprobados; sin verificación visual.
+
+- Inicio del conductor distingue licencia incompleta de archivos ya enviados a
+  revisión, consultando los datos guardados. Cobertura y Cuenta usan el mismo
+  estado; actualizar archivos conserva el bloqueo hasta la aprobación de Gasway.
+
+- Trasladada la carga de licencia al conductor con un asistente visual de cuatro
+  pasos, visor privado, reintentos y protección de cambios sin guardar.
+- Agregados «Ver qué falta» en Operación y detalle de habilitación de solo lectura
+  en Equipo. Corregidas las etiquetas que confundían acceso con aptitud para repartir.
+- Aplicada autorización personal en RPC/Storage solo en Test, conservando revisión
+  independiente y flota del negocio. ADR 0042, typecheck y pruebas dirigidas aprobadas;
+  sin verificación visual ni cambios en Project.
+
+### 2026-10-26
+
+- Flota distingue documentación aprobada y disponibilidad: aviso con cantidad,
+  filtro «Por activar» y «Poner disponible» por vehículo, sin abrir la edición.
+  Activación manual con la RPC existente, control de revisión y validaciones SQL;
+  mantención y disponibilidad del conductor se conservan. Sin migraciones ni
+  despliegues. [Flujo y comprobación pendiente](docs/vehicle-documentation-flow.md).
+
+- Aplicada en Gasway Test la migración `20261027011123` del panel admin: contrato
+  v2, denegación a no revisores y permisos conservados comprobados en transacción.
+  Project no fue consultado ni modificado; promoción preparada con migración
+  portable, prerrequisitos y activación explícita desactivada por defecto.
+  [Evidencia y promoción](docs/admin-document-workspace.md).
+
+- Inicio propio para revisores documentales en Test, indicadores del servidor y
+  revisión agrupada por distribuidora con pasos, visor interno, vigencia confirmada
+  y motivos de rechazo. Misma autorización y `review_document`, sin nuevos permisos.
+  Migración de lectura v2 aplicada posteriormente solo en Test; el panel detecta
+  el backend anterior. [Alcance y promoción](docs/admin-document-workspace.md).
+
+- Compilado e instalado por USB el APK Android ARM64 con el escáner documental:
+  build aprobado, módulo presente en DEX, permiso CAMERA y firma anterior
+  comprobados; hash instalado coincide y datos conservados. Corregida la guía
+  para distinguir Git Bash de PowerShell. Captura real pendiente del operador.
+  [Evidencia](docs/expo-runtime.md).
+
+- Escáner local de documentos en Gasway Test con
+  `react-native-document-scanner-plugin` 2.0.4: JPEG, una página, vista previa,
+  compresión sobre 5 MB y revisión manual existente. Incluye homologación y
+  licencia por ambos lados; foto del vehículo y Elegir archivo conservan su flujo.
+  Expo Go y APK anteriores usan cámara común. Sin OCR, servicios de análisis de
+  pago, builds ni despliegues en esta tarea. [Uso y compilación local](docs/document-scanner.md).
+
+- Vista previa de documentos antes de guardar, cámara/archivo y visor interno para
+  vehículos y conductores: imágenes con zoom y PDF.js local en Expo DOM SDK 58.
+  Lista por tipo, faltantes y reemplazos con versiones existentes; URL privada de
+  60 segundos al abrir. Sin OCR ni servicios externos. La cámara requiere actualizar
+  el permiso del development build Android; Expo Go ya incorpora el módulo.
+
+- Afinado el interior de las siete etapas documentales a partir de la captura del
+  operador: crema, verde oscuro y lima de marca; estados sin rellenos menta,
+  ilustraciones por tipo, tarjetas de archivo, vigencia diferenciada y resumen
+  como carpeta numerada. Progreso fijo y acciones compactas. Sin cambios del
+  contrato de carga/revisión; comprobación visual de esta revisión pendiente.
+
+- Rediseñada Flota y sustituido «Foto y documentos» por «Documentar vehículo»:
+  foto → padrón → permiso → revisión técnica → homologación → SOAP → resumen.
+  Progreso visible, previsualización, fechas DD/MM/AAAA, estados de revisión y
+  reintentos del mismo archivo. Opcionales de prueba exclusivos de Test, sin
+  cambios de elegibilidad, backend ni despliegue. Referencias públicas ScreensDesign.
+
+- Actualizado por USB el development build Android del Samsung con ImageManipulator
+  e ImagePicker, tras el error de módulo nativo al cargar fotos. Build ARM64 aprobado,
+  módulos comprobados en registro/DEX, firma preservada y hash instalado coincidente;
+  datos conservados. Carga real pendiente del operador. [Runtime](docs/expo-runtime.md).
+
+- Preparada una demo persistente en Gasway Test con cuentas autorizadas,
+  catálogo/cobertura, conductor y vehículo fuera de servicio. Scripts exclusivos
+  de Test, sin copiar datos de Project ni enviar correos; archivos ficticios y
+  guía de validación manual. URL y clave pública locales comprobadas contra Test
+  sin mostrarlas. No constituye evidencia de dispositivo.
+
+- Verificación documental manual de conductores/flota, fechas por versión,
+  reemplazos sin perder aprobación vigente, buckets privados y URLs de 60 segundos.
+  Homologación con vigencia sustituye revisión técnica cuando corresponde;
+  próximo control por clase en el dorso de licencia. Bloqueos de nuevas asignaciones
+  impuestos en SQL; entregas iniciadas continúan. Implementado y comprobado solo en
+  Test. Función de borrado autorizada por el operador y desplegada en Test, versión 1
+  ACTIVE; petición sin sesión rechazada con HTTP 401. ADR 0039.
+
+- Al configurar un horario nuevo, los siete días empiezan activados con horas
+  editables: lunes a sábado 09:00–20:00 y domingo 10:00–15:00. Se publican al guardar;
+  se conservan horarios existentes, incluidos días cerrados. Sin excepciones
+  automáticas por festivos en el contrato semanal actual.
+- Perfil del distribuidor con tarjetas de horario semanal, WhatsApp y tiempo de
+  reparto, iconos y edición individual. Marca y ubicación muestran resúmenes;
+  los formularios y coordenadas se despliegan al editar. Ayudas breves junto a
+  cada acción, con errores y cambios pendientes visibles.
+- El perfil del distribuidor completa la dirección comercial al confirmar un punto
+  en el mapa o usar el GPS en Android/iOS. Geocodificación inversa nativa, dirección
+  editable y comuna CUT solo ante una coincidencia única del catálogo. Fallos o
+  resultados ambiguos piden completar los datos; no conservan una dirección anterior.
+- Comuna presentada como campo desplegable con etiqueta propia, separado de las
+  acciones del mapa. Corregir una dirección o comuna sugerida conserva el punto
+  elegido y pide revisar su correspondencia. [Alcance y Places](docs/decisions/0038-business-address-geocoding.md).
+
+### 2026-10-25
+
+- Corregidos los desbordes reportados en Samsung: enlaces dentro de filas sin
+  ancho completo, títulos/estados con espacio propio, navegación del distribuidor
+  sin palabras partidas y acciones del conductor adaptables. Barra de estado
+  oscura sobre fondos claros. GPS/mapa actualizan y validan las coordenadas juntas.
+- Perfil del distribuidor más liviano: comunas virtualizadas solo al abrir su
+  selector; un observador de membresía en el layout y catálogo del panel pausado
+  al ocultarlo. Correcciones basadas en las capturas del operador; la comprobación
+  nativa posterior sigue pendiente. No se modificó el backend.
+
+- Distribuidor con inicio propio y navegación Panel/Ventas/Operación/Perfil por
+  membresía. Diseño profesional con tokens propios y referencias de Budget/Blinq
+  en ScreenDesign. Ventas entregadas por hora de Chile, costos por pedido y ganancia
+  estimada con cobertura de costos explícita; sin métricas ficticias.
+- Flota editable por negocio, estados de conductores completos y perfil comercial
+  con logo/portada en Storage privado, dirección/CUT/mapa/GPS y horario/contacto.
+  RLS, RPC autorizadas, revisiones CAS y auditoría. Migración aplicada en Test y app;
+  suites distributor_workspace/pilot_security aprobadas en Test, comprobaciones de
+  lectura/RLS en app y advisors revisados. Typecheck correcto; revisión visual pendiente.
+
+- Corregido el inicio del arrastre en hojas inferiores: la cabecera toma el toque
+  antes que el Modal y conserva la X pulsable. Regresión con el PanResponder real
+  de la versión instalada de React Native, además de las guardas de cierre.
+- Hojas inferiores unificadas con X en la cabecera y cierre por arrastre desde la
+  parte superior, también en formularios de guardado. Conservan accesibilidad,
+  movimiento reducido, acciones Guardar/Cancelar y bloqueos durante operaciones.
+- Cuenta del conductor simplificada con tarjeta de identidad/habilitación, negocio
+  compacto, acciones agrupadas y detalles de acceso bajo demanda. Pull-to-refresh
+  conserva la revisión de acceso y negocio; se mantienen bloqueos y cierre de sesión.
+- «Disponibilidad y cobertura» renovada con interruptor de disponibilidad,
+  resumen de zona/distribuidora/marcas, lista de comunas y búsqueda sin depender
+  de tildes. Actualización manual por gesto o icono, conservando permisos y bloqueos.
+- Inicio del conductor rediseñado con disponibilidad destacada, entrega activa
+  prioritaria, distribuidora/cobertura compactas y ofertas con foto, canje, cobro y
+  vencimiento. Actualización por gesto o icono y paleta Gasway. Conserva aceptación
+  atómica, habilitación y exclusión de otra entrega activa.
+- «Entrega completada» integrado como título de la tarjeta del pedido, sin aviso
+  separado en el pie ni estado superior duplicado. Anuncio/háptica conservados.
+  Revisión visual autorizada únicamente de esta página, en web con datos ficticios.
+- Confirmaciones del conductor integradas a la marca: crema, verde oscuro, oliva
+  y lima. «Entregado» discreto sin badge/check duplicado; aviso final sin círculo
+  ni la segunda línea redundante, manteniendo feedback accesible y háptica.
+- Confirmación «¿Entregaste el pedido?» con fotografía del producto, marca,
+  formato/variante, cantidad, canje y cobro en efectivo; explicación de cierre
+  reducida a una línea, conservando la confirmación explícita.
+- Avance del conductor con feedback directo: botón con progreso, confirmación
+  visible y háptica tras respuesta del servidor, cierre persistente de entrega y
+  error recuperable mediante «Revisar pedido». Los sondeos no generan éxitos.
+- «Carga y canje» del conductor simplificado con foto/producto/cantidad y una fila
+  de retiro con marca; revisión breve de tipo, válvula y estado. Se usa «cilindro
+  vacío» también en las ofertas del conductor.
+- Selector de navegador con las imágenes Google Maps/Waze adjuntadas por el
+  operador, incorporadas localmente y con sus nombres debajo.
+- «Elige tu navegador» simplificado: tarjetas visuales Google Maps/Waze, aviso
+  breve de ubicación en segundo plano y detalles opcionales; mantiene permisos,
+  errores y activación explícita del seguimiento.
+- Rediseño de «Tu entrega» del conductor: destino destacado, mapa adaptable con
+  controles flotantes, una entrada «Navegar», GPS compacto, fotografía del cilindro
+  y cobro agrupados. Acción de avance fija abajo, confirmación final en hoja y
+  actualización al deslizar. Conserva permisos, animación, cámara manual y cierre
+  del seguimiento. [Diseño y referencias](docs/design.md#tu-entrega-del-conductor).
+- Navegación del conductor: mapa a pantalla completa, polilínea real, zoom manual
+  y «Ver toda la ruta»; destinos exactos en Google Maps/Waze. GPS Android durante
+  navegación con TaskManager, permisos, notificación, consentimiento por entrega,
+  cierre ante pausa/logout/terminal y sin cola offline. Refresh del mismo token
+  conserva la pantalla activa. APK ARM64 compilado, firmado verificado e instalado.
+- Directions de servidor autorizado y configurado como secreto en Test/app;
+  OSRM autorizado solo para demo Apple, con atribución y presupuesto. Cachés y
+  leases por proveedor; migración/función en ambos proyectos. Rutas ficticias reales
+  respondieron correctamente. Ensayo físico de navegación/GPS sigue pendiente.
+  [ADR 0036](docs/decisions/0036-driver-navigation-background-gps.md).
+- Apple Maps recuperado en selector y «Tu pedido» de Expo Go iOS por indicación
+  del operador. Giro de imagen relativo a la cámara para el camión Apple, con
+  lecturas de heading limitadas y descartadas al desmontar. Google mantiene
+  rotación nativa; cámara manual, frescura y animación de posición conservadas.
+  Directions se consulta/dibuja únicamente sobre Google Maps; Apple usa GPS.
+  Regresiones dirigidas y tipos aprobados; comprobación visual del iPhone pendiente.
+- Diagnóstico del mapa ausente: Expo Go iOS incluye `react-native-maps/Maps`, sin
+  Google Maps. Guard de capacidad nativa compartido por selector/seguimiento y
+  regresión de SDK ausente aunque haya clave configurada. No se cambia el
+  requisito Google obligatorio sin resolver con el operador la incompatibilidad
+  con Expo Go iOS. [Limitación y fuentes](docs/vehicle-motion.md).
+- Google Maps en todos los MapView de iOS/Android; Expo Go no exige claves propias.
+  Plugin preparado con variables separadas para futuros builds. Clave iOS creada
+  con restricciones de bundle/SDK; sin EAS, firma ni compilación iOS.
+- Camión con posición interpolada desde la pose visual, giro corto limitado a
+  180°/s, filtro de 4 m, pausa al ocultar pantalla y rotación nativa `flat`.
+  Ruta real con Directions (Legacy), caché privada por pedido, acceso autorizado,
+  lease, recálculo por desvío sostenido y cierre terminal; migración y función en
+  Test/app. Falta credencial del servidor; GPS continúa como fallback.
+- Pruebas dirigidas de geometría, animación, proveedor, cliente/servidor y SQL;
+  simulación reproducible con el mismo motor. Visibilidad/rotación en Expo Go no
+  verificadas desde este PC. [Guía](docs/vehicle-motion.md), [ADR 0035](docs/decisions/0035-google-vehicle-route.md).
+
+### 2026-10-24
+
+- Corrección de marcadores invisibles reportados: imagen RN dentro de marcador con
+  tamaño/layout explícitos; captura después de cargar y respaldo ante error, sin
+  usar el cargador legado de `Marker.image`. Camión cenital semirrealista con
+  cilindros, generado usando la referencia del operador; recurso local transparente.
+  Regresión de carga/pintura/respaldo aprobada; visibilidad física pendiente.
+- Cliente: marcadores originales de casa y camioneta Gasway, con monograma/paleta
+  oficiales y recursos locales 1x/2x/3x; casa también en el selector de destino.
+- «Ver detalles del pedido» ordena foto pequeña, producto/canje, pago/total,
+  entrega, historial y registro. «Actualizar pedido» se reemplaza por tirar hacia
+  abajo con indicador nativo de marca; refresca datos visibles de esa cuenta/pedido,
+  se une a lecturas en curso y mantiene silenciosas las actualizaciones automáticas.
+  Tipos, lint y suites dirigidas aprobados; apariencia nativa pendiente de comprobar.
+  Sin cambios al conductor, hero ni backend. [Diseño](docs/design.md).
+- «Tu pedido» del cliente refinado desde seguimiento hacia abajo: mapa compacto,
+  estado/leyenda breves y tarjeta de compra/entrega/distribuidora. Historial y datos
+  extensos pasan a «Ver detalles». Hero, ilustración y conductor intactos.
+- Cámara del cliente conserva zoom/centro tras gestos, polling, muestras nuevas y
+  recuperación; «Ver ambos» reencuadra a petición. Regresión automática aprobada;
+  revisión en teléfono pendiente. [Diseño y referencias ScreensDesign](docs/design.md).
+- Guion D3 corregido para la conexión actual Android–Metro por USB: sin distancia
+  obligatoria ni salida de cobertura. Ensayo SQL ampliado para comprobar segunda
+  posición recibida por el cliente y destino fijo: aprobado en Test con rollback,
+  separado de la evidencia física.
+- Modo avión, sin internet y permiso solicitado de nuevo marcados aprobados por
+  indicación del operador, conservando recuperación manual tras pérdida de red.
+- Selector y seguimiento iOS usan Apple Maps nativo en Expo Go; Android conserva
+  Google Maps y su clave restringida. iOS exige confirmar pin para pedidos nuevos,
+  como Android. Sin dependencias nuevas, build iOS, cambios de cloud ni facturación.
+  Tipos, lint y pruebas dirigidas aprobados; ensayo visual pendiente.
+  [Guion de prueba](docs/live-tracking.md), [ADR 0034](docs/decisions/0034-ios-native-maps-demo.md).
+
+- Evidencia D3 del operador: pausa, recuperación tras pausa, segundo plano,
+  entrega y cancelación reportados correctos. Sin red recupera GPS mediante
+  activación manual: el error de verificación de acceso retira la pantalla y
+  reinicia la intención local. Reconexión automática abierta. En la repetición
+  de permiso rechazado se confirmó aviso rojo y ausencia de ubicaciones nuevas
+  hasta conceder permiso: ensayo aprobado según el operador.
+  Diagnóstico y pasos precisos en [D3](docs/live-tracking.md). Sin cambios de código/cloud.
+
+- Guion D3 ampliado con pasos básicos por cuenta/dispositivo y ensayos de uno en
+  uno. Distingue pruebas automáticas, recepción física GPS y verificación visual.
+  Bloqueo confirmado: mapa Google sin configuración iOS; el iPhone en Expo Go
+  no puede aprobar el ensayo del marcador con el código actual. Sin cambios de
+  código, claves o cloud. [Guion y resultados esperados](docs/live-tracking.md).
+
+- Refrescos automáticos silenciosos: los botones de pedidos, seguimiento, cuenta,
+  cobertura y gestión del negocio dejan de alternar texto/opacidad con cada consulta.
+  `RefreshButton` responde solo al gesto manual y evita dobles pulsaciones; polling,
+  Realtime y caducidad GPS se conservan. Sin cambio nativo: basta recargar Metro.
+  Typecheck aprobado; comprobación visual pendiente en los teléfonos.
+  [Criterio visual](docs/design.md), [seguimiento](docs/live-tracking.md).
+
+- Diagnosticados dos iconos Gasway en Samsung: mismo APK SDK 58 en perfil principal
+  y clon `DUAL_APP`. El crash SSAID del inspector corresponde al clon; para la demo
+  usar el icono sin distintivo naranja. Hash principal verificado, arranque reportado
+  por el operador y sin borrar apps/datos. [Diagnóstico](docs/expo-runtime.md).
+
+- Development build Android ARM64 SDK 58 compilado e instalado como actualización
+  en el Samsung SM-A226BR. Firma de D1 conservada, clave Maps comprobada dentro del
+  APK y hash del binario instalado verificado. Corregidas rutas CMake de Windows
+  con plugin local; typecheck aprobado. Sin prueba visual de sesión, mapa o GPS.
+  [Build y conexión de ambos teléfonos](docs/expo-runtime.md).
+
+- Actualizado el runtime de SDK 57 a SDK 58 para el nuevo Expo Go de iOS, con
+  dependencias nativas compatibles. Web conserva salida SPA explícita. Los builds
+  nativos SDK 57 requieren regeneración y recompilación; prueba física pendiente.
+  Expo Doctor 20/20 y typecheck aprobados tras deduplicar el monorepo.
+  [Comandos y alcance](docs/expo-runtime.md).
+
+- D3 conecta GPS explícito en primer plano del conductor y Google Maps con destino/
+  repartidor en el cliente. Lectura por usuario/pedido, Realtime con reconsulta,
+  polling, caducidad monotónica, cancelación y limpieza de sesión/caché; sin cola
+  offline ni segundo plano. Destino ampliado en RPC y migración Test/app.
+  Tipos, lint y pruebas dirigidas aprobados; prueba física D3 pendiente.
+  [Guía de uso](docs/live-tracking.md), [ADR 0033](docs/decisions/0033-foreground-tracking-lifecycle.md).
+
+- D0/D1 marcados completados por solicitud del operador; Trabajo de D1 actualizado
+  a Gasway Maps (`mapapp-389403`, antes MapAPP) y facturación existente activa.
+- D2 implementa GPS por pedido con RPC, muestras privadas, recepción/frescura de
+  servidor, límite de frecuencia y borrado terminal. Realtime solo avisa revisiones;
+  coordenadas se releen con autorización. Migración Test/app, pruebas GPS/permisos/
+  avance y contratos aprobadas; [evidencia y límites](docs/gps-contract.md),
+  [ADR 0032](docs/decisions/0032-order-gps-contract.md). Captura/vista siguen en D3.
+
+- Maps de la demo trasladado a `mapapp-389403` por indicación del operador: facturación
+  existente activa, nombre visible Gasway Maps y clave Android nueva restringida.
+  Clave/servicios antiguos conservados; sin vincular facturación ni medios de pago.
+  APK recompilado y firma verificada; falta prueba en teléfono. Evidencia en
+  [D1](docs/maps-setup.md).
+
+- D1 implementa Google Maps Android, pin confirmado e invalidación al cambiar dirección
+  o comuna. RPC atómica guarda el punto con reintentos sin doble reserva; migración
+  aplicada en Test/app, prueba SQL dirigida, formulario y tipos aprobados. Clave
+  restringida y SDK habilitado en `gw-dst`; facturación/dispositivo siguen pendientes.
+  [Maps](docs/maps-setup.md), [ADR 0031](docs/decisions/0031-mapped-delivery-point.md).
+
+- Preparación D1: inventario local de Maps/Android, huella de firma de desarrollo,
+  acceso requerido y procedimiento de Google Cloud CLI. Sin cambios de código,
+  credenciales, facturación ni servicios cloud; [guía de Maps](docs/maps-setup.md).
+
 ### 2026-10-23
+
+- D0 preparado en el cloud de la app: limpieza autorizada de cuatro cuentas,
+  conservación de cliente/conductor/responsable y aprobación administrativa del
+  conductor para demo, con auditoría y verificación de RPC bajo permisos restringidos.
+  Stock, cobertura e historial conservados. [Entorno y evidencia](docs/demo-environment.md).
+
+- Priorizada demo privada antes de completar el roadmap: investigación sobre
+  exclusividad y apps externas, consulta contractual sugerida y plan D0–D5 con
+  Google Maps y GPS real en primer plano. Fuentes, límites y criterios de salida en
+  [demo y validación comercial](docs/demo-commercial-validation.md). Sin cambios cloud.
+
+- Rediseñado «Revisa tu correo» tras el registro: lienzo crema, sobre vectorial
+  oliva/lima, dirección destacada y seleccionable, instrucciones numeradas y ayuda
+  de spam. Una acción principal de ingreso, con scroll y texto escalable. Inspiración
+  y alcance en [diseño](docs/design.md); pendiente revisión visual en dispositivo.
+
+- Contraseña de registro y restablecimiento administrativo: mínimo 8 caracteres,
+  una mayúscula A-Z y un número, sin exigir minúsculas ni símbolos. Mensajes y
+  regresiones ajustados; ingreso compatible con cuentas existentes. Overlay cloud
+  aplicado y verificado en Test y app tras autorización explícita: mínimo 8 y
+  letra+número (la mayúscula solo se valida en app/helper). Indicador del registro
+  con cruz/check por requisito, actualizado al escribir, pegar o borrar, con tokens
+  de Gasway y estados accesibles. [Decisión y estado](docs/decisions/0030-accessible-password-policy.md).
+
+- DT-07 condición 4: exportación nativa PostgreSQL → age sin dump sin cifrar en
+  disco; primera copia de app, roles sin contraseñas y manifiesto en Drive privado,
+  con descifrado local y readback SHA-256 correctos. Inicializador con ACL privada,
+  comandos `backup:init/create/check` y pruebas de integridad/fallos. Nacho aprueba
+  objetivos RPO/RTO y cadencia 12 h. Parcial por custodia de clave fuera del PC;
+  restauración pendiente de condición 5. [Evidencia](docs/backups.md), ADR 0029.
+
+- DT-07 condición 3 aprobada y cerrada: el operador confirma correspondencia
+  `gasway-github-tests` → `SUPABASE_TEST_ACCESS_TOKEN`, completando la evidencia
+  de alcance/caducidad, Data API, MFA y responsable unipersonal. Sin cambio de
+  token/secret ni nuevas pruebas cloud. Condiciones 4–6 pendientes; piloto no
+  habilitado. [Evidencia](docs/platform-access-security.md).
+
+- DT-07 condición 3: operador confirma MFA de Supabase/GitHub, operación
+  unipersonal a cargo de Nacho y exclusión de Maps del piloto. Proyecto Google
+  actual identificado como `gw-dst` (`494420889765`); proyectos antiguos excluidos.
+  La confirmación posterior del PAT cierra la condición; [evidencia actualizada](docs/platform-access-security.md).
+
+- Guía paso a paso para crear un PAT de Supabase limitado a Gasway Test,
+  reemplazar `SUPABASE_TEST_ACCESS_TOKEN` en el environment `gasway-test` y
+  verificar ambas suites en Actions. [Guía](docs/ci-token-rotation.md) conservada
+  para futuras renovaciones; no fue necesario ejecutarla para este cierre.
+
+- DT-07 condición 3: revisión de solo lectura de esquemas Data API, alcance y
+  caducidad del PAT, environment/revisor/secret CI, credenciales Google y MFA.
+  Data API verificado; PAT de Test vence 2026-11-21. MFA Supabase sin configurar;
+  GitHub, alcance Maps y responsables de incidentes pendientes. Condición parcial,
+  sin cambios cloud ni habilitación del piloto; [evidencia](docs/platform-access-security.md).
+
+- DT-07 condición 2: mínimo de 15 caracteres en registro/restablecimiento y ambos
+  clouds; límites de ingreso/verificación a 10 por 5 min/IP e intervalo de correo
+  de 2 min. Overlay parcial preserva las redirecciones aprobadas. Configurador
+  Gmail SMTP sin costo de dominio/plan, clave oculta y sin env files; configurado
+  en ambos proyectos, con recepción real verificada en Test y limpieza correcta.
+  Decisiones de filtradas y abuso con responsable/plazo en
+  [su evidencia](docs/auth-abuse-smtp.md), ADR 0028. **Aprobada (2026-10-23)**.
 
 - Integradas las entregas de seguridad DT-07, marca, carga y registro en una rama
   para PR hacia main; las ramas anteriores de DT-02/03 ya estaban integradas.

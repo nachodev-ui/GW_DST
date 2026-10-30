@@ -14,6 +14,7 @@ import { Icon } from '@/shared/ui/icon';
 import { PulsePressable } from '@/shared/ui/pulse-pressable';
 import { Text } from '@/shared/ui/text';
 import { theme } from '@/theme';
+import { registrationPasswordRequirements } from '@/features/auth/credentials';
 
 /** Decorative route and doorway, drawn in the existing brand palette. */
 function AccessArtwork() {
@@ -229,6 +230,37 @@ export function RegistrationPhonePrefix() {
   );
 }
 
+export function PasswordRequirements({ password }: { password: string }) {
+  return (
+    <View style={styles.passwordRequirements}>
+      {registrationPasswordRequirements.map((requirement) => {
+        const met = requirement.check(password);
+        return (
+          <View
+            key={requirement.label}
+            accessible
+            accessibilityLabel={`${requirement.label}: ${met ? 'cumplido' : 'pendiente'}`}
+            accessibilityLiveRegion="polite"
+            style={styles.passwordRequirement}
+          >
+            <Icon
+              name={met ? 'check' : 'close'}
+              color={met ? theme.colors.success : theme.colors.error}
+              size={theme.spacing.md}
+            />
+            <Text
+              variant="note"
+              style={[styles.passwordRequirementText, met && styles.passwordRequirementMet]}
+            >
+              {requirement.label}
+            </Text>
+          </View>
+        );
+      })}
+    </View>
+  );
+}
+
 export function AccessFeedback({ text, error = false }: { text: string; error?: boolean }) {
   return (
     <Text
@@ -243,6 +275,21 @@ export function AccessFeedback({ text, error = false }: { text: string; error?: 
 }
 
 export const styles = StyleSheet.create({
+  passwordField: { gap: theme.spacing.sm },
+  passwordRequirements: {
+    gap: theme.spacing.xs,
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.compact,
+    borderRadius: theme.radii.control,
+    backgroundColor: theme.colors.warm,
+  },
+  passwordRequirement: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.sm,
+  },
+  passwordRequirementText: { flex: 1, color: theme.colors.textMuted },
+  passwordRequirementMet: { color: theme.colors.success },
   stepSafe: { backgroundColor: theme.colors.background },
   stepHeader: {
     width: '100%',

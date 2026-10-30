@@ -17,10 +17,12 @@ begin
     insert into auth.users (id) values (customer), (assigned_driver), (other_driver);
     update public.profiles set role = 'driver' where id in (assigned_driver, other_driver);
     insert into public.drivers (id, is_verified, is_available)
-      values (assigned_driver, true, true), (other_driver, true, true);
+      values (assigned_driver, true, false), (other_driver, true, false);
     insert into public.distributors(id,name,is_verified) values(organization,'Negocio de prueba de entregas',true);
     insert into public.distributor_brands values(organization,'Gasco');
     update public.drivers set distributor_id=organization where id in(assigned_driver,other_driver);
+    perform private.seed_test_document_fixture(assigned_driver);
+    perform private.seed_test_document_fixture(other_driver);
     insert into public.distributor_communes values(organization,'13101');
     insert into public.products (brand, weight_kg, unit_price_clp, is_active)
       values ('Gasco', 11, 12345, true)

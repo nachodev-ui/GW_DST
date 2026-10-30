@@ -1,10 +1,19 @@
-import { useContext, type PropsWithChildren, type ReactNode, type Ref } from 'react';
 import {
+  useContext,
+  useRef,
+  useState,
+  type PropsWithChildren,
+  type ReactNode,
+  type Ref,
+} from 'react';
+import {
+  ActivityIndicator,
   Pressable,
   StyleSheet,
   TextInput,
   View,
   type TextInputProps,
+  type TextInputInstance,
   type StyleProp,
   type ViewStyle,
   type ViewProps,
@@ -20,6 +29,7 @@ type ButtonProps = {
   accessibilityLabel?: string;
   onPress: () => void;
   disabled?: boolean;
+  loading?: boolean;
   variant?: 'primary' | 'secondary' | 'link' | 'destructive';
   style?: StyleProp<ViewStyle>;
 };
@@ -28,6 +38,7 @@ export function Button({
   accessibilityLabel,
   onPress,
   disabled = false,
+  loading = false,
   variant = 'primary',
   style,
 }: ButtonProps) {
@@ -36,16 +47,23 @@ export function Button({
       haptic={variant === 'primary'}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel ?? label}
-      accessibilityState={{ disabled }}
-      disabled={disabled}
+      accessibilityState={{ disabled: disabled || loading, busy: loading }}
+      disabled={disabled || loading}
       onPress={onPress}
       style={[
         ui.button,
         variant === 'primary' && ui.primary,
         variant === 'secondary' && ui.secondary,
+        variant === 'link' && ui.linkButton,
         style,
       ]}
     >
+      {loading ? (
+        <ActivityIndicator
+          accessible={false}
+          color={variant === 'primary' ? theme.colors.onPrimary : theme.colors.primary}
+        />
+      ) : null}
       <Text
         variant="label"
         compact
@@ -66,6 +84,41 @@ export function Button({
   );
 }
 
+// Background query activity must not look like a user pressing Refresh.
+export function RefreshButton({
+  onRefresh,
+  label,
+  refreshingLabel = 'Actualizando…',
+  disabled = false,
+  ...props
+}: Omit<ButtonProps, 'onPress'> & {
+  onRefresh: () => Promise<unknown>;
+  refreshingLabel?: string;
+}) {
+  const [refreshing, setRefreshing] = useState(false);
+  const inFlight = useRef(false);
+  const refresh = async () => {
+    if (disabled || inFlight.current) return;
+    inFlight.current = true;
+    setRefreshing(true);
+    try {
+      await onRefresh();
+    } finally {
+      inFlight.current = false;
+      setRefreshing(false);
+    }
+  };
+  return (
+    <Button
+      {...props}
+      label={refreshing ? refreshingLabel : label}
+      disabled={disabled || refreshing}
+      // Query hooks own error feedback, including a failed manual refresh.
+      onPress={() => void refresh().catch(() => undefined)}
+    />
+  );
+}
+
 export function Input({
   label,
   help,
@@ -83,7 +136,7 @@ export function Input({
   prefix?: ReactNode;
   frameStyle?: StyleProp<ViewStyle>;
   hideLabel?: boolean;
-  ref?: Ref<TextInput>;
+  ref?: Ref<TextInputInstance>;
 }) {
   const ready = useContext(FontReadyContext);
   return (
@@ -218,6 +271,7 @@ export function Stepper({
         <Button
           variant="secondary"
           label="−"
+          style={ui.stepControl}
           accessibilityLabel="Quitar un cilindro"
           disabled={disabled || value <= 1}
           onPress={() => onChange(value - 1)}
@@ -234,6 +288,7 @@ export function Stepper({
         <Button
           variant="secondary"
           label="+"
+          style={ui.stepControl}
           accessibilityLabel="Agregar un cilindro"
           disabled={disabled || value >= 99}
           onPress={() => onChange(value + 1)}
@@ -253,11 +308,11 @@ export function SegmentedChoice({
   disabled?: boolean;
 }) {
   return (
-    <View style={ui.equalRow} accessibilityRole="radiogroup" accessibilityLabel="Canje de envase">
+    <View style={ui.equalRow} accessibilityRole="radiogroup" accessibilityLabel="Canje de cilindro">
       {[true, false].map((option) => (
         <View key={String(option)} style={ui.flex}>
           <OptionCard
-            label={option ? 'Entrego envase vacío' : 'Necesito envase'}
+            label={option ? 'Entrego cilindro vacío' : 'Necesito cilindro'}
             selected={value === option}
             onPress={() => onChange(option)}
             disabled={disabled}
@@ -298,10 +353,14 @@ export function StatusBadge({
   label,
   icon,
   tone = 'primary',
+  labelVariant,
+  compact = false,
 }: {
   label: string;
   icon?: IconName;
   tone?: 'neutral' | 'primary' | 'accent' | 'success' | 'error' | 'warning' | 'progress';
+  labelVariant?: 'note' | 'label' | 'subtitle';
+  compact?: boolean;
 }) {
   const color = tone === 'neutral' ? theme.colors.textMuted : theme.colors[tone];
   const statusIcon = icon ?? (tone === 'success' ? 'check' : tone === 'error' ? 'close' : 'clock');
@@ -311,23 +370,32 @@ export function StatusBadge({
       accessibilityLabel={label}
       style={[
         ui.badge,
-        {
-          backgroundColor:
-            tone === 'neutral'
-              ? theme.colors.warm
-              : tone === 'accent'
-                ? theme.colors.accentLight
-                : tone === 'success' ||
-                    tone === 'error' ||
-                    tone === 'warning' ||
-                    tone === 'progress'
-                  ? theme.colors[`${tone}Light`]
-                  : theme.colors.primaryLight,
-        },
+        compact
+          ? ui.compactStatus
+          : tone === 'success'
+            ? ui.positiveStatus
+            : {
+                backgroundColor:
+                  tone === 'neutral'
+                    ? theme.colors.warm
+                    : tone === 'accent'
+                      ? theme.colors.accentLight
+                      : tone === 'error' || tone === 'warning' || tone === 'progress'
+                        ? theme.colors[`${tone}Light`]
+                        : theme.colors.primaryLight,
+              },
       ]}
     >
-      <Icon name={statusIcon} color={color} />
-      <Text variant="label" compact style={{ color, flexShrink: 1 }}>
+      <Icon
+        name={statusIcon}
+        color={color}
+        size={compact || tone === 'success' ? theme.layout.tagRemoveIcon : theme.layout.icon}
+      />
+      <Text
+        variant={labelVariant ?? (compact || tone === 'success' ? 'note' : 'label')}
+        compact
+        style={{ color, flexShrink: 1 }}
+      >
         {label}
       </Text>
     </View>
@@ -412,6 +480,8 @@ export const ui = StyleSheet.create({
   choiceMark: { minHeight: theme.layout.icon, alignItems: 'center' },
   choiceLabel: { textAlign: 'center' },
   button: {
+    flexDirection: 'row',
+    gap: theme.spacing.sm,
     width: '100%',
     minHeight: theme.layout.buttonHeight,
     padding: theme.spacing.md,
@@ -420,6 +490,8 @@ export const ui = StyleSheet.create({
     justifyContent: 'center',
   },
   primary: { ...theme.elevation.low, backgroundColor: theme.colors.primary },
+  // In a row, a full-width link takes the sibling's entire text width on Yoga.
+  linkButton: { width: 'auto', flexShrink: 1, paddingHorizontal: theme.spacing.sm },
   secondary: {
     backgroundColor: theme.colors.warm,
   },
@@ -491,11 +563,20 @@ export const ui = StyleSheet.create({
   equalRow: { flexDirection: 'row', gap: theme.spacing.sm, alignItems: 'stretch' },
   stepper: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
     alignItems: 'center',
-    gap: theme.spacing.xl,
+    gap: theme.spacing.sm,
+    flexShrink: 0,
   },
-  stepSide: { minWidth: theme.layout.touchTarget },
+  stepSide: { width: theme.layout.touchTarget, flexShrink: 0 },
+  stepControl: {
+    width: theme.layout.touchTarget,
+    minHeight: theme.layout.touchTarget,
+    paddingHorizontal: theme.spacing.none,
+    paddingVertical: theme.spacing.sm,
+    borderRadius: theme.radii.pill,
+    backgroundColor: theme.colors.background,
+  },
   header: { flexDirection: 'row', alignItems: 'center', gap: theme.spacing.sm },
   brandHeader: {
     flexDirection: 'row',
@@ -519,6 +600,16 @@ export const ui = StyleSheet.create({
     paddingHorizontal: theme.spacing.compact,
     paddingVertical: theme.spacing.sm,
     maxWidth: '100%',
+  },
+  positiveStatus: {
+    paddingHorizontal: theme.spacing.none,
+    paddingVertical: theme.spacing.xs,
+  },
+  compactStatus: {
+    borderWidth: theme.borders.thin,
+    borderColor: theme.colors.surfaceBorder,
+    paddingHorizontal: theme.spacing.sm,
+    paddingVertical: theme.spacing.xs,
   },
   section: {
     gap: theme.spacing.lg,

@@ -9,7 +9,7 @@ a Expo; no se crean Next.js, otro catálogo CUT ni una base paralela de distribu
 1. Dirección y comuna oficial existente. Ubicación opcional en Android/iOS mediante
    expo-location y geocodificación del sistema. No se aproxima a una comuna cercana:
    una coincidencia ambigua exige selección manual. Revisar siempre número y comuna.
-2. Tamaño, marca a recibir, variante existente, cantidad 1–99, canje y marca del envase
+2. Tamaño, marca a recibir, variante existente, cantidad 1–99, canje y marca del cilindro
    devuelto (incluye «No sé / Otra marca»). Se reutilizan las imágenes y tokens.
    La marca devuelta no excluye vendedores ni agrega recargos; no acredita compatibilidad
    de válvula/condición. Esa revisión e inventario inverso completos siguen pendientes.
@@ -42,8 +42,15 @@ presume que el antiguo precio global sea un precio de vendedor ni un precio con 
 El negocio sigue editando stock/publicación con control de revisión concurrente.
 
 «Habilitada en Gasway» no se presenta como acreditación SEC. No se inventan reseñas,
-valoraciones, precios, stock, horarios ni ETA. Los negocios demo conservan señalización
-individual y aviso descartable; no abren WhatsApp ni se crean ocho negocios ficticios.
+valoraciones, precios, stock, horarios ni ETA. Desde el rediseño del 2026-10-27,
+por petición del operador, los pasos de selección y revisión no muestran banners
+demo repetidos. Se conserva is_demo y los negocios ficticios no abren WhatsApp.
+
+La selección usa fotografías, contador acotado y canje visual. Las tarjetas muestran
+el total de la modalidad elegida; precios alternativos, horario y criterio de orden
+se consultan en detalles. El pie reúne imagen, producto/comuna y acceso a editar.
+Las distribuidoras se actualizan tirando hacia abajo, sin otro botón de refresco.
+El servidor sigue validando precio, cobertura, stock y disponibilidad al confirmar.
 
 «Consultar por WhatsApp» abre `wa.me` con saludo y consulta general. El cliente decide
 enviar el mensaje en WhatsApp. No incluye dirección, coordenadas, RUT ni confirmación

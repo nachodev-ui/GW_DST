@@ -1,4 +1,6 @@
 const { uuid, guarded, asActor } = require('./concurrency.cjs');
+const fs = require('node:fs');
+const path = require('node:path');
 
 function fixture(ref, ids, stock, count, accepted = false) {
   const users = [ids.customer, ids.customer2, ids.driver, ids.driver2];
@@ -20,7 +22,11 @@ insert into public.distributors(id,name,is_verified,is_demo) values(${uuid(ids.b
 insert into public.distributor_brands values(${uuid(ids.business)},'Gasco');
 insert into public.distributor_communes values(${uuid(ids.business)},'13101');
 insert into public.drivers(id,is_verified,is_available,distributor_id) values
-  (${uuid(ids.driver)},true,true,${uuid(ids.business)}),(${uuid(ids.driver2)},true,true,${uuid(ids.business)});
+  (${uuid(ids.driver)},true,false,${uuid(ids.business)}),(${uuid(ids.driver2)},true,false,${uuid(ids.business)});
+${fs.readFileSync(path.join(__dirname, '../../supabase/tests/helpers/document-fixture.sql'), 'utf8')}
+select private.seed_test_document_fixture(${uuid(ids.driver)});
+select private.seed_test_document_fixture(${uuid(ids.driver2)});
+drop function private.seed_test_document_fixture(uuid,boolean,uuid);
 do $fixture$
 declare product uuid; payload jsonb; orders jsonb := '[]';
 begin
@@ -77,6 +83,10 @@ end $idle$;
 delete from public.order_events where order_id in(select id from public.orders where distributor_id=${uuid(ids.business)});
 delete from private.order_stock_reservations where distributor_id=${uuid(ids.business)};
 delete from public.orders where distributor_id=${uuid(ids.business)};
+-- These are synthetic Storage metadata rows, never uploaded real files.
+delete from storage.objects where bucket_id in ('documents','vehicle-photos') and name like '${ids.business}/%';
+delete from public.distributor_vehicles where distributor_id=${uuid(ids.business)};
+delete from public.driver_applications where driver_id in(${uuid(ids.driver)},${uuid(ids.driver2)});
 delete from public.drivers where id in(${uuid(ids.driver)},${uuid(ids.driver2)});
 delete from public.distributor_products where distributor_id=${uuid(ids.business)};
 delete from public.distributor_communes where distributor_id=${uuid(ids.business)};

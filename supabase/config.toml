@@ -34,7 +34,26 @@ additional_redirect_urls = ["gasway://auth/confirm"]
 jwt_expiry = 3600
 enable_signup = true
 enable_anonymous_sign_ins = false
+minimum_password_length = 8
+# Supabase has no uppercase + digit preset without also requiring lowercase.
+# The app requires uppercase; Auth requires a letter (either case) and a digit.
+password_requirements = "letters_digits"
+
+[auth.rate_limit]
+email_sent = 2
+sign_in_sign_ups = 10
+token_verifications = 10
 
 [auth.email]
 enable_signup = true
 enable_confirmations = true
+max_frequency = "2m"
+otp_length = 8
+
+# User JWT is verified online in the function, then order authorization runs in SQL.
+[functions.order-route]
+verify_jwt = false
+
+# Online Auth validation plus current SQL membership/admin authorization.
+[functions.delete-document-owner]
+verify_jwt = false

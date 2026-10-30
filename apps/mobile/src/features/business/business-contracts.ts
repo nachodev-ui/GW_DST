@@ -120,12 +120,21 @@ export type Affiliation = z.infer<typeof affiliationSchema>;
 export function businessError(error: unknown) {
   const parsed = z.object({ code: z.string() }).safeParse(error);
   switch (parsed.success ? parsed.data.code : '') {
+    case 'GD001':
+      return 'El conductor necesita licencia vigente revisada por administración.';
+    case 'GD002':
+      return 'Completa la foto y los documentos vigentes del vehículo antes de marcarlo disponible.';
     case '40001':
-      return 'Otra persona actualizó este producto. Actualiza los datos antes de guardar de nuevo.';
+      return 'Otra persona actualizó estos datos. Carga la versión actual antes de guardar de nuevo.';
     case '42501':
       return 'Tu sesión o tus permisos cambiaron. Actualiza el acceso para continuar.';
     case '55000':
-      return 'La solicitud cambió. Actualiza su estado antes de continuar.';
+      return 'La operación está en curso o su estado cambió. Actualiza los datos; los vehículos no se editan durante una entrega.';
+    case '23505':
+      return 'La patente o el conductor ya están vinculados a un vehículo. Revisa la flota.';
+    case '23514':
+    case '23503':
+      return 'Revisa los campos y selecciona una comuna o un conductor vigente del catálogo.';
     case '22023':
       return 'Revisa los datos ingresados y las marcas autorizadas del negocio.';
     default:

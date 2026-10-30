@@ -44,6 +44,9 @@ begin
     perform set_config('request.jwt.claims',json_build_object('sub',driver_id)::text,true);
     perform public.set_driver_availability(false);
     if (public.get_driver_settings()->>'is_available')::boolean then raise exception 'FAIL: saved coverage enables availability';end if;
+    execute 'reset role';
+    perform private.seed_test_document_fixture(driver_id,false);
+    execute 'set local role authenticated';
     perform public.set_driver_availability(true);
     execute 'reset role';
     insert into public.products(brand,weight_kg,variant,unit_price_clp,is_active) values('Lipigas',11,'standard',12345,true)
